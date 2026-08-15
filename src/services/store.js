@@ -1,0 +1,16 @@
+import { repository } from './repository.js';
+
+class Store {
+  constructor(){ this.data=null; this.listeners=new Set(); }
+  async init(){ this.data=await repository.load(); this.emit(); return this.data; }
+  subscribe(fn){ this.listeners.add(fn); return()=>this.listeners.delete(fn); }
+  emit(){ this.listeners.forEach(fn=>fn(this.data)); }
+  async commit(mutator,auditMessage='Cambio registrado'){
+    mutator(this.data);
+    const userId=this.data.session.userId;
+    this.data.audit.unshift({id:`AUD-${Date.now()}`,type:'CHANGE',message:auditMessage,userId,at:new Date().toISOString()});
+    await repository.save(this.data); this.emit();
+  }
+  async reset(){ this.data=await repository.reset(); this.emit(); }
+}
+export const store=new Store();

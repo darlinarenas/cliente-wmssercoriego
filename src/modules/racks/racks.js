@@ -1,0 +1,6 @@
+import { store } from '../../services/store.js'; import { shell,wireShell } from '../../layout/layout.js'; import { badge,esc } from '../../components/ui.js';
+export function renderRacks(root){
+ const d=store.data;
+ const cards=d.racks.map(r=>{const locs=d.locations.filter(l=>l.rackId===r.id&&l.active); const occ=locs.filter(l=>l.status!=='LIBRE').length; const tone=r.status==='ACTIVO'?'ok':'warn'; return `<article class="rack-card"><div class="rack-visual"><span>${esc(r.id)}</span><div>${r.modules?`${r.modules} módulos × ${r.levels} niveles`:'Estructura pendiente'}</div></div><div class="rack-card-body"><div class="panel-head"><h3>${esc(r.name)}</h3>${badge(r.status.replace('_',' '),tone)}</div><p>${esc(r.usage)}</p><div class="rack-stats"><span><b>${locs.length}</b> ubicaciones</span><span><b>${occ}</b> ocupadas</span></div><small>${esc(r.notes)}</small><a href="#/estructura" class="secondary">Configurar estructura</a></div></article>`}).join('');
+ root.innerHTML=shell('Racks',`<div class="page-intro"><div><span class="eyebrow">MAPA LÓGICO</span><h2>9 racks en Recoleta</h2><p>R1–R5 están modelados con 6 módulos × 3 niveles. R6–R9 están modelados con 6 módulos × 6 niveles y siguen siendo editables si cambia la estructura física.</p></div></div><div class="rack-grid">${cards}</div>`,'racks'); wireShell();
+}
