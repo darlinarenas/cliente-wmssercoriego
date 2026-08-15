@@ -1,3 +1,4 @@
+import { iniciarPWA } from './services/pwa.js';
 import { store } from './services/store.js';
 import { Router } from './core/router.js';
 import { renderDashboard } from './modules/inicio/inicio.js';
@@ -19,6 +20,7 @@ const router=new Router({
   estructura:()=>renderStructure(root),movimientos:()=>renderMovements(root),historial:()=>renderHistory(root),recepciones:()=>renderReceipts(root),
   transferencias:()=>renderTransfers(root),palets:()=>renderPallets(root),usuarios:()=>renderUsers(root),movil:()=>renderMovil(root)
 });
+await iniciarPWA();
 await store.init();
 if(!location.hash && window.matchMedia('(max-width: 760px)').matches){ location.hash='#/movil'; }
 router.render();

@@ -1,3 +1,4 @@
+import { instalarPWA, estadoPWA } from '../services/pwa.js';
 import { store } from '../services/store.js';
 import { esc } from '../components/ui.js';
 
@@ -17,7 +18,7 @@ export function shell(title,content,active='dashboard'){
       <div class="sidebar-foot"><a href="#/movil" class="view-switch sidebar-switch"><span class="view-switch-icon">▯</span><span><b>Vista para teléfono</b><small>Abrir modo operativo</small></span></a><small>Maqueta funcional · Almacenamiento local</small><small>Desarrollado por Vexhora Group · CEO Ing. Carlin Arenas</small><button id="reset-demo" class="ghost small">Restablecer demostración</button></div>
     </aside>
     <main>
-      <header class="topbar"><div><button id="menu-btn" class="menu-btn">☰</button><div><small>Bodega Recoleta</small><h1>${esc(title)}</h1></div></div><div class="top-actions"><a href="#/movil" class="view-switch"><span class="view-switch-icon">▯</span><span><b>Vista para teléfono</b><small>Modo operativo</small></span></a><a href="#/usuarios" class="user-pill" title="Cambiar operador">${esc(initials)} <span>${esc(currentUser?.name||'Sin operador')}</span></a></div></header>
+      <header class="topbar"><div><button id="menu-btn" class="menu-btn">☰</button><div><small>Bodega Recoleta</small><h1>${esc(title)}</h1></div></div><div class="top-actions"><button id="install-pwa" class="pwa-install-btn" type="button"><span>▣</span><span><b>Instalar app</b><small>PC / teléfono</small></span></button><a href="#/movil" class="view-switch"><span class="view-switch-icon">▯</span><span><b>Vista para teléfono</b><small>Modo operativo</small></span></a><a href="#/usuarios" class="user-pill" title="Cambiar operador">${esc(initials)} <span>${esc(currentUser?.name||'Sin operador')}</span></a></div></header>
       <section class="content">${content}</section>
     </main>
     <div id="toast" class="toast"></div>
@@ -25,6 +26,12 @@ export function shell(title,content,active='dashboard'){
 }
 
 export function wireShell(){
+  const installBtn=document.querySelector('#install-pwa');
+  if(installBtn){
+    const refrescar=()=>{const e=estadoPWA();installBtn.hidden=e.instalada;};
+    refrescar();
+    installBtn.addEventListener('click',()=>instalarPWA());
+  }
   document.querySelector('#menu-btn')?.addEventListener('click',()=>document.body.classList.toggle('menu-open'));
   document.querySelectorAll('.nav-link').forEach(a=>a.addEventListener('click',()=>document.body.classList.remove('menu-open')));
   document.querySelector('#reset-demo')?.addEventListener('click',async()=>{ if(confirm('¿Restablecer todos los datos de la maqueta?')){ await store.reset(); location.hash='#/dashboard'; location.reload(); }});

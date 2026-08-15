@@ -1,3 +1,4 @@
+import { instalarPWA, estadoPWA } from '../../services/pwa.js';
 import { store } from '../../services/store.js';
 import { esc, badge, empty } from '../../components/ui.js';
 import { crearEscaner } from '../../services/escaner.js';
@@ -63,7 +64,7 @@ function despachar(){
 
 function mas(){
  const d=store.data;
- return envoltorio('Más opciones',`<div class="movil-lista-menu"><a href="#/palets"><span>▣</span><div><b>Organizar palets</b><small>Buscar, escanear y ubicar productos</small></div><i>›</i></a><a href="#/racks"><span>▦</span><div><b>Racks</b><small>Consultar estructura</small></div><i>›</i></a><a href="#/productos"><span>◫</span><div><b>Productos</b><small>Catálogo registrado</small></div><i>›</i></a><a href="#/historial"><span>◷</span><div><b>Historial</b><small>Trazabilidad completa</small></div><i>›</i></a><a href="#/usuarios"><span>♙</span><div><b>Operador / usuarios</b><small>Cambiar responsable o administrar personas</small></div><i>›</i></a><a href="#/dashboard"><span>⚙</span><div><b>Panel administrativo</b><small>Configuración y control completo</small></div><i>›</i></a></div><section class="panel-movil"><small>Ubicaciones activas: <b>${d.locations.filter(l=>l.active).length}</b></small><small>Versión demostración · Desarrollado por Vexhora Group · CEO Ing. Carlin Arenas</small></section>`,'mas');
+ return envoltorio('Más opciones',`<div class="movil-lista-menu"><button id="movil-instalar-pwa" class="movil-menu-button" type="button"><span>▣</span><div><b>Instalar aplicación</b><small>Agregar SercoRiego WMS al dispositivo</small></div><i>›</i></button><a href="#/palets"><span>▣</span><div><b>Organizar palets</b><small>Buscar, escanear y ubicar productos</small></div><i>›</i></a><a href="#/racks"><span>▦</span><div><b>Racks</b><small>Consultar estructura</small></div><i>›</i></a><a href="#/productos"><span>◫</span><div><b>Productos</b><small>Catálogo registrado</small></div><i>›</i></a><a href="#/historial"><span>◷</span><div><b>Historial</b><small>Trazabilidad completa</small></div><i>›</i></a><a href="#/usuarios"><span>♙</span><div><b>Operador / usuarios</b><small>Cambiar responsable o administrar personas</small></div><i>›</i></a><a href="#/dashboard"><span>⚙</span><div><b>Panel administrativo</b><small>Configuración y control completo</small></div><i>›</i></a></div><section class="panel-movil"><small>Ubicaciones activas: <b>${d.locations.filter(l=>l.active).length}</b></small><small>Versión demostración · Desarrollado por Vexhora Group · CEO Ing. Carlin Arenas</small></section>`,'mas');
 }
 
 function modalCamara(){return `<dialog id="dialogo-camara" class="dialogo-camara"><div class="camara-cabecera"><div><b>Escanear código</b><small>Apunta al código de barras</small></div><button id="cerrar-camara" class="ghost">×</button></div><video id="video-camara" autoplay playsinline muted></video><div id="estado-camara" class="estado-camara">Solicitando cámara…</div></dialog>`;}
@@ -85,5 +86,9 @@ function cablearDespacho(root){cablearDesplegables();const t=transferenciaActiva
 export function renderMovil(root){
  const sec=seccion();
  if(sec==='buscar')root.innerHTML=buscador();else if(sec==='recibir')root.innerHTML=recibir();else if(sec==='despachar')root.innerHTML=despachar();else if(sec==='mas')root.innerHTML=mas();else root.innerHTML=inicio();
- if(sec==='buscar')cablearBuscar();else if(sec==='recibir')cablearRecibir(root);else if(sec==='despachar')cablearDespacho(root);else if(sec==='inicio')cablearInicio();else cablearDesplegables();
+ if(sec==='buscar')cablearBuscar();else if(sec==='recibir')cablearRecibir(root);else if(sec==='despachar')cablearDespacho(root);else if(sec==='inicio')cablearInicio();else {
+   cablearDesplegables();
+   const instalar=document.querySelector('#movil-instalar-pwa');
+   if(instalar){ instalar.hidden=estadoPWA().instalada; instalar.onclick=()=>instalarPWA(); }
+ }
 }
