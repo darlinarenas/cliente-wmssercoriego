@@ -39,7 +39,9 @@ export async function escanearEnCampo(inputId,{titulo='Escanear código',ayuda='
     cerrar();
   },msg=>{
     estado.textContent=msg;
-    onError?.(msg);
+    const texto=String(msg||'').toLowerCase();
+    const esEstado=texto.includes('cámara activa') || texto.includes('preparando lector');
+    if(!esEstado) onError?.(msg);
   });
   return ok;
 }
