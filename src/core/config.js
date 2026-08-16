@@ -1,6 +1,6 @@
 export const APP_CONFIG = {
   name: 'SercoRiego Lite WMS',
-  version: '0.6.0-maqueta',
+  version: '0.7.0-funcional-stock',
   storageKey: 'serco_wms_inventory_v1',
   activeSiteId: 'REC',
   apiBaseUrl: '/api',

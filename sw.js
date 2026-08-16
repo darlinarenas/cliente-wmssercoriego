@@ -1,4 +1,4 @@
-const CACHE = 'sercoriego-lite-wms-v1.4';
+const CACHE = 'sercoriego-lite-wms-v1.5';
 const PRECACHE = [
   "./",
   "./index.html",
@@ -40,6 +40,7 @@ const PRECACHE = [
   "./src/services/storage.js",
   "./src/services/store.js",
   "./src/services/ubicaciones.js",
+  "./src/services/inventory-ops.js",
   "./styles/app.css"
 ];
 

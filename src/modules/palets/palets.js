@@ -3,6 +3,7 @@ import { shell, wireShell, toast } from '../../layout/layout.js';
 import { esc, empty } from '../../components/ui.js';
 import { crearEscaner } from '../../services/escaner.js';
 import { buscarUbicacionPorCodigo, vistaCodigoUbicacion } from '../../services/ubicaciones.js';
+import { deductStock, addStock } from '../../services/inventory-ops.js';
 
 function params(){ return new URLSearchParams(location.hash.split('?')[1]||''); }
 function producto(code){ return store.data.products.find(p=>p.code===code); }
@@ -117,13 +118,12 @@ async function moverDesdePalet({palletId,code,qty,codigoManual='',selectValue=''
   const dest=resolverDestino(code,palletId,codigoManual,selectValue), error=validarDestino(code,palletId,dest);if(error)return {ok:false,message:error};
   const {to,destPallet,location}=dest, now=new Date().toISOString();
   await store.commit(d=>{
-    let remaining=qty;for(const inv of d.inventory.filter(i=>i.palletId===palletId&&i.productCode===code&&i.qty>0)){const take=Math.min(inv.qty,remaining);inv.qty-=take;remaining-=take;if(!remaining)break;}
-    d.inventory=d.inventory.filter(i=>i.qty>0);
-    let target=d.inventory.find(i=>i.productCode===code&&i.locationId===to&&(i.palletId||null)===destPallet);if(target)target.qty+=qty;else d.inventory.push({id:`INV-${Date.now()}-${code}`,productCode:code,locationId:to,qty,palletId:destPallet});
-    d.movements.unshift({id:`MOV-${Date.now()}`,productCode:code,qty,from:`${palletId} / ${palletBefore?.locationId||'POR UBICAR'}`,to:destPallet?`${destPallet} / ${to}`:to,reason:destPallet?'Consolidación / reposición desde palet':'Ubicación desde palet por doble escaneo',userId:d.session.userId,palletId,at:now,method:codigoManual?'ESCANEO_O_CODIGO':'SELECCION_MANUAL'});
-    const lt=d.locations.find(l=>l.id===to);if(lt)lt.status=lt.kind==='PICKING_RACK'?'OCUPADA':'PARCIAL';
-    const pal=d.pallets.find(x=>x.id===palletId), remains=d.inventory.some(i=>i.palletId===palletId&&i.qty>0);if(!remains){pal.status='VACÍO';const lf=d.locations.find(l=>l.id===pal.locationId);if(lf&&!d.inventory.some(i=>i.locationId===lf.id&&i.qty>0))lf.status='LIBRE';}else pal.status='POR_UBICAR';
-  },`${code} ubicado desde ${palletId} hacia ${to}`);
+    const result=deductStock(d,{code,qty,sourceKey:`${sourceRows[0].locationId}@@${palletId}`});
+    if(!result.ok)throw new Error(result.message);
+    const added=addStock(d,{code,qty,locationId:to,palletId:destPallet});
+    d.movements.unshift({id:`MOV-${Date.now()}`,type:'MOVIMIENTO_DESDE_PALET',productCode:code,qty,from:`${palletId} / ${palletBefore?.locationId||'POR UBICAR'}`,to:destPallet?`${destPallet} / ${to}`:to,reason:destPallet?'Consolidación / reposición desde palet':'Ubicación desde palet por doble escaneo',userId:d.session.userId,palletId,at:now,method:codigoManual?'ESCANEO_O_CODIGO':'SELECCION_MANUAL',beforeQty:available,afterQty:available-qty,destinationBeforeQty:added.beforeQty,destinationAfterQty:added.afterQty,allocations:result.allocations});
+    const pal=d.pallets.find(x=>x.id===palletId), remains=d.inventory.some(i=>i.palletId===palletId&&i.qty>0);if(pal)pal.status=remains?'POR_UBICAR':'VACÍO';
+  },`${code}: ${qty} un. descontadas de ${palletId} y sumadas a ${to}`);
   return {ok:true,message:`${code} ubicado en ${destPallet?`${destPallet} / `:''}${vistaCodigoUbicacion(location,store.data)}`,to};
 }
 
