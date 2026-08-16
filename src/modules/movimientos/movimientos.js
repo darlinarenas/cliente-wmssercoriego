@@ -3,7 +3,7 @@ import { shell,wireShell,toast } from '../../layout/layout.js';
 import { esc,empty } from '../../components/ui.js';
 import { productPositions,positionKey,deductStock,addStock } from '../../services/inventory-ops.js';
 import { enlazarBotonEscaner } from '../../services/camara-ui.js';
-import { activarSonidosEscaner,sonidoEscaneoOk,sonidoEscaneoNoEncontrado } from '../../services/sonidos.js';
+import { activarSonidosEscaner,permitirSonidoEscaner,sonidoEscanerFueHabilitado,sonidoEscaneoOk,sonidoEscaneoNoEncontrado } from '../../services/sonidos.js';
 
 function product(code){return store.data.products.find(p=>String(p.code)===String(code));}
 function norm(v=''){return String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
@@ -39,7 +39,7 @@ export function renderMovements(root){
  const d=store.data;
  const destOpts=d.locations.filter(l=>l.active).map(l=>`<option value="${esc(l.id)}">${esc(l.id)}${l.rackId?` · ${esc(l.rackId)}`:''}</option>`).join('');
  root.innerHTML=shell('Mover / Reubicar',`<div class="page-intro"><div><span class="eyebrow">MOVIMIENTO CONTROLADO</span><h2>Mover sin perder trazabilidad</h2><p>La cantidad se descuenta matemáticamente del origen y se suma al destino. El saldo restante queda visible en su ubicación anterior.</p></div></div>
- <form id="move-form" class="panel form-panel"><div class="form-grid"><label>Producto<div class="mv-product-search"><div class="entrada-con-camara"><input id="mv-product-search" autocomplete="off" placeholder="Escanea o busca por código / nombre" aria-label="Buscar producto"><button id="camara-mv-product" class="scan-button" type="button" title="Escanear código con cámara" aria-label="Escanear código con cámara">▣</button></div><input id="mv-product" type="hidden"><div id="mv-product-results" class="mv-product-results" hidden></div><small>Escribe el código completo o parcial, el nombre del producto o escanéalo con la cámara.</small></div></label><label>Cantidad<input id="mv-qty" type="number" min="1" required></label></div>
+ <form id="move-form" class="panel form-panel"><div id="audio-permission-box" class="audio-permission-box" ${sonidoEscanerFueHabilitado()?'hidden':''}><button id="permitir-sonido" type="button" class="btn secondary">🔊 Permitir sonido</button><small>En iPhone toca una vez para habilitar los avisos del lector.</small></div><div class="form-grid"><label>Producto<div class="mv-product-search"><div class="entrada-con-camara"><input id="mv-product-search" autocomplete="off" placeholder="Escanea o busca por código / nombre" aria-label="Buscar producto"><button id="camara-mv-product" class="scan-button" type="button" title="Escanear código con cámara" aria-label="Escanear código con cámara">▣</button></div><input id="mv-product" type="hidden"><div id="mv-product-results" class="mv-product-results" hidden></div><small>Escribe el código completo o parcial, el nombre del producto o escanéalo con la cámara.</small></div></label><label>Cantidad<input id="mv-qty" type="number" min="1" required></label></div>
  <div id="mv-stock-preview" class="stock-preview">${stockBox('')}</div>
  <div class="form-grid"><label>Origen real<select id="mv-from" required><option value="">Selecciona primero el producto…</option></select><small>Se descontará exactamente de este palet o ubicación.</small></label><label>Destino<select id="mv-to" required><option value="">Seleccionar…</option>${destOpts}</select></label></div>
  <label>Motivo<select id="mv-reason"><option>Reorganización</option><option>Picking</option><option>Consolidación</option><option>Mejor acceso</option><option>Liberar espacio</option><option>Error de ubicación</option><option>Cambio de layout</option></select></label><button class="primary" type="submit">Confirmar movimiento</button></form>`,'movimientos');wireShell();
@@ -60,8 +60,18 @@ export function renderMovements(root){
  search.addEventListener('input',pintarResultados);
  search.addEventListener('focus',()=>{if(search.value.trim()&&!hidden.value)pintarResultados();});
  search.addEventListener('blur',()=>setTimeout(()=>{results.hidden=true;},150));
+ const btnSonido=document.querySelector('#permitir-sonido');
+ if(btnSonido)btnSonido.onclick=async()=>{
+   const ok=await permitirSonidoEscaner();
+   if(ok){
+     document.querySelector('#audio-permission-box')?.setAttribute('hidden','');
+     toast('Sonido del lector activado');
+   }else{
+     toast('iPhone no permitió el sonido. Revisa que el modo silencio esté desactivado e inténtalo otra vez.');
+   }
+ };
  document.querySelector('#camara-mv-product')?.addEventListener('pointerdown',activarSonidosEscaner,{passive:true});
- enlazarBotonEscaner('camara-mv-product','mv-product-search',{titulo:'Escanear producto para mover',ayuda:'Apunta al código de barras del producto',onDetectar:(valor)=>{const exact=d.products.find(p=>normCode(p.code)===normCode(valor));if(exact){seleccionar(exact.code);sonidoEscaneoOk();}else{pintarResultados();sonidoEscaneoNoEncontrado();toast(`Producto ${valor} no encontrado`);}}});
+ enlazarBotonEscaner('camara-mv-product','mv-product-search',{titulo:'Escanear producto para mover',ayuda:'Apunta al código de barras del producto',onDetectar:(valor)=>{if(!sonidoEscanerFueHabilitado())document.querySelector('#audio-permission-box')?.removeAttribute('hidden');const exact=d.products.find(p=>normCode(p.code)===normCode(valor));if(exact){seleccionar(exact.code);sonidoEscaneoOk();}else{pintarResultados();sonidoEscaneoNoEncontrado();toast(`Producto ${valor} no encontrado`);}}});
  const initialCode=new URLSearchParams(location.hash.split('?')[1]||'').get('code'); if(initialCode)seleccionar(initialCode); else refresh();
  document.querySelector('#move-form').onsubmit=async(e)=>{
   e.preventDefault();const code=hidden.value,qty=Number(document.querySelector('#mv-qty').value),sourceKey=fromSel.value,to=document.querySelector('#mv-to').value,reason=document.querySelector('#mv-reason').value;

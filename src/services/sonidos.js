@@ -81,5 +81,34 @@ function reproducir(tipo){
   reproducirWav(tipo==='ok'?SONIDOS.ok:SONIDOS.noEncontrado,tipo);
 }
 
+export async function permitirSonidoEscaner(){
+  activarSonidosEscaner();
+  const ctx=obtenerContexto();
+  try{
+    if(ctx?.state==='suspended')await ctx.resume();
+    if(ctx?.state==='running'){
+      audioHabilitado=true;
+      tonoWebAudio('ok');
+      localStorage.setItem('wms-sonido-habilitado','1');
+      return true;
+    }
+  }catch{}
+  try{
+    const audio=new Audio(SONIDOS.ok);
+    audio.volume=0.85;
+    await audio.play();
+    localStorage.setItem('wms-sonido-habilitado','1');
+    audioHabilitado=true;
+    return true;
+  }catch{
+    localStorage.removeItem('wms-sonido-habilitado');
+    return false;
+  }
+}
+
+export function sonidoEscanerFueHabilitado(){
+  return localStorage.getItem('wms-sonido-habilitado')==='1';
+}
+
 export function sonidoEscaneoOk(){reproducir('ok');}
 export function sonidoEscaneoNoEncontrado(){reproducir('noEncontrado');}

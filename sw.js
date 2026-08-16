@@ -1,4 +1,4 @@
-const CACHE = 'sercoriego-lite-wms-v13-audio-ios';
+const CACHE = 'sercoriego-lite-wms-v14-audio-permission';
 const PRECACHE = [
   "./",
   "./index.html",
