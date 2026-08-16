@@ -3,6 +3,7 @@ import { shell,wireShell,toast } from '../../layout/layout.js';
 import { esc,empty } from '../../components/ui.js';
 import { productPositions,positionKey,deductStock,addStock } from '../../services/inventory-ops.js';
 import { enlazarBotonEscaner } from '../../services/camara-ui.js';
+import { sonidoEscaneoOk,sonidoEscaneoNoEncontrado } from '../../services/sonidos.js';
 
 function product(code){return store.data.products.find(p=>String(p.code)===String(code));}
 function norm(v=''){return String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
@@ -59,7 +60,7 @@ export function renderMovements(root){
  search.addEventListener('input',pintarResultados);
  search.addEventListener('focus',()=>{if(search.value.trim()&&!hidden.value)pintarResultados();});
  search.addEventListener('blur',()=>setTimeout(()=>{results.hidden=true;},150));
- enlazarBotonEscaner('camara-mv-product','mv-product-search',{titulo:'Escanear producto para mover',ayuda:'Apunta al código de barras del producto',onDetectar:(valor)=>{const exact=d.products.find(p=>normCode(p.code)===normCode(valor));if(exact)seleccionar(exact.code);else pintarResultados();}});
+ enlazarBotonEscaner('camara-mv-product','mv-product-search',{titulo:'Escanear producto para mover',ayuda:'Apunta al código de barras del producto',onDetectar:(valor)=>{const exact=d.products.find(p=>normCode(p.code)===normCode(valor));if(exact){seleccionar(exact.code);sonidoEscaneoOk();}else{pintarResultados();sonidoEscaneoNoEncontrado();toast(`Producto ${valor} no encontrado`);}}});
  const initialCode=new URLSearchParams(location.hash.split('?')[1]||'').get('code'); if(initialCode)seleccionar(initialCode); else refresh();
  document.querySelector('#move-form').onsubmit=async(e)=>{
   e.preventDefault();const code=hidden.value,qty=Number(document.querySelector('#mv-qty').value),sourceKey=fromSel.value,to=document.querySelector('#mv-to').value,reason=document.querySelector('#mv-reason').value;
