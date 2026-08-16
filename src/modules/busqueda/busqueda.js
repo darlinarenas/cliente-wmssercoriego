@@ -5,10 +5,11 @@ import { openProductEditor } from '../../services/product-editor.js';
 import { enlazarBotonEscaner } from '../../services/camara-ui.js';
 
 function norm(v=''){return v.toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
+function normCode(v=''){return norm(v).replace(/[^a-z0-9]/g,'');}
 function scoreProduct(p,tokens,raw){
-  const code=norm(p.code), name=norm(p.name), description=norm(p.description), family=norm(p.family), aliases=norm((p.previousCodes||[]).join(' ')); let score=0;
-  if(code===raw)score+=100;if(code.startsWith(raw))score+=45;if(name.startsWith(raw))score+=35;
-  for(const t of tokens){if(code.includes(t))score+=25;if(name.includes(t))score+=18;if(description.includes(t))score+=18;if(aliases.includes(t))score+=15;if(family.includes(t))score+=8;}
+  const code=normCode(p.code), queryCode=normCode(raw), name=norm(p.name), description=norm(p.description), family=norm(p.family), aliases=norm((p.previousCodes||[]).join(' ')); let score=0;
+  if(code===queryCode)score+=100;if(code.startsWith(queryCode))score+=45;if(name.startsWith(raw))score+=35;
+  for(const t of tokens){const tc=normCode(t);if(tc&&code.includes(tc))score+=25;if(name.includes(t))score+=18;if(description.includes(t))score+=18;if(aliases.includes(t))score+=15;if(family.includes(t))score+=8;}
   return score;
 }
 function results(q){
