@@ -1,4 +1,4 @@
-const CACHE = 'sercoriego-lite-wms-v12-postgresql';
+const CACHE = 'sercoriego-lite-wms-v13-audio-ios';
 const PRECACHE = [
   "./",
   "./index.html",
@@ -44,6 +44,9 @@ const PRECACHE = [
   "./src/services/store.js",
   "./src/services/ubicaciones.js",
   "./src/services/inventory-ops.js",
+  "./src/services/sonidos.js",
+  "./assets/sounds/scan-ok.wav",
+  "./assets/sounds/scan-no-encontrado.wav",
   "./styles/app.css"
 ];
 

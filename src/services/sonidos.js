@@ -3,55 +3,83 @@ const SONIDOS={
   noEncontrado:new URL('../../assets/sounds/scan-no-encontrado.wav',import.meta.url).href
 };
 
-// iOS/Safari exige que el audio se habilite desde un gesto real del usuario.
-// Reutilizamos los mismos elementos Audio para que el sonido pueda dispararse
-// después, cuando el lector detecte el código.
-const audios={
-  ok:new Audio(SONIDOS.ok),
-  noEncontrado:new Audio(SONIDOS.noEncontrado)
-};
-Object.values(audios).forEach(audio=>{
-  audio.preload='auto';
-  audio.volume=0.75;
-  audio.load();
-});
+let contexto=null;
+let audioHabilitado=false;
 
-let desbloqueados=false;
-
-export function activarSonidosEscaner(){
-  if(desbloqueados)return;
-  desbloqueados=true;
-  Object.values(audios).forEach(audio=>{
-    const volumen=audio.volume;
-    audio.volume=0.01;
-    audio.currentTime=0;
-    const p=audio.play();
-    if(p?.then){
-      p.then(()=>{
-        audio.pause();
-        audio.currentTime=0;
-        audio.volume=volumen;
-      }).catch(()=>{
-        audio.volume=volumen;
-        desbloqueados=false;
-      });
-    }else{
-      audio.pause();
-      audio.currentTime=0;
-      audio.volume=volumen;
-    }
-  });
+function obtenerContexto(){
+  if(contexto)return contexto;
+  const AudioCtx=window.AudioContext||window.webkitAudioContext;
+  if(!AudioCtx)return null;
+  contexto=new AudioCtx();
+  return contexto;
 }
 
-function reproducir(audio){
+// Debe ejecutarse durante el toque del usuario que abre el escáner.
+// Esto desbloquea Web Audio en Safari/iOS y también funciona en Android/desktop.
+export function activarSonidosEscaner(){
+  const ctx=obtenerContexto();
+  if(!ctx){audioHabilitado=true;return;}
   try{
-    audio.pause();
-    audio.currentTime=0;
-    audio.volume=0.75;
-    const promesa=audio.play();
-    promesa?.catch?.(()=>{});
+    const activar=()=>{audioHabilitado=ctx.state==='running';};
+    if(ctx.state==='suspended')ctx.resume().then(activar).catch(()=>{});
+    else activar();
+
+    // Pulso inaudible dentro del mismo gesto: iOS conserva el permiso de audio
+    // para los tonos posteriores al detectar el código.
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    gain.gain.value=0.00001;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime+0.02);
   }catch{}
 }
 
-export function sonidoEscaneoOk(){reproducir(audios.ok);}
-export function sonidoEscaneoNoEncontrado(){reproducir(audios.noEncontrado);}
+function tonoWebAudio(tipo){
+  const ctx=obtenerContexto();
+  if(!ctx||ctx.state!=='running')return false;
+  const ahora=ctx.currentTime;
+  const notas=tipo==='ok'
+    ? [[760,0.00,0.16],[1180,0.195,0.19]]
+    : [[520,0.00,0.12],[330,0.18,0.18]];
+
+  try{
+    notas.forEach(([freq,inicio,duracion])=>{
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.type='sine';
+      osc.frequency.value=freq;
+      const t=ahora+inicio;
+      gain.gain.setValueAtTime(0.0001,t);
+      gain.gain.exponentialRampToValueAtTime(0.22,t+0.012);
+      gain.gain.setValueAtTime(0.22,t+Math.max(0.013,duracion-0.018));
+      gain.gain.exponentialRampToValueAtTime(0.0001,t+duracion);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t+duracion+0.01);
+    });
+    return true;
+  }catch{return false;}
+}
+
+function reproducirWav(src,tipo){
+  try{
+    const audio=new Audio(src);
+    audio.preload='auto';
+    audio.volume=0.85;
+    const p=audio.play();
+    if(p?.catch)p.catch(()=>tonoWebAudio(tipo));
+  }catch{tonoWebAudio(tipo);}
+}
+
+function reproducir(tipo){
+  const ctx=obtenerContexto();
+  // En iPhone/PWA, Web Audio desbloqueado es la vía más fiable.
+  if(ctx?.state==='running'&&tonoWebAudio(tipo))return;
+  reproducirWav(tipo==='ok'?SONIDOS.ok:SONIDOS.noEncontrado,tipo);
+}
+
+export function sonidoEscaneoOk(){reproducir('ok');}
+export function sonidoEscaneoNoEncontrado(){reproducir('noEncontrado');}
