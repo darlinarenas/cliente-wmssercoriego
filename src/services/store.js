@@ -9,8 +9,9 @@ class Store {
     mutator(this.data);
     const userId=this.data.session.userId;
     this.data.audit.unshift({id:`AUD-${Date.now()}`,type:'CHANGE',message:auditMessage,userId,at:new Date().toISOString()});
-    await repository.save(this.data); this.emit();
+    this.data=(await repository.save(this.data))||this.data; this.emit();
   }
   async reset(){ this.data=await repository.reset(); this.emit(); }
+  async reload(){ this.data=await repository.load(); this.emit(); return this.data; }
 }
 export const store=new Store();

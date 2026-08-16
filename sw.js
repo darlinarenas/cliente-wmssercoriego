@@ -1,7 +1,8 @@
-const CACHE = 'sercoriego-lite-wms-v1.5';
+const CACHE = 'sercoriego-lite-wms-v12-postgresql';
 const PRECACHE = [
   "./",
   "./index.html",
+  "./runtime-config.js",
   "./assets/branding/sercoriego-orbit.png",
   "./assets/icons/apple-touch-icon.png",
   "./assets/icons/favicon-64.png",
@@ -12,6 +13,8 @@ const PRECACHE = [
   "./assets/templates/Plantilla_Carga_Inventario_SercoRiego.xlsx",
   "./manifest.webmanifest",
   "./src/app.js",
+  "./src/modules/login/login.js",
+  "./src/services/auth.js",
   "./src/components/ui.js",
   "./src/core/config.js",
   "./src/core/router.js",
@@ -59,6 +62,8 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
+  // La API PostgreSQL nunca se sirve desde caché: inventario y sesiones deben ser siempre actuales.
+  if (url.pathname.startsWith('/api/')) return;
 
   if (event.request.mode === 'navigate') {
     event.respondWith(

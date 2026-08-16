@@ -37,7 +37,6 @@ function migrar(data){
     if(!Array.isArray(p.previousCodes)) p.previousCodes=[];
     if(typeof p.description!=='string') p.description=/^(Codo|Fitting)/i.test(String(p.name||''))?String(p.name||''):'';
   });
-  if(!data.users.some(u=>u.id==='USR-NELSON')) data.users.push({id:'USR-NELSON',name:'Nelson',role:'OPERADOR_BODEGA',active:true});
   if(!data.users.some(u=>u.id===data.session?.userId && u.active)) data.session.userId=(data.users.find(u=>u.active)||base.users[0]).id;
   recalcularCodigosEscaneables(data);
   data.meta.version=11;

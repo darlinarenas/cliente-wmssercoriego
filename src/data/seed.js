@@ -756,7 +756,7 @@ export function createSeed(){
       ...[6,7,8,9].map(n=>({id:`R${n}`,siteId:'REC',sectorId:'REC-B',name:`Rack ${n}`,status:'ACTIVO',modules:6,levels:6,plannedSlots:36,usage:'Ubicación rápida · una caja por producto/posición',notes:'6 módulos × 6 niveles. Estructura editable si se agregan repisas, módulos o niveles.'}))
     ],planning:{siteId:'REC',plannedPickingSlots:850,configuredPickingSlots:144,note:'R6 a R9 tienen 144 posiciones configuradas. La estructura continúa siendo editable.'},
     locations,products,inventory,pallets,receipts:[],transfers:[],movements:[],
-    users:[{id:'USR-ADMIN',name:'Darlin',role:'ADMINISTRADOR',active:true},{id:'USR-NELSON',name:'Nelson',role:'OPERADOR_BODEGA',active:true},{id:'USR-OP',name:'Operador Demo',role:'OPERADOR_BODEGA',active:true}],
+    users:[{id:'USR-ADMIN',name:'Administrador',username:'admin',role:'ADMINISTRADOR',active:true}],
     audit:[{id:'AUD-001',type:'SYSTEM',message:'Inventario inicial importado desde Excel: 323 productos, 19 palets y 368 registros.',userId:'USR-ADMIN',at:now}]
   };
 }
