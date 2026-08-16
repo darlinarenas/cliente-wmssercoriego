@@ -22,7 +22,7 @@ function dialogHtml(){
         <label>Código de producto<input id="pe-code" required inputmode="numeric" autocomplete="off"></label>
         <label>Nombre<input id="pe-name" required maxlength="120" placeholder="Nombre del producto"></label>
         <label class="full">Descripción<textarea id="pe-description" rows="2" maxlength="300" placeholder="Descripción real del producto"></textarea></label>
-        <label>Tipo / familia<input id="pe-family" maxlength="100" placeholder="Orbit, PVC, PPR…"></label>
+        <label>Tipo<input id="pe-type" maxlength="100" placeholder="Ej. PVC, PPR, Orbit"></label><label>Categoría<input id="pe-category" maxlength="100" placeholder="Ej. Conexiones, Riego"></label><label>Subcategoría<input id="pe-subcategory" maxlength="100" placeholder="Ej. Codos, Válvulas"></label>
         <label>Rotación<select id="pe-rotation"><option value="ALTA">ALTA</option><option value="MEDIA">MEDIA</option><option value="BAJA">BAJA</option></select></label>
       </div>
     </section>
@@ -47,7 +47,9 @@ function fill(code){
   document.querySelector('#pe-code').value=p.code;
   document.querySelector('#pe-name').value=p.name||'';
   document.querySelector('#pe-description').value=p.description||'';
-  document.querySelector('#pe-family').value=p.family||'';
+  document.querySelector('#pe-type').value=p.type||p.family||'';
+  document.querySelector('#pe-category').value=p.category||'';
+  document.querySelector('#pe-subcategory').value=p.subcategory||'';
   document.querySelector('#pe-rotation').value=p.rotation||'MEDIA';
   document.querySelector('#pe-reason').value='';
   document.querySelector('#product-editor-subtitle').textContent=`${p.code} · ${p.name||'Producto sin nombre'}`;
@@ -83,20 +85,22 @@ export function openProductEditor(code,{onSaved}={}){
     const newCode=document.querySelector('#pe-code').value.trim().replace(/\s+/g,'');
     const name=document.querySelector('#pe-name').value.trim();
     const description=document.querySelector('#pe-description').value.trim();
-    const family=document.querySelector('#pe-family').value.trim()||'Por clasificar';
+    const type=document.querySelector('#pe-type').value.trim()||'Por clasificar';
+    const category=document.querySelector('#pe-category').value.trim();
+    const subcategory=document.querySelector('#pe-subcategory').value.trim();
     const rotation=document.querySelector('#pe-rotation').value;
     const reason=document.querySelector('#pe-reason').value.trim();
     if(!newCode||!name||!reason){toast('Completa código, nombre y motivo');return;}
     if(newCode!==oldCode&&store.data.products.some(x=>x.code===newCode)){toast('Ese código ya existe en otro producto');return;}
     const qtyChanges=[];
     document.querySelectorAll('.inventory-edit-row').forEach(row=>{const id=row.dataset.invId,inv=store.data.inventory.find(i=>i.id===id);if(!inv)return;const before=Number(inv.qty||0),after=Number(row.querySelector('.pe-physical-qty').value||0);if(Number.isFinite(after)&&after>=0&&after!==before)qtyChanges.push({id,before,after,locationId:inv.locationId,palletId:inv.palletId||null});});
-    const masterChanged=(()=>{const pp=product(oldCode);return newCode!==oldCode||name!==(pp.name||'')||description!==(pp.description||'')||family!==(pp.family||'')||rotation!==(pp.rotation||'MEDIA');})();
+    const masterChanged=(()=>{const pp=product(oldCode);return newCode!==oldCode||name!==(pp.name||'')||description!==(pp.description||'')||type!==(pp.type||pp.family||'')||category!==(pp.category||'')||subcategory!==(pp.subcategory||'')||rotation!==(pp.rotation||'MEDIA');})();
     if(!masterChanged&&!qtyChanges.length){toast('No hay cambios para guardar');return;}
     const at=new Date().toISOString();
     await store.commit(s=>{
       const pp=s.products.find(x=>x.code===oldCode); if(!pp)return;
       if(newCode!==oldCode){pp.previousCodes=Array.from(new Set([...(pp.previousCodes||[]),oldCode]));replaceCodeEverywhere(s,oldCode,newCode);}
-      pp.code=newCode;pp.name=name;pp.description=description;pp.family=family;pp.rotation=rotation;pp.updatedAt=at;
+      pp.code=newCode;pp.name=name;pp.description=description;pp.type=type;pp.category=category;pp.subcategory=subcategory;pp.rotation=rotation;pp.updatedAt=at;
       qtyChanges.forEach(ch=>{const inv=s.inventory.find(i=>i.id===ch.id);if(!inv)return;inv.qty=ch.after;s.movements.unshift({id:`MOV-AJ-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,type:'AJUSTE_INVENTARIO',productCode:newCode,qty:Math.abs(ch.after-ch.before),delta:ch.after-ch.before,beforeQty:ch.before,afterQty:ch.after,from:ch.locationId,to:ch.locationId,palletId:ch.palletId,reason:`${reason} · Conteo ${ch.before} → ${ch.after} (${deltaText(ch.after-ch.before)})`,userId:s.session.userId,at});});
       s.inventory=s.inventory.filter(i=>Number(i.qty)>0);
       qtyChanges.forEach(ch=>{const loc=s.locations.find(l=>l.id===ch.locationId);if(loc&&!['BLOQUEADA','RESERVADA','INHABILITADA'].includes(loc.status)){loc.status=s.inventory.some(i=>i.locationId===ch.locationId&&Number(i.qty)>0)?'OCUPADA':'LIBRE';}});

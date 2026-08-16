@@ -3,7 +3,7 @@ import { shell, wireShell, toast } from '../../layout/layout.js';
 import { esc } from '../../components/ui.js';
 
 const REQUIRED=['CODIGO','DESCRIPCION','CANTIDAD','UBICACION'];
-const OPTIONAL=['FAMILIA','ROTACION'];
+const OPTIONAL=['TIPO','CATEGORIA','SUBCATEGORIA','ROTACION'];
 let preview=null;
 
 function normalizeHeader(v){return String(v??'').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'_');}
@@ -74,7 +74,9 @@ function validateRows(rows){
     const description=safeText(r[indexes.DESCRIPCION]);
     const qtyText=safeText(r[indexes.CANTIDAD]);
     const location=locationKey(r[indexes.UBICACION]);
-    const family=indexes.FAMILIA>=0?safeText(r[indexes.FAMILIA]):'';
+    const type=indexes.TIPO>=0?safeText(r[indexes.TIPO]):'';
+    const category=indexes.CATEGORIA>=0?safeText(r[indexes.CATEGORIA]):'';
+    const subcategory=indexes.SUBCATEGORIA>=0?safeText(r[indexes.SUBCATEGORIA]):'';
     const rotation=(indexes.ROTACION>=0?safeText(r[indexes.ROTACION]):'').toUpperCase()||'MEDIA';
     if(!code)errors.push(`Fila ${line}: CODIGO vacío.`);
     else if(!/^\d+$/.test(code))errors.push(`Fila ${line}: el código “${code}” no es válido. Debe contener solo números, sin guiones ni espacios.`);
@@ -84,7 +86,7 @@ function validateRows(rows){
     if(!location)errors.push(`Fila ${line}: UBICACION vacía.`);
     if(!['ALTA','MEDIA','BAJA'].includes(rotation))errors.push(`Fila ${line}: ROTACION debe ser ALTA, MEDIA o BAJA.`);
     if(code&&/^\d+$/.test(code)&&description&&Number.isInteger(qty)&&qty>=0&&location&&['ALTA','MEDIA','BAJA'].includes(rotation)){
-      raw.push({line,code,description,qty,location,family:family||'Inventario importado',rotation});
+      raw.push({line,code,description,qty,location,type:type||'Por clasificar',category,subcategory,rotation});
     }
   });
   const map=new Map();
@@ -109,7 +111,7 @@ function renderPreview(){
     <div><small>Filas leídas</small><b>${stats.read}</b></div><div><small>Registros válidos</small><b>${stats.valid}</b></div><div><small>Productos</small><b>${stats.products||0}</b></div><div><small>Ubicaciones</small><b>${stats.locations||0}</b></div><div class="${errors.length?'import-error-count':''}"><small>Errores</small><b>${errors.length}</b></div>
   </div>
   ${errors.length?`<div class="import-errors"><b>Corrige estos problemas antes de importar:</b><div>${errors.slice(0,30).map(e=>`<p>${esc(e)}</p>`).join('')}${errors.length>30?`<p>…y ${errors.length-30} errores más.</p>`:''}</div></div>`:`<div class="callout"><b>Archivo listo para importar</b><span>No se detectaron errores de formato.</span></div>`}
-  <div class="table-wrap import-preview-table"><table><thead><tr><th>Código</th><th>Descripción</th><th>Cantidad</th><th>Ubicación</th><th>Familia</th><th>Rotación</th></tr></thead><tbody>${valid.slice(0,50).map(x=>`<tr><td><b>${esc(x.code)}</b></td><td>${esc(x.description)}</td><td>${x.qty}</td><td>${esc(x.location)}</td><td>${esc(x.family)}</td><td>${esc(x.rotation)}</td></tr>`).join('')}</tbody></table></div>${valid.length>50?`<small class="muted">Vista previa de 50 de ${valid.length} registros consolidados.</small>`:''}`;
+  <div class="table-wrap import-preview-table"><table><thead><tr><th>Código</th><th>Descripción</th><th>Cantidad</th><th>Ubicación</th><th>Tipo</th><th>Categoría</th><th>Subcategoría</th><th>Rotación</th></tr></thead><tbody>${valid.slice(0,50).map(x=>`<tr><td><b>${esc(x.code)}</b></td><td>${esc(x.description)}</td><td>${x.qty}</td><td>${esc(x.location)}</td><td>${esc(x.type)}</td><td>${esc(x.category||'—')}</td><td>${esc(x.subcategory||'—')}</td><td>${esc(x.rotation)}</td></tr>`).join('')}</tbody></table></div>${valid.length>50?`<small class="muted">Vista previa de 50 de ${valid.length} registros consolidados.</small>`:''}`;
   const btn=document.querySelector('#confirm-import'); if(btn)btn.disabled=errors.length>0||valid.length===0;
 }
 
@@ -144,10 +146,10 @@ async function applyImport(mode){
     for(const row of rows){
       let p=productMap.get(row.code);
       if(!p){
-        p={id:`SKUIMP${row.code}`,code:row.code,name:row.description,description:row.description,previousCodes:[],family:row.family,rotation:row.rotation,pickingLocationId:null,createdAt:new Date().toISOString()};
+        p={id:`SKUIMP${row.code}`,code:row.code,name:row.description,description:row.description,previousCodes:[],type:row.type,category:row.category,subcategory:row.subcategory,rotation:row.rotation,pickingLocationId:null,createdAt:new Date().toISOString()};
         data.products.push(p); productMap.set(row.code,p);
       }else{
-        p.name=row.description; p.description=row.description; p.family=row.family||p.family; p.rotation=row.rotation||p.rotation;
+        p.name=row.description; p.description=row.description; p.type=row.type||p.type; p.category=row.category||p.category; p.subcategory=row.subcategory||p.subcategory; p.rotation=row.rotation||p.rotation;
       }
       const pos=ensureLocation(data,row.location);
       const pair=`${row.code}::${pos.palletId}`; touchedPairs.add(pair);
@@ -164,7 +166,7 @@ async function applyImport(mode){
 export function renderImport(root){
   preview=null;
   root.innerHTML=shell('Importar Excel',`<div class="page-intro"><div><span class="eyebrow">CARGA MASIVA</span><h2>Importar inventario desde Excel</h2><p>Copia tus productos en la plantilla, súbela y revisa la vista previa antes de modificar el inventario.</p></div></div>
-  <section class="panel import-guide"><div class="panel-head"><div><span class="eyebrow">PASO 1</span><h3>Descarga la plantilla oficial</h3></div><a class="primary" href="./assets/templates/Plantilla_Carga_Inventario_SercoRiego.xlsx" download>Descargar Excel</a></div><p>Columnas obligatorias: <b>CODIGO, DESCRIPCION, CANTIDAD y UBICACION</b>. FAMILIA y ROTACION son opcionales. No existe columna Foto.</p><div class="import-columns"><span><b>CODIGO</b> Solo números</span><span><b>DESCRIPCION</b> Nombre completo</span><span><b>CANTIDAD</b> Entero ≥ 0</span><span><b>UBICACION</b> Ej. BT1</span></div></section>
+  <section class="panel import-guide"><div class="panel-head"><div><span class="eyebrow">PASO 1</span><h3>Descarga la plantilla oficial</h3></div><a class="primary" href="./assets/templates/Plantilla_Carga_Inventario_SercoRiego.xlsx" download>Descargar Excel</a></div><p>Columnas obligatorias: <b>CODIGO, DESCRIPCION, CANTIDAD y UBICACION</b>. TIPO, CATEGORIA, SUBCATEGORIA y ROTACION son opcionales. No existe columna Foto.</p><div class="import-columns"><span><b>CODIGO</b> Solo números</span><span><b>DESCRIPCION</b> Nombre completo</span><span><b>CANTIDAD</b> Entero ≥ 0</span><span><b>UBICACION</b> Ej. BT1</span></div></section>
   <section class="panel"><div><span class="eyebrow">PASO 2</span><h3>Selecciona tu Excel</h3><p>El sistema valida el archivo antes de cargarlo. No modifica nada hasta que confirmes.</p></div><div class="import-drop"><input id="excel-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"><small>Formato permitido: .xlsx</small></div></section>
   <section class="panel"><div class="panel-head"><div><span class="eyebrow">PASO 3</span><h3>Revisión previa</h3></div></div><div id="import-preview" class="import-empty">Selecciona un archivo Excel para ver aquí el resultado de la validación.</div></section>
   <section class="panel import-actions-panel"><div><h3>Modo de importación</h3><p><b>Actualizar</b> conserva lo existente y reemplaza la cantidad del mismo código en la misma ubicación. <b>Reemplazar</b> usa el Excel como nuevo catálogo e inventario.</p></div><label>Acción<select id="import-mode"><option value="merge">Actualizar / agregar al inventario actual</option><option value="replace">Reemplazar catálogo e inventario con este Excel</option></select></label><button id="confirm-import" class="primary" disabled>Confirmar importación</button></section>`,'importar');

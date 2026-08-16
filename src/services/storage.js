@@ -15,6 +15,8 @@ function migrar(data){
   data.audit=Array.isArray(data.audit)?data.audit:[];
   data.users=Array.isArray(data.users)&&data.users.length?data.users:base.users;
   data.locations=Array.isArray(data.locations)&&data.locations.length?data.locations:base.locations;
+  // Nunca perder la estructura aprobada de racks al migrar una versión guardada.
+  for(const loc of base.locations.filter(l=>l.rackId)) if(!data.locations.some(x=>x.id===loc.id)) data.locations.push(loc);
   data.racks=Array.isArray(data.racks)&&data.racks.length?data.racks:base.racks;
   data.sites=Array.isArray(data.sites)&&data.sites.length?data.sites:base.sites;
   data.sectors=Array.isArray(data.sectors)&&data.sectors.length?data.sectors:base.sectors;
@@ -29,13 +31,16 @@ function migrar(data){
   });
 
   data.products.forEach(p=>{
+    if(!p.type) p.type=p.family||'Por clasificar';
+    if(!p.category) p.category='';
+    if(!p.subcategory) p.subcategory='';
     if(!Array.isArray(p.previousCodes)) p.previousCodes=[];
     if(typeof p.description!=='string') p.description=/^(Codo|Fitting)/i.test(String(p.name||''))?String(p.name||''):'';
   });
   if(!data.users.some(u=>u.id==='USR-NELSON')) data.users.push({id:'USR-NELSON',name:'Nelson',role:'OPERADOR_BODEGA',active:true});
   if(!data.users.some(u=>u.id===data.session?.userId && u.active)) data.session.userId=(data.users.find(u=>u.active)||base.users[0]).id;
   recalcularCodigosEscaneables(data);
-  data.meta.version=9;
+  data.meta.version=11;
   return data;
 }
 

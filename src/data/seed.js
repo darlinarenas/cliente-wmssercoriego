@@ -346,6 +346,13 @@ export function createSeed(){
     {id:"PAL-W",siteId:'REC',rackId:null,module:null,level:null,label:"Palet W",scanCode:"PAL-W",status:'OCUPADA',access:'DIRECTO',kind:'PALET_EXISTENTE',active:true,capacity:null,notes:'Ubicación actual levantada desde inventario físico.'},
     {id:"PAL-Y",siteId:'REC',rackId:null,module:null,level:null,label:"Palet Y",scanCode:"PAL-Y",status:'OCUPADA',access:'DIRECTO',kind:'PALET_EXISTENTE',active:true,capacity:null,notes:'Ubicación actual levantada desde inventario físico.'}
   ];
+  // Se conserva la estructura física de racks de la versión aprobada.
+  for(let r=1;r<=9;r++){
+    const levels=r<=5?3:6;
+    for(let m=1;m<=6;m++)for(let n=1;n<=levels;n++){
+      locations.push({id:`REC-R${r}-M${m}-N${n}`,siteId:'REC',rackId:`R${r}`,module:m,level:n,label:`REC-R${r}-M${m}-N${n}`,status:'LIBRE',access:n===1?'DIRECTO':'YALE',kind:r>=6?'PICKING_RACK':'RACK',active:true,capacity:r>=6?1:null,notes:r>=6?'Posición para una caja / SKU de acceso rápido.':''});
+    }
+  }
   const inventory=[
     {id:'INV-0001',productCode:"100304",locationId:"PAL-BT1",qty:10,palletId:"BT1"},
     {id:'INV-0002',productCode:"488470",locationId:"PAL-BT1",qty:3,palletId:"BT1"},
@@ -740,7 +747,14 @@ export function createSeed(){
   return {
     meta:{createdAt:now,updatedAt:now,version:10},settings:{locationCodeFormat:'{SEDE}-{RACK}-M{MODULO}-N{NIVEL}'},session:{userId:'USR-ADMIN'},
     sites:[{id:'REC',name:'Bodega Recoleta',type:'BODEGA',active:true,code:'REC',notes:'Sede activa.'},{id:'TIENDA',name:'Bodega Tienda de Ventas',type:'BODEGA_TIENDA',active:false,code:'TDA',notes:'Preparada para futura conexión.'}],
-    sectors:[],racks:[],planning:{siteId:'REC',plannedPickingSlots:850,configuredPickingSlots:0,note:'Inventario inicial cargado por palet. Las ubicaciones definitivas de rack se asignarán al ordenar físicamente la bodega.'},
+    sectors:[
+      {id:'REC-A',siteId:'REC',name:'Sector amplio',description:'Racks 1 al 5 · Orbit y productos ya ubicables.'},
+      {id:'REC-B',siteId:'REC',name:'Sector nuevo',description:'Racks 6 al 9 · ubicación rápida de cajas / SKU.'}
+    ],
+    racks:[
+      ...[1,2,3,4,5].map(n=>({id:`R${n}`,siteId:'REC',sectorId:'REC-A',name:`Rack ${n}`,status:'ACTIVO',modules:6,levels:3,plannedSlots:18,usage:'Orbit / productos actualmente ubicables',notes:'N1 acceso directo; N2 y N3 requieren Yale.'})),
+      ...[6,7,8,9].map(n=>({id:`R${n}`,siteId:'REC',sectorId:'REC-B',name:`Rack ${n}`,status:'ACTIVO',modules:6,levels:6,plannedSlots:36,usage:'Ubicación rápida · una caja por producto/posición',notes:'6 módulos × 6 niveles. Estructura editable si se agregan repisas, módulos o niveles.'}))
+    ],planning:{siteId:'REC',plannedPickingSlots:850,configuredPickingSlots:144,note:'R6 a R9 tienen 144 posiciones configuradas. La estructura continúa siendo editable.'},
     locations,products,inventory,pallets,receipts:[],transfers:[],movements:[],
     users:[{id:'USR-ADMIN',name:'Darlin',role:'ADMINISTRADOR',active:true},{id:'USR-NELSON',name:'Nelson',role:'OPERADOR_BODEGA',active:true},{id:'USR-OP',name:'Operador Demo',role:'OPERADOR_BODEGA',active:true}],
     audit:[{id:'AUD-001',type:'SYSTEM',message:'Inventario inicial importado desde Excel: 323 productos, 19 palets y 368 registros.',userId:'USR-ADMIN',at:now}]

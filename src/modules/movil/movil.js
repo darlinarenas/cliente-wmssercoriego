@@ -18,7 +18,7 @@ function resultados(q){
   const raw=normalizar(q); if(!raw)return '';
   const tokens=raw.split(/\s+/).filter(Boolean);
   const lista=store.data.products.map(p=>{
-    const c=normalizar(p.code),n=normalizar(p.name),d=normalizar(p.description),f=normalizar(p.family),a=normalizar((p.previousCodes||[]).join(' '));let score=0;
+    const c=normalizar(p.code),n=normalizar(p.name),d=normalizar(p.description),f=normalizar(p.type||p.family),a=normalizar((p.previousCodes||[]).join(' '));let score=0;
     if(c===raw)score+=100;if(c.startsWith(raw))score+=45;if(n.startsWith(raw))score+=35;
     tokens.forEach(t=>{if(c.includes(t))score+=25;if(n.includes(t))score+=18;if(d.includes(t))score+=18;if(a.includes(t))score+=15;if(f.includes(t))score+=8;});
     return {p,score};
