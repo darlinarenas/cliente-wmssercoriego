@@ -4,7 +4,7 @@ import { esc } from '../components/ui.js';
 
 const nav=[
  ['dashboard','Inicio','⌂'],['buscar','Buscar','⌕'],['racks','Racks','▦'],['productos','Productos','◫'],
- ['recepciones','Recepción','⇩'],['transferencias','Despacho / Tránsito','⇄'],['movimientos','Mover','↔'],['palets','Palets','▣'],['historial','Historial','◷'],['usuarios','Usuarios','♙'],['estructura','Estructura','⚙']
+ ['recepciones','Recepción','⇩'],['transferencias','Despacho / Tránsito','⇄'],['movimientos','Mover','↔'],['palets','Palets','▣'],['historial','Historial','◷'],['importar','Importar Excel','⇧'],['usuarios','Usuarios','♙'],['estructura','Estructura','⚙']
 ];
 
 export function shell(title,content,active='dashboard'){
