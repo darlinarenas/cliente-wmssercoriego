@@ -1,6 +1,7 @@
 import { store } from '../../services/store.js';
 import { shell,wireShell } from '../../layout/layout.js';
 import { badge,esc,empty } from '../../components/ui.js';
+import { enlazarBotonEscaner } from '../../services/camara-ui.js';
 
 function producto(code){return store.data.products.find(p=>String(p.code)===String(code));}
 function contenidoRack(rackId){
@@ -13,10 +14,11 @@ function pintarDetalle(rackId){
  const inv=contenidoRack(rackId).filter(i=>{const p=producto(i.productCode);return !q||`${i.productCode} ${p?.name||''} ${p?.description||''} ${i.locationId} ${i.palletId||''}`.toLowerCase().includes(q);});
  const locs=d.locations.filter(l=>l.rackId===rackId&&l.active),total=contenidoRack(rackId).reduce((a,b)=>a+b.qty,0);
  box.innerHTML=`<section class="panel rack-detail-panel"><div class="panel-head"><div><span class="eyebrow">CONTENIDO DEL RACK</span><h3>${esc(r.name)} · ${inv.length} registro${inv.length===1?'':'s'}</h3><small>${locs.length} ubicaciones configuradas · ${total} unidades localizadas</small></div><button id="close-rack-detail" class="ghost">Cerrar</button></div>
- <div class="rack-detail-tools"><label>Filtrar contenido<input id="rack-filter" value="${esc(q)}" placeholder="Código, descripción, ubicación o palet"></label><a href="#/estructura" class="secondary">Configurar estructura</a></div>
+ <div class="rack-detail-tools"><label>Filtrar contenido<div class="entrada-con-camara"><input id="rack-filter" value="${esc(q)}" placeholder="Código, descripción, ubicación o palet"><button id="camara-rack-filter" class="scan-button" type="button" title="Escanear código con cámara">▣</button></div></label><a href="#/estructura" class="secondary">Configurar estructura</a></div>
  <div class="table-wrap"><table><thead><tr><th>Código</th><th>Descripción</th><th>Cantidad</th><th>Ubicación</th><th>Palet</th></tr></thead><tbody>${inv.length?inv.map(i=>{const p=producto(i.productCode);return `<tr><td><b>${esc(i.productCode)}</b></td><td>${esc(p?.description||p?.name||'Sin descripción')}</td><td><b>${i.qty}</b></td><td>${esc(i.locationId)}</td><td>${esc(i.palletId||'—')}</td></tr>`}).join(''):`<tr><td colspan="5">${empty('Rack sin productos localizados','La ficha y sus ubicaciones están disponibles; el contenido aparecerá cuando se asignen productos a este rack.')}</td></tr>`}</tbody></table></div></section>`;
  document.querySelector('#close-rack-detail').onclick=()=>box.innerHTML='';
  document.querySelector('#rack-filter').addEventListener('input',()=>pintarDetalle(rackId));
+ enlazarBotonEscaner('camara-rack-filter','rack-filter',{titulo:'Escanear producto del rack',ayuda:'Apunta al código de barras para filtrar'});
  box.scrollIntoView({behavior:'smooth',block:'start'});
 }
 export function renderRacks(root){
