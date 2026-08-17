@@ -89,7 +89,7 @@ export async function permitirSonidoEscaner(){
     if(ctx?.state==='running'){
       audioHabilitado=true;
       tonoWebAudio('ok');
-      localStorage.setItem('wms-sonido-habilitado','1');
+      sessionStorage.setItem('wms-sonido-habilitado','1');
       return true;
     }
   }catch{}
@@ -97,17 +97,17 @@ export async function permitirSonidoEscaner(){
     const audio=new Audio(SONIDOS.ok);
     audio.volume=0.85;
     await audio.play();
-    localStorage.setItem('wms-sonido-habilitado','1');
+    sessionStorage.setItem('wms-sonido-habilitado','1');
     audioHabilitado=true;
     return true;
   }catch{
-    localStorage.removeItem('wms-sonido-habilitado');
+    sessionStorage.removeItem('wms-sonido-habilitado');
     return false;
   }
 }
 
 export function sonidoEscanerFueHabilitado(){
-  return localStorage.getItem('wms-sonido-habilitado')==='1';
+  return sessionStorage.getItem('wms-sonido-habilitado')==='1';
 }
 
 export function sonidoEscaneoOk(){reproducir('ok');}

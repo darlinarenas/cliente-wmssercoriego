@@ -1,3 +1,4 @@
+import { permitirSonidoEscaner,sonidoEscanerFueHabilitado } from '../services/sonidos.js';
 import { instalarPWA, estadoPWA } from '../services/pwa.js';
 import { store } from '../services/store.js';
 import { auth } from '../services/auth.js';
@@ -20,6 +21,10 @@ export function shell(title,content,active='dashboard'){
       <div class="sidebar-foot"><a href="#/movil" class="view-switch sidebar-switch"><span class="view-switch-icon">▯</span><span><b>Vista para teléfono</b><small>Abrir modo operativo</small></span></a><small>PostgreSQL · API conectada</small><small>Desarrollado por Vexhora Group · CEO Ing. Carlin Arenas</small>${currentUser?.role==='ADMINISTRADOR'?'<button id="reset-demo" class="ghost small" type="button">Restablecer datos iniciales</button>':''}</div>
     </aside>
     <main>
+      <div id="global-audio-permission" class="global-audio-permission" ${sonidoEscanerFueHabilitado()?'hidden':''}>
+        <div><b>🔊 Sonidos del escáner</b><small>Activa una vez los avisos sonoros para esta sesión.</small></div>
+        <button id="global-permitir-sonido" type="button" class="btn secondary">Permitir sonido</button>
+      </div>
       <header class="topbar"><div><button id="menu-btn" class="menu-btn">☰</button><div><small>Bodega Recoleta</small><h1>${esc(title)}</h1></div></div><div class="top-actions"><button id="install-pwa" class="pwa-install-btn" type="button"><span>▣</span><span><b>Instalar app</b><small>PC / teléfono</small></span></button><a href="#/movil" class="view-switch"><span class="view-switch-icon">▯</span><span><b>Vista para teléfono</b><small>Modo operativo</small></span></a>${currentUser?.role==='ADMINISTRADOR'?`<a href="#/usuarios" class="user-pill" title="Administrar usuarios">${esc(initials)} <span>${esc(currentUser?.name||'Usuario')}</span></a>`:`<span class="user-pill">${esc(initials)} <span>${esc(currentUser?.name||'Usuario')}</span></span>`}<button id="logout-btn" class="ghost logout-btn" type="button">Salir</button></div></header>
       <section class="content">${content}</section>
     </main>
@@ -28,6 +33,19 @@ export function shell(title,content,active='dashboard'){
 }
 
 export function wireShell(){
+  const audioBox=document.querySelector('#global-audio-permission');
+  const audioBtn=document.querySelector('#global-permitir-sonido');
+  if(audioBox&&sonidoEscanerFueHabilitado())audioBox.hidden=true;
+  if(audioBtn)audioBtn.addEventListener('click',async()=>{
+    const ok=await permitirSonidoEscaner();
+    if(ok){
+      audioBox.hidden=true;
+      toast('Sonidos del escáner activados');
+    }else{
+      audioBox.hidden=false;
+      toast('No se pudo activar el sonido. Desactiva el modo silencio del teléfono e inténtalo otra vez.');
+    }
+  });
   const installBtn=document.querySelector('#install-pwa');if(installBtn){const refrescar=()=>{const e=estadoPWA();installBtn.hidden=e.instalada;};refrescar();installBtn.addEventListener('click',()=>instalarPWA());}
   document.querySelector('#menu-btn')?.addEventListener('click',()=>document.body.classList.toggle('menu-open'));
   document.querySelectorAll('.nav-link').forEach(a=>a.addEventListener('click',()=>document.body.classList.remove('menu-open')));
