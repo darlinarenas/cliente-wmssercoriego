@@ -1,4 +1,4 @@
-const CACHE = 'sercoriego-lite-wms-v15-global-audio';
+const CACHE = 'sercoriego-lite-wms-v16-audio-modal';
 const PRECACHE = [
   "./",
   "./index.html",

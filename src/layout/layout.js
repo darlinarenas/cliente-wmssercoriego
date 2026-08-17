@@ -21,9 +21,14 @@ export function shell(title,content,active='dashboard'){
       <div class="sidebar-foot"><a href="#/movil" class="view-switch sidebar-switch"><span class="view-switch-icon">▯</span><span><b>Vista para teléfono</b><small>Abrir modo operativo</small></span></a><small>PostgreSQL · API conectada</small><small>Desarrollado por Vexhora Group · CEO Ing. Carlin Arenas</small>${currentUser?.role==='ADMINISTRADOR'?'<button id="reset-demo" class="ghost small" type="button">Restablecer datos iniciales</button>':''}</div>
     </aside>
     <main>
-      <div id="global-audio-permission" class="global-audio-permission" ${sonidoEscanerFueHabilitado()?'hidden':''}>
-        <div><b>🔊 Sonidos del escáner</b><small>Activa una vez los avisos sonoros para esta sesión.</small></div>
-        <button id="global-permitir-sonido" type="button" class="btn secondary">Permitir sonido</button>
+      <div id="global-audio-permission" class="audio-permission-modal" ${sonidoEscanerFueHabilitado()?'hidden':''}>
+        <div class="audio-permission-card" role="dialog" aria-modal="true" aria-labelledby="audio-permission-title">
+          <div class="audio-permission-icon">🔊</div>
+          <h2 id="audio-permission-title">Activar sonidos del escáner</h2>
+          <p>Permite los avisos sonoros para confirmar cuando un producto es encontrado o no existe.</p>
+          <button id="global-permitir-sonido" type="button" class="btn primary">Permitir sonido</button>
+          <small>Solo necesitas hacerlo una vez al abrir esta sesión.</small>
+        </div>
       </div>
       <header class="topbar"><div><button id="menu-btn" class="menu-btn">☰</button><div><small>Bodega Recoleta</small><h1>${esc(title)}</h1></div></div><div class="top-actions"><button id="install-pwa" class="pwa-install-btn" type="button"><span>▣</span><span><b>Instalar app</b><small>PC / teléfono</small></span></button><a href="#/movil" class="view-switch"><span class="view-switch-icon">▯</span><span><b>Vista para teléfono</b><small>Modo operativo</small></span></a>${currentUser?.role==='ADMINISTRADOR'?`<a href="#/usuarios" class="user-pill" title="Administrar usuarios">${esc(initials)} <span>${esc(currentUser?.name||'Usuario')}</span></a>`:`<span class="user-pill">${esc(initials)} <span>${esc(currentUser?.name||'Usuario')}</span></span>`}<button id="logout-btn" class="ghost logout-btn" type="button">Salir</button></div></header>
       <section class="content">${content}</section>
