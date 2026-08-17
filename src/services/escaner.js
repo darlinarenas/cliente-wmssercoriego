@@ -1,3 +1,4 @@
+import { sonidoPorCodigo } from './sonidos.js';
 /**
  * Escáner de códigos de barras multiplataforma.
  *
@@ -96,6 +97,7 @@ export class EscanerCodigoBarras{
             if(codigos?.length){
               const valor=codigos[0]?.rawValue?.trim();
               if(valor){
+                sonidoPorCodigo(valor);
                 onDetectar?.(valor);
                 this.detener();
                 return;
@@ -143,6 +145,7 @@ export class EscanerCodigoBarras{
           if(resultado){
             const valor=(resultado.getText?.() || resultado.text || String(resultado)).trim();
             if(valor){
+              sonidoPorCodigo(valor);
               onDetectar?.(valor);
               this.detener();
             }

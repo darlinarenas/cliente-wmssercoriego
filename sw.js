@@ -1,4 +1,4 @@
-const CACHE = 'sercoriego-lite-wms-v16-audio-modal';
+const CACHE = 'sercoriego-lite-wms-v17-global-scanner-audio';
 const PRECACHE = [
   "./",
   "./index.html",
@@ -44,9 +44,9 @@ const PRECACHE = [
   "./src/services/store.js",
   "./src/services/ubicaciones.js",
   "./src/services/inventory-ops.js",
-  "./src/services/sonidos.js",
-  "./assets/sounds/scan-ok.wav",
   "./assets/sounds/scan-no-encontrado.wav",
+  "./assets/sounds/scan-ok.wav",
+  "./src/services/sonidos.js",
   "./styles/app.css"
 ];
 
