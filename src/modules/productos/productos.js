@@ -3,6 +3,8 @@ import { shell,wireShell } from '../../layout/layout.js';
 import { esc,badge,empty } from '../../components/ui.js';
 import { openProductEditor } from '../../services/product-editor.js';
 import { enlazarBotonEscaner } from '../../services/camara-ui.js';
+import { productAliases } from '../../services/product-codes.js';
+import { stockBySite } from '../../services/stock.js';
 
 const pesoRotacion={ALTA:3,MEDIA:2,BAJA:1};
 function totalProducto(code){return store.data.inventory.filter(i=>i.productCode===code&&i.qty>0).reduce((a,b)=>a+b.qty,0);}
@@ -10,7 +12,7 @@ function ubicacionesProducto(code){return [...new Set(store.data.inventory.filte
 function tipos(){return [...new Set(store.data.products.map(p=>p.type||p.family).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));}
 function filaProducto(p){
   const total=totalProducto(p.code);
-  return `<tr><td><b>${esc(p.code)}</b></td><td><b>${esc(p.description||p.name||`Producto ${p.code}`)}</b></td><td><b>${total}</b></td><td>${esc(ubicacionesProducto(p.code))}</td><td><button class="ghost small edit-product-row" data-code="${esc(p.code)}">Editar / Inventario</button></td></tr>`;
+  const sites=Object.entries(stockBySite(p.code)).map(([id,qty])=>`${store.data.sites.find(s=>s.id===id)?.name||id}: ${qty}`).join(' · ');return `<tr class="click-row" data-code="${esc(p.code)}"><td><b>${esc(p.code)}</b><small class="row-sub">${productAliases(p).length-1} código(s) asociado(s)</small></td><td><b>${esc(p.description||p.name||`Producto ${p.code}`)}</b></td><td><b>${total}</b><small class="row-sub">${esc(sites||'Sin stock')}</small></td><td>${esc(ubicacionesProducto(p.code))}</td><td><button class="ghost small edit-product-row" data-code="${esc(p.code)}">Ver ficha / Editar</button></td></tr>`;
 }
 function obtenerFiltrados(){
   const texto=(document.querySelector('#productos-buscar')?.value||'').trim().toLowerCase();
@@ -18,7 +20,7 @@ function obtenerFiltrados(){
   const tipo=document.querySelector('#filtro-tipo')?.value||'';
   const orden=document.querySelector('#orden-productos')?.value||'codigo-asc';
   let lista=store.data.products.filter(p=>{
-    const coincideTexto=!texto||`${p.code} ${p.name} ${p.description||''} ${(p.previousCodes||[]).join(' ')} ${p.type||p.family||''} ${p.category||''} ${p.subcategory||''}`.toLowerCase().includes(texto);
+    const coincideTexto=!texto||`${productAliases(p).join(' ')} ${p.name} ${p.description||''} ${p.type||p.family||''} ${p.category||''} ${p.subcategory||''}`.toLowerCase().includes(texto);
     return coincideTexto&&(!rotacion||p.rotation===rotacion)&&(!tipo||(p.type||p.family)===tipo);
   });
   lista=[...lista].sort((a,b)=>{
@@ -41,7 +43,7 @@ function pintarTabla(){
   const lista=obtenerFiltrados();
   contador.textContent=`${lista.length} producto${lista.length===1?'':'s'}`;
   cuerpo.innerHTML=lista.length?lista.map(filaProducto).join(''):`<tr><td colspan="5">${empty('Sin coincidencias','Cambia los filtros o la palabra de búsqueda.')}</td></tr>`;
-  document.querySelectorAll('.edit-product-row').forEach(b=>b.onclick=()=>openProductEditor(b.dataset.code,{onSaved:()=>pintarTabla()}));
+  document.querySelectorAll('.edit-product-row').forEach(b=>b.onclick=e=>{e.stopPropagation();openProductEditor(b.dataset.code,{onSaved:()=>pintarTabla()});});document.querySelectorAll('.click-row[data-code]').forEach(r=>r.onclick=()=>openProductEditor(r.dataset.code,{onSaved:()=>pintarTabla()}));
 }
 export function renderProducts(root){
   const d=store.data;
@@ -53,5 +55,5 @@ export function renderProducts(root){
   document.querySelector('#abrir-filtros').onclick=()=>document.querySelector('#panel-filtros').classList.toggle('oculto');
   enlazarBotonEscaner('camara-productos-buscar','productos-buscar',{titulo:'Escanear producto',ayuda:'Apunta al código de barras para buscarlo'});
   ['productos-buscar','filtro-rotacion','filtro-tipo','orden-productos'].forEach(id=>document.querySelector(`#${id}`)?.addEventListener(id==='productos-buscar'?'input':'change',pintarTabla));
-  document.querySelectorAll('.edit-product-row').forEach(b=>b.onclick=()=>openProductEditor(b.dataset.code,{onSaved:()=>pintarTabla()}));
+  document.querySelectorAll('.edit-product-row').forEach(b=>b.onclick=e=>{e.stopPropagation();openProductEditor(b.dataset.code,{onSaved:()=>pintarTabla()});});document.querySelectorAll('.click-row[data-code]').forEach(r=>r.onclick=()=>openProductEditor(r.dataset.code,{onSaved:()=>pintarTabla()}));  const requested=new URLSearchParams(location.hash.split('?')[1]||'').get('code');if(requested&&d.products.some(p=>p.code===requested))setTimeout(()=>openProductEditor(requested,{onSaved:()=>pintarTabla()}),0);
 }

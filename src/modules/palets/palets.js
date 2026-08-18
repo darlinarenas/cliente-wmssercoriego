@@ -4,9 +4,10 @@ import { esc, empty } from '../../components/ui.js';
 import { crearEscaner } from '../../services/escaner.js';
 import { buscarUbicacionPorCodigo, vistaCodigoUbicacion } from '../../services/ubicaciones.js';
 import { deductStock, addStock } from '../../services/inventory-ops.js';
+import { resolveProduct,productAliases } from '../../services/product-codes.js';
 
 function params(){ return new URLSearchParams(location.hash.split('?')[1]||''); }
-function producto(code){ return store.data.products.find(p=>p.code===code); }
+function producto(code){ return resolveProduct(code); }
 function normalizar(v=''){ return String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); }
 function contenidoPalet(id){ return store.data.inventory.filter(i=>i.palletId===id && i.qty>0); }
 function totalUnidades(id){ return contenidoPalet(id).reduce((a,b)=>a+b.qty,0); }
@@ -76,7 +77,7 @@ function modoRapido(palletId){
 }
 
 function listaContenido(items,palletId,q){
-  const nq=normalizar(q), filtrados=items.filter(x=>{if(!nq)return true;const p=producto(x.code);return normalizar(x.code).includes(nq)||normalizar(p?.name).includes(nq)||normalizar(p?.family).includes(nq);});
+  const nq=normalizar(q), filtrados=items.filter(x=>{if(!nq)return true;const p=producto(x.code);return normalizar(productAliases(p).join(' ')).includes(nq)||normalizar(p?.name).includes(nq)||normalizar(p?.family).includes(nq);});
   if(!filtrados.length)return empty('No está en este palet','Prueba otro código o descripción.');
   return `<div class="pallet-item-list">${filtrados.map(x=>itemProducto(x,palletId)).join('')}</div>`;
 }

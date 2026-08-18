@@ -4,13 +4,13 @@ import { auth } from '../services/auth.js';
 import { esc } from '../components/ui.js';
 
 const nav=[
- ['dashboard','Inicio','⌂'],['buscar','Buscar','⌕'],['racks','Racks','▦'],['productos','Productos','◫'],
- ['recepciones','Recepción','⇩'],['transferencias','Despacho / Tránsito','⇄'],['movimientos','Mover','↔'],['palets','Palets','▣'],['historial','Historial','◷'],['importar','Importar Excel','⇧'],['usuarios','Usuarios','♙'],['estructura','Estructura','⚙']
+ ['dashboard','Inicio','⌂'],['ordenes','Órdenes / Mis tareas','✓'],['buscar','Buscar','⌕'],['racks','Racks','▦'],['productos','Productos','◫'],
+ ['recepciones','Recepción','⇩'],['transferencias','Despacho / Tránsito','⇄'],['movimientos','Mover','↔'],['palets','Palets','▣'],['historial','Historial','◷'],['importar','Importar Excel','⇧'],['centros','Centros y Sucursales','⌂'],['usuarios','Usuarios','♙'],['estructura','Estructura','⚙']
 ];
 
 export function shell(title,content,active='dashboard'){
   const d=store.data; const site=d.sites.find(s=>s.id==='REC')||{name:'Bodega Recoleta'}; const currentUser=d.users.find(u=>u.id===d.session.userId)||auth.user; const initials=(currentUser?.name||'Usuario').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
-  const visibleNav=nav.filter(([id])=>id!=='usuarios'||currentUser?.role==='ADMINISTRADOR');
+  const visibleNav=nav.filter(([id])=>!['usuarios','centros'].includes(id)||currentUser?.role==='ADMINISTRADOR');
   const links=visibleNav.map(([id,label,ico])=>`<a href="#/${id}" class="nav-link ${active===id?'active':''}"><span>${ico}</span><b>${label}</b></a>`).join('');
   return `<div class="app-shell vista-administrativa">
     <aside class="sidebar">
@@ -20,7 +20,7 @@ export function shell(title,content,active='dashboard'){
       <div class="sidebar-foot"><a href="#/movil" class="view-switch sidebar-switch"><span class="view-switch-icon">▯</span><span><b>Vista para teléfono</b><small>Abrir modo operativo</small></span></a><small>PostgreSQL · API conectada</small><small>Desarrollado por Vexhora Group · CEO Ing. Carlin Arenas</small>${currentUser?.role==='ADMINISTRADOR'?'<button id="reset-demo" class="ghost small" type="button">Restablecer datos iniciales</button>':''}</div>
     </aside>
     <main>
-      <header class="topbar"><div><button id="menu-btn" class="menu-btn">☰</button><div><small>Bodega Recoleta</small><h1>${esc(title)}</h1></div></div><div class="top-actions"><button id="install-pwa" class="pwa-install-btn" type="button"><span>▣</span><span><b>Instalar app</b><small>PC / teléfono</small></span></button><a href="#/movil" class="view-switch"><span class="view-switch-icon">▯</span><span><b>Vista para teléfono</b><small>Modo operativo</small></span></a>${currentUser?.role==='ADMINISTRADOR'?`<a href="#/usuarios" class="user-pill" title="Administrar usuarios">${esc(initials)} <span>${esc(currentUser?.name||'Usuario')}</span></a>`:`<span class="user-pill">${esc(initials)} <span>${esc(currentUser?.name||'Usuario')}</span></span>`}<button id="logout-btn" class="ghost logout-btn" type="button">Salir</button></div></header>
+      <header class="topbar"><div><button id="menu-btn" class="menu-btn">☰</button><div><small>Serco Riego · WMS multicentro</small><h1>${esc(title)}</h1></div></div><div class="top-actions"><button id="install-pwa" class="pwa-install-btn" type="button"><span>▣</span><span><b>Instalar app</b><small>PC / teléfono</small></span></button><a href="#/movil" class="view-switch"><span class="view-switch-icon">▯</span><span><b>Vista para teléfono</b><small>Modo operativo</small></span></a>${currentUser?.role==='ADMINISTRADOR'?`<a href="#/usuarios" class="user-pill" title="Administrar usuarios">${esc(initials)} <span>${esc(currentUser?.name||'Usuario')}</span></a>`:`<span class="user-pill">${esc(initials)} <span>${esc(currentUser?.name||'Usuario')}</span></span>`}<button id="logout-btn" class="ghost logout-btn" type="button">Salir</button></div></header>
       <section class="content">${content}</section>
     </main>
     <div id="toast" class="toast"></div>

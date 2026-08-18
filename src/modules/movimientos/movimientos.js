@@ -3,14 +3,15 @@ import { shell,wireShell,toast } from '../../layout/layout.js';
 import { esc,empty } from '../../components/ui.js';
 import { productPositions,positionKey,deductStock,addStock } from '../../services/inventory-ops.js';
 import { enlazarBotonEscaner } from '../../services/camara-ui.js';
+import { resolveProduct,productAliases } from '../../services/product-codes.js';
 
-function product(code){return store.data.products.find(p=>String(p.code)===String(code));}
+function product(code){return resolveProduct(code);}
 function norm(v=''){return String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
 function normCode(v=''){return norm(v).replace(/[^a-z0-9]/g,'');}
 function buscarProductos(query){
  const q=norm(query),qc=normCode(query); if(!q)return [];
  return store.data.products.map(p=>{
-  const code=normCode(p.code),name=norm(p.name),description=norm(p.description),type=norm(p.type||p.family),previous=(p.previousCodes||[]).map(normCode);
+  const aliases=productAliases(p),code=normCode(p.code),name=norm(p.name),description=norm(p.description),type=norm(p.type||p.family),previous=aliases.map(normCode);
   let score=0;
   if(code===qc)score=100;
   else if(previous.includes(qc))score=95;
@@ -48,7 +49,7 @@ export function renderMovements(root){
  const pintarResultados=()=>{
   const raw=search.value.trim();
   if(!raw){hidden.value='';results.hidden=true;results.innerHTML='';refresh();return;}
-  const exact=d.products.find(p=>normCode(p.code)===normCode(raw));
+  const exact=resolveProduct(raw);
   if(exact){seleccionar(exact.code);return;}
   hidden.value='';refresh();
   const matches=buscarProductos(raw);
@@ -59,7 +60,7 @@ export function renderMovements(root){
  search.addEventListener('input',pintarResultados);
  search.addEventListener('focus',()=>{if(search.value.trim()&&!hidden.value)pintarResultados();});
  search.addEventListener('blur',()=>setTimeout(()=>{results.hidden=true;},150));
- enlazarBotonEscaner('camara-mv-product','mv-product-search',{titulo:'Escanear producto para mover',ayuda:'Apunta al código de barras del producto',onDetectar:(valor)=>{const exact=d.products.find(p=>normCode(p.code)===normCode(valor));if(exact){seleccionar(exact.code);}else{pintarResultados();toast(`Producto ${valor} no encontrado`);}}});
+ enlazarBotonEscaner('camara-mv-product','mv-product-search',{titulo:'Escanear producto para mover',ayuda:'Apunta al código de barras del producto',onDetectar:(valor)=>{const exact=resolveProduct(valor);if(exact){seleccionar(exact.code);}else{pintarResultados();toast(`Producto ${valor} no encontrado`);}}});
  const initialCode=new URLSearchParams(location.hash.split('?')[1]||'').get('code'); if(initialCode)seleccionar(initialCode); else refresh();
  document.querySelector('#move-form').onsubmit=async(e)=>{
   e.preventDefault();const code=hidden.value,qty=Number(document.querySelector('#mv-qty').value),sourceKey=fromSel.value,to=document.querySelector('#mv-to').value,reason=document.querySelector('#mv-reason').value;

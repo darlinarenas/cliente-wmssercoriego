@@ -2,9 +2,10 @@ import { store } from '../../services/store.js';
 import { shell,wireShell,toast } from '../../layout/layout.js';
 import { esc,badge,empty } from '../../components/ui.js';
 import { enlazarBotonEscaner } from '../../services/camara-ui.js';
+import { resolveProduct } from '../../services/product-codes.js';
 
 function activeReceipt(){return store.data.receipts.find(r=>r.status==='RECIBIENDO');}
-function productName(code){return store.data.products.find(p=>p.code===code)?.name||'Producto no catalogado';}
+function productName(code){return resolveProduct(code)?.name||'Producto no catalogado';}
 function userName(id){return store.data.users.find(u=>u.id===id)?.name||id||'No registrado';}
 function tempOpts(){return store.data.locations.filter(l=>l.active&&l.kind==='POR_UBICAR').map(l=>`<option value="${esc(l.id)}">${esc(l.id)} · ${esc(l.status)}</option>`).join('');}
 function userOpts(selected=''){return store.data.users.filter(u=>u.active).map(u=>`<option value="${esc(u.id)}" ${u.id===selected?'selected':''}>${esc(u.name)}</option>`).join('');}
@@ -53,7 +54,7 @@ export function renderReceipts(root){
  }else{
    enlazarBotonEscaner('camara-rec-code','rec-code',{titulo:'Escanear producto recibido',ayuda:'Apunta al código de barras de la caja'});
    const sel=document.querySelector('#rec-temp'); if(r.tempLocationId)sel.value=r.tempLocationId;
-   document.querySelector('#receive-item').onsubmit=async(e)=>{e.preventDefault();const code=document.querySelector('#rec-code').value.trim(),qty=Number(document.querySelector('#rec-qty').value);if(!code||qty<1)return;await store.commit(s=>{let p=s.products.find(x=>x.code===code);if(!p){p={id:`SKU-${Date.now()}`,code,name:`Producto ${code}`,description:'',previousCodes:[],family:'Por clasificar',rotation:'MEDIA',pickingLocationId:null,createdAt:new Date().toISOString()};s.products.push(p);}const rr=s.receipts.find(x=>x.id===r.id),it=rr.items.find(x=>x.code===code);if(it)it.qty+=qty;else rr.items.push({code,qty});},`Producto ${code} agregado a ${r.id}`);toast('Producto agregado');renderReceipts(root);};
+   document.querySelector('#receive-item').onsubmit=async(e)=>{e.preventDefault();const raw=document.querySelector('#rec-code').value.trim(),qty=Number(document.querySelector('#rec-qty').value),p=resolveProduct(raw);if(!p){toast('Código no asociado a ningún producto');return;}if(qty<1)return;const code=p.code;await store.commit(s=>{const rr=s.receipts.find(x=>x.id===r.id),it=rr.items.find(x=>x.code===code);if(it)it.qty+=qty;else rr.items.push({code,qty,scannedCode:raw});},`Producto ${code} agregado a ${r.id}`);toast('Producto agregado');renderReceipts(root);};
    document.querySelectorAll('.rec-remove').forEach(b=>b.onclick=async()=>{await store.commit(s=>s.receipts.find(x=>x.id===r.id).items.splice(Number(b.dataset.i),1),`Producto retirado de ${r.id}`);renderReceipts(root);});
    document.querySelector('#close-receipt').onclick=async()=>{const temp=document.querySelector('#rec-temp').value,supervisedBy=document.querySelector('#rec-supervisor').value;if(!(r.items||[]).length){toast('Agrega al menos un producto');return;}if(!temp){toast('Selecciona ubicación temporal');return;}if(!supervisedBy){toast('Selecciona quién revisó la recepción');return;}const now=new Date().toISOString();await store.commit(s=>{const rr=s.receipts.find(x=>x.id===r.id);rr.status='POR_UBICAR';rr.closedAt=now;rr.tempLocationId=temp;rr.supervisedBy=supervisedBy;const pal=s.pallets.find(x=>x.id===rr.palletId);pal.status='POR_UBICAR';pal.locationId=temp;for(const it of rr.items){let inv=s.inventory.find(i=>i.productCode===it.code&&i.locationId===temp&&i.palletId===rr.palletId);if(inv)inv.qty+=it.qty;else s.inventory.push({id:`INV-${Date.now()}-${it.code}`,productCode:it.code,locationId:temp,qty:it.qty,palletId:rr.palletId});}const loc=s.locations.find(l=>l.id===temp);if(loc)loc.status='OCUPADA';},`Recepción ${r.id} cerrada en ${temp}`);toast('Recepción cerrada y localizada');renderReceipts(root);};
  }

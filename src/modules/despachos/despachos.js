@@ -3,9 +3,10 @@ import { shell,wireShell,toast } from '../../layout/layout.js';
 import { esc,badge,empty } from '../../components/ui.js';
 import { enlazarBotonEscaner } from '../../services/camara-ui.js';
 import { productPositions,availableFrom,deductStock } from '../../services/inventory-ops.js';
+import { resolveProduct } from '../../services/product-codes.js';
 
-function pname(c){return store.data.products.find(p=>String(p.code)===String(c))?.name||c;}
-function pdesc(c){return store.data.products.find(p=>String(p.code)===String(c))?.description||'';}
+function pname(c){return resolveProduct(c)?.name||c;}
+function pdesc(c){return resolveProduct(c)?.description||'';}
 function uname(id){return store.data.users.find(u=>u.id===id)?.name||id||'No registrado';}
 function userOpts(){return store.data.users.filter(u=>u.active).map(u=>`<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('');}
 function available(code){return availableFrom(store.data,code,'AUTO');}
@@ -18,7 +19,7 @@ function sourceOptions(code){
  return `<option value="AUTO">Automático · rack primero · ${total} un. totales</option>${pos.map(p=>`<option value="${esc(p.key)}">${esc(sourceLabel(p))}</option>`).join('')}`;
 }
 function productLookup(code){
- const p=store.data.products.find(x=>String(x.code)===String(code));
+ const p=resolveProduct(code);
  if(!code)return `<div class="lookup-empty"><b>Escribe o escanea un código</b><small>Aquí verás qué producto estás agregando, cuánto stock tiene y dónde está.</small></div>`;
  if(!p)return `<div class="lookup-error"><b>Código ${esc(code)} no registrado</b><small>No se agregará al despacho hasta que exista en Productos.</small></div>`;
  const pos=productPositions(store.data,code),total=pos.reduce((a,b)=>a+b.qty,0);
@@ -44,11 +45,10 @@ export function renderTransfers(root){
  }else{
    enlazarBotonEscaner('camara-tr-code','tr-code',{titulo:'Escanear producto para despacho',ayuda:'Apunta al código de barras del producto'});
    const codeInput=document.querySelector('#tr-code'),sourceSel=document.querySelector('#tr-source'),preview=document.querySelector('#tr-product-preview'),qtyInput=document.querySelector('#tr-qty');
-   const refreshLookup=()=>{const code=codeInput.value.replace(/\D/g,'');if(codeInput.value!==code)codeInput.value=code;preview.innerHTML=productLookup(code);sourceSel.innerHTML=store.data.products.some(p=>p.code===code)?sourceOptions(code):'<option value="AUTO">Automático</option>';const avail=availableFrom(store.data,code,sourceSel.value);qtyInput.max=avail||'';};
-   codeInput.addEventListener('input',refreshLookup);codeInput.addEventListener('change',refreshLookup);sourceSel.addEventListener('change',()=>{const code=codeInput.value.replace(/\D/g,''),avail=availableFrom(store.data,code,sourceSel.value);qtyInput.max=avail||'';});refreshLookup();
+   const refreshLookup=()=>{const raw=codeInput.value.trim(),p=resolveProduct(raw),code=p?.code||raw;preview.innerHTML=productLookup(raw);sourceSel.innerHTML=p?sourceOptions(code):'<option value="AUTO">Automático</option>';const avail=p?availableFrom(store.data,code,sourceSel.value):0;qtyInput.max=avail||'';};
+   codeInput.addEventListener('input',refreshLookup);codeInput.addEventListener('change',refreshLookup);sourceSel.addEventListener('change',()=>{const p=resolveProduct(codeInput.value.trim()),code=p?.code||'',avail=p?availableFrom(store.data,code,sourceSel.value):0;qtyInput.max=avail||'';});refreshLookup();
    document.querySelector('#add-transfer-item').onsubmit=async(e)=>{
-     e.preventDefault();const code=codeInput.value.replace(/\D/g,''),qty=Number(qtyInput.value),sourceKey=sourceSel.value||'AUTO',avail=availableFrom(store.data,code,sourceKey),pos=productPositions(store.data,code).find(p=>p.key===sourceKey);
-     if(!store.data.products.some(p=>p.code===code)){toast('Código no registrado');return;}if(qty<1){toast('Cantidad inválida');return;}if(qty>avail){toast(`Solo hay ${avail} unidades disponibles en el origen seleccionado`);return;}
+     e.preventDefault();const found=resolveProduct(codeInput.value.trim());if(!found){toast('Código no registrado');return;}const code=found.code,qty=Number(qtyInput.value),sourceKey=sourceSel.value||'AUTO',avail=availableFrom(store.data,code,sourceKey),pos=productPositions(store.data,code).find(p=>p.key===sourceKey);if(qty<1){toast('Cantidad inválida');return;}if(qty>avail){toast(`Solo hay ${avail} unidades disponibles en el origen seleccionado`);return;}
      const already=(t.items||[]).filter(i=>i.code===code&&i.sourceKey===sourceKey).reduce((s,i)=>s+Number(i.qty||0),0);if(already+qty>avail){toast(`Ya preparaste ${already}. En ese origen quedan ${avail-already} unidades disponibles para esta salida.`);return;}
      await store.commit(s=>{const tt=s.transfers.find(x=>x.id===t.id),it=tt.items.find(x=>x.code===code&&x.sourceKey===sourceKey);if(it)it.qty+=qty;else tt.items.push({code,qty,sourceKey,sourceLabel:pos?sourceLabel(pos):'Automático'});},`Producto ${code} (${qty} un.) agregado a ${t.id}`);renderTransfers(root);
    };

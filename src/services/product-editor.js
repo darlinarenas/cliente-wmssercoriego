@@ -1,6 +1,7 @@
 import { store } from './store.js';
 import { esc } from '../components/ui.js';
 import { toast } from '../layout/layout.js';
+import { addProductCode,codeInUse,normalizeProductCode } from './product-codes.js';
 
 function currentUser(){ return store.data.users.find(u=>u.id===store.data.session.userId); }
 function canEdit(){ return ['ADMINISTRADOR','ENCARGADO'].includes(currentUser()?.role); }
@@ -25,6 +26,10 @@ function dialogHtml(){
         <label>Tipo<input id="pe-type" maxlength="100" placeholder="Ej. PVC, PPR, Orbit"></label><label>Categoría<input id="pe-category" maxlength="100" placeholder="Ej. Conexiones, Riego"></label><label>Subcategoría<input id="pe-subcategory" maxlength="100" placeholder="Ej. Codos, Válvulas"></label>
         <label>Rotación<select id="pe-rotation"><option value="ALTA">ALTA</option><option value="MEDIA">MEDIA</option><option value="BAJA">BAJA</option></select></label>
       </div>
+    </section>
+    <section class="product-editor-section"><div class="section-mini-head"><div><b>Códigos asociados</b><small>Un solo producto maestro puede responder a SKU, código de importación, tienda, Shopify u otros códigos.</small></div></div>
+      <div id="pe-codes-list" class="product-codes-list"></div>
+      <div class="product-code-add"><label>Tipo<select id="pe-code-type"><option value="SKU">SKU</option><option value="IMPORTACION">Importación / caja</option><option value="TIENDA">Tienda / sucursal</option><option value="KAME">Kame</option><option value="SHOPIFY">Shopify / web</option><option value="CONTROL">Control interno</option><option value="OTRO">Otro</option></select></label><label>Código<input id="pe-alt-code" autocomplete="off" placeholder="Escanea o escribe el código"></label><label>Etiqueta opcional<input id="pe-code-label" placeholder="Ej. SKU Vitacura"></label><button type="button" id="pe-add-code" class="secondary">+ Asociar código</button></div>
     </section>
     <section class="product-editor-section"><div class="section-mini-head"><div><b>Inventario físico por ubicación</b><small>Escribe lo que realmente contaste. El sistema registrará cualquier diferencia como AJUSTE DE INVENTARIO.</small></div><button type="button" id="copy-system-qty" class="ghost small">Mantener cantidades</button></div>
       <div id="pe-inventory-list" class="inventory-edit-list"></div>
@@ -52,6 +57,7 @@ function fill(code){
   document.querySelector('#pe-subcategory').value=p.subcategory||'';
   document.querySelector('#pe-rotation').value=p.rotation||'MEDIA';
   document.querySelector('#pe-reason').value='';
+  const codes=document.querySelector('#pe-codes-list'); const alt=(store.data.product_codes||[]).filter(x=>x.productId===p.id&&x.active!==false); codes.innerHTML=`<div class="product-code-row primary-code"><div><b>${esc(p.code)}</b><small>Código principal</small></div><span class="badge ok">PRINCIPAL</span></div>`+alt.map(x=>`<div class="product-code-row"><div><b>${esc(x.code)}</b><small>${esc(x.type||'OTRO')}${x.label?` · ${esc(x.label)}`:''}</small></div><button type="button" class="ghost small remove-alt-code" data-id="${esc(x.id)}">Quitar</button></div>`).join('');
   document.querySelector('#product-editor-subtitle').textContent=`${p.code} · ${p.name||'Producto sin nombre'}`;
   const out=document.querySelector('#pe-inventory-list');
   out.innerHTML=inv.length?inv.map((i,index)=>`<div class="inventory-edit-row" data-inv-id="${esc(i.id)}"><div><b>${esc(locationLabel(i))}</b><small>${i.palletId?'Existencia dentro de palet':'Ubicación directa'}</small></div><label>Sistema<input class="pe-system-qty" type="number" value="${Number(i.qty)||0}" disabled></label><label>Conteo físico<input class="pe-physical-qty" data-index="${index}" type="number" min="0" step="1" value="${Number(i.qty)||0}" inputmode="numeric"></label><span class="qty-diff neutral">Sin diferencia</span></div>`).join(''):`<div class="empty-inline"><b>Sin existencias localizadas</b><small>Este producto todavía no tiene cantidades registradas por ubicación.</small></div>`;
@@ -77,7 +83,11 @@ export function openProductEditor(code,{onSaved}={}){
   document.querySelectorAll('#product-editor-form input:not([type="hidden"]),#product-editor-form textarea,#product-editor-form select').forEach(el=>{if(el.classList.contains('pe-system-qty'))el.disabled=true;else el.disabled=!allowed;});
   document.querySelector('#save-product-editor').disabled=!allowed;
   document.querySelector('#copy-system-qty').disabled=!allowed;
+  document.querySelector('#pe-add-code').disabled=!allowed;
+  document.querySelectorAll('.remove-alt-code').forEach(b=>b.disabled=!allowed);
   const close=()=>dlg.close();document.querySelector('#close-product-editor').onclick=close;document.querySelector('#cancel-product-editor').onclick=close;
+  document.querySelector('#pe-add-code').onclick=async()=>{if(!allowed)return;const code=normalizeProductCode(document.querySelector('#pe-alt-code').value);if(!code){toast('Escribe el código a asociar');return;}if(codeInUse(code,p.id)){toast('Ese código ya pertenece a otro producto');return;}try{await store.commit(st=>addProductCode(st,p.id,code,document.querySelector('#pe-code-type').value,document.querySelector('#pe-code-label').value),`Código ${code} asociado a ${p.code}`);close();openProductEditor(p.code,{onSaved});toast('Código asociado');}catch(err){toast(err.message);}};
+  document.querySelectorAll('.remove-alt-code').forEach(b=>b.onclick=async()=>{if(!allowed)return;if(!confirm('¿Quitar este código alternativo del producto?'))return;await store.commit(st=>{const x=(st.product_codes||[]).find(c=>c.id===b.dataset.id);if(x)x.active=false;},`Código alternativo retirado de ${p.code}`);close();openProductEditor(p.code,{onSaved});toast('Código retirado');});
   document.querySelector('#copy-system-qty').onclick=()=>{document.querySelectorAll('.inventory-edit-row').forEach(row=>{const sys=row.querySelector('.pe-system-qty').value,phy=row.querySelector('.pe-physical-qty');phy.value=sys;phy.dispatchEvent(new Event('input',{bubbles:true}));});};
   document.querySelector('#product-editor-form').onsubmit=async e=>{
     e.preventDefault(); if(!allowed)return;
@@ -91,7 +101,7 @@ export function openProductEditor(code,{onSaved}={}){
     const rotation=document.querySelector('#pe-rotation').value;
     const reason=document.querySelector('#pe-reason').value.trim();
     if(!newCode||!name||!reason){toast('Completa código, nombre y motivo');return;}
-    if(newCode!==oldCode&&store.data.products.some(x=>x.code===newCode)){toast('Ese código ya existe en otro producto');return;}
+    if(newCode!==oldCode&&codeInUse(newCode,p.id)){toast('Ese código ya existe o está asociado a otro producto');return;}
     const qtyChanges=[];
     document.querySelectorAll('.inventory-edit-row').forEach(row=>{const id=row.dataset.invId,inv=store.data.inventory.find(i=>i.id===id);if(!inv)return;const before=Number(inv.qty||0),after=Number(row.querySelector('.pe-physical-qty').value||0);if(Number.isFinite(after)&&after>=0&&after!==before)qtyChanges.push({id,before,after,locationId:inv.locationId,palletId:inv.palletId||null});});
     const masterChanged=(()=>{const pp=product(oldCode);return newCode!==oldCode||name!==(pp.name||'')||description!==(pp.description||'')||type!==(pp.type||pp.family||'')||category!==(pp.category||'')||subcategory!==(pp.subcategory||'')||rotation!==(pp.rotation||'MEDIA');})();

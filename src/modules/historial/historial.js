@@ -6,7 +6,7 @@ function mapaUsuarios(){return Object.fromEntries(store.data.users.map(u=>[u.id,
 function usuario(id,users){return users[id]||id||'No registrado';}
 function fecha(v){return v?new Date(v).toLocaleString('es-CL'):'—';}
 function soloHora(v){return v?new Date(v).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—';}
-function nombreProducto(code){return store.data.products.find(p=>p.code===code||(p.previousCodes||[]).includes(code))?.name||`Producto ${code}`;}
+function nombreProducto(code){return resolveProduct(code)?.name||`Producto ${code}`;}
 function productos(items=[]){return items.length?items.map(x=>`${esc(x.code)} · ${esc(nombreProducto(x.code))} × ${x.qty}`).join('<br>'):'Sin productos registrados';}
 function normalizar(v=''){return String(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
 function contiene(haystack,q){return normalizar(haystack).includes(normalizar(q));}
@@ -42,7 +42,7 @@ function auditoriaNormalizada(){
 }
 
 function trazaProducto(code){
-  const d=store.data,users=mapaUsuarios(),product=d.products.find(p=>p.code===code||(p.previousCodes||[]).includes(code));
+  const d=store.data,users=mapaUsuarios(),product=resolveProduct(code);
   if(!product)return '';
   const canonical=product.code;
   const rec=d.receipts.filter(r=>(r.items||[]).some(x=>x.code===canonical)).map(r=>({
@@ -64,7 +64,7 @@ function trazaProducto(code){
   const timeline=[...rec,...des,...mov].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
   const inv=d.inventory.filter(i=>i.productCode===canonical&&Number(i.qty)>0);
   const total=inv.reduce((s,i)=>s+Number(i.qty||0),0);
-  return `<section class="panel trace-card"><div class="panel-head"><div><span class="eyebrow">FICHA DE TRAZABILIDAD</span><h3>${esc(canonical)} · ${esc(product.name)}</h3><small>${esc(product.description||'Descripción no registrada')} · ${esc(product.type||product.family||'Sin clasificar')} · Total localizado actual: ${total}${(product.previousCodes||[]).length?` · Código(s) anterior(es): ${esc(product.previousCodes.join(', '))}`:''}</small></div>${badge(`${timeline.length} eventos`,'neutral')}</div>
+  return `<section class="panel trace-card"><div class="panel-head"><div><span class="eyebrow">FICHA DE TRAZABILIDAD</span><h3>${esc(canonical)} · ${esc(product.name)}</h3><small>${esc(product.description||'Descripción no registrada')} · ${esc(product.type||product.family||'Sin clasificar')} · Total localizado actual: ${total} · Códigos válidos: ${esc(productAliases(product).join(', '))}</small></div>${badge(`${timeline.length} eventos`,'neutral')}</div>
   <div class="trace-locations"><b>Ubicación actual</b>${inv.length?inv.map(i=>`<span>${esc(i.locationId)}${i.palletId?` · ${esc(i.palletId)}`:''} <strong>${i.qty}</strong></span>`).join(''):'<span>Sin ubicación registrada</span>'}</div>
   <div class="trace-timeline">${timeline.length?timeline.map(x=>`<article class="trace-event"><div><span class="trace-type">${esc(x.tipo)}</span><b>${esc(x.detalle)}</b><small>${fecha(x.fecha)} · ${esc(x.horas)}</small></div><strong>${x.cantidad} un.</strong><p>${esc(x.meta)}</p><p>${esc(x.responsables)}</p></article>`).join(''):empty('Sin eventos para este producto','Todavía no hay recepciones, despachos ni movimientos registrados para este código.')}</div></section>`;
 }
@@ -88,7 +88,7 @@ function actualizarBusqueda(){
   const q=document.querySelector('#historial-search')?.value.trim()||'',tipo=document.querySelector('#filtro-eventos')?.value||'TODOS';
   pintarEventos(tipo,q);pintarMovimientos(q);pintarAuditoria(q);
   const trace=document.querySelector('#product-trace'); if(!trace)return;
-  const exact=store.data.products.find(p=>p.code===q||(p.previousCodes||[]).includes(q));
+  const exact=resolveProduct(q);
   trace.innerHTML=exact?trazaProducto(exact.code):'';
   const count=document.querySelector('#historial-result-count');
   if(count){const n=eventosOperativos().filter(e=>(tipo==='TODOS'||e.tipo===tipo)&&(!q||contiene(e.searchable,q))).length+movimientosNormalizados().filter(m=>!q||contiene(m.searchable,q)).length;count.textContent=q?`${n} coincidencias operativas`:'Mostrando actividad reciente';}

@@ -1,4 +1,5 @@
 import { store } from './store.js';
+import { resolveProduct } from './product-codes.js';
 
 const SONIDOS={
   ok:new URL('../../assets/sounds/scan-ok.wav',import.meta.url).href,
@@ -82,8 +83,8 @@ export async function solicitarPermisoSonidoGlobal(){
 
 function normalizar(v=''){return String(v).toLowerCase().replace(/[^a-z0-9]/g,'');}
 export function productoExistePorCodigo(valor){
-  const codigo=normalizar(valor);
-  return Boolean(codigo&&store.data?.products?.some(p=>normalizar(p.code)===codigo||(p.previousCodes||[]).some(x=>normalizar(x)===codigo)));
+  const codigo=String(valor||'').trim();
+  return Boolean(codigo&&resolveProduct(codigo));
 }
 export function sonidoPorCodigo(valor){
   if(!habilitado)return;

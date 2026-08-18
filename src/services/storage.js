@@ -11,6 +11,8 @@ function migrar(data){
   data.products=Array.isArray(data.products)?data.products:base.products;
   data.receipts=Array.isArray(data.receipts)?data.receipts:[];
   data.transfers=Array.isArray(data.transfers)?data.transfers:[];
+  data.product_codes=Array.isArray(data.product_codes)?data.product_codes:[];
+  data.orders=Array.isArray(data.orders)?data.orders:[];
   data.movements=Array.isArray(data.movements)?data.movements:[];
   data.audit=Array.isArray(data.audit)?data.audit:[];
   data.users=Array.isArray(data.users)&&data.users.length?data.users:base.users;
