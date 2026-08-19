@@ -1,4 +1,4 @@
-const CACHE = 'sercoriego-lite-wms-v24-admin-feedback-multicentro';
+const CACHE = 'sercoriego-lite-wms-v25-startup-timeout';
 const PRECACHE = [
   "./",
   "./index.html",
