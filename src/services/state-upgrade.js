@@ -16,6 +16,7 @@ export function upgradeState(data){
      for(let level=1;level<=Number(r.levels||0);level++)r.levelPositions[String(level)]=defaultLevelPositions(r,level);
      changed=true;
    }
+   if(!r.moduleLevelPositions||typeof r.moduleLevelPositions!=='object'){r.moduleLevelPositions={};changed=true;}
  }
 
  // Compatibilidad con la estructura aprobada: Racks 1–5, niveles 2 y 3, posiciones A/B.

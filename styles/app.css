@@ -126,3 +126,18 @@
 /* Editor puntual de distribución física de racks */
 .rack-layout-editor{display:grid;gap:8px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#f8fafc}.rack-layout-editor>small{color:var(--muted)}#rack-level-layout{display:grid;gap:8px;margin-top:4px}.rack-layout-row{display:grid;grid-template-columns:72px minmax(160px,1fr);gap:6px 10px;align-items:center}.rack-layout-row>span{font-size:12px;font-weight:800;color:var(--muted)}.rack-layout-row>small{grid-column:2;font-size:11px;color:var(--muted)}
 @media(max-width:560px){.rack-layout-row{grid-template-columns:1fr}.rack-layout-row>small{grid-column:1}}
+
+/* Estructura: edición puntual por módulo y mensajes visibles */
+.rack-module-map.editable-module{cursor:pointer;transition:border-color .15s,box-shadow .15s,background .15s}
+.rack-module-map.editable-module:hover{border-color:#9fd8b3;background:#fbfefc;box-shadow:0 6px 18px rgba(22,163,74,.08)}
+.rack-module-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rack-module-head .edit-module-layout{padding:6px 9px;font-size:11px}
+.rack-feedback{display:none;padding:12px 14px;border-radius:11px;font-size:12px;font-weight:800;line-height:1.45}
+.rack-feedback.show{display:block}
+.rack-feedback.error{background:#fff0ef;border:1px solid #f5c2be;color:#a61b13}
+.rack-feedback.success{background:#eaf8ef;border:1px solid #bde6cb;color:#08753a}
+#module-dialog{width:min(560px,calc(100% - 24px))}
+#module-dialog .dialog-head>div{display:grid;gap:3px}
+#module-dialog .dialog-head small{color:var(--muted)}
+#module-dialog .dialog-actions{flex-wrap:wrap}
+@media(max-width:560px){#module-dialog .dialog-actions>*{width:100%}.rack-module-head{align-items:center}}
