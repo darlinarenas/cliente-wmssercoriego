@@ -141,3 +141,9 @@
 #module-dialog .dialog-head small{color:var(--muted)}
 #module-dialog .dialog-actions{flex-wrap:wrap}
 @media(max-width:560px){#module-dialog .dialog-actions>*{width:100%}.rack-module-head{align-items:center}}
+
+/* Acción destructiva de Estructura: eliminar rack */
+.danger-action{border:1px solid #fecaca;background:#fff1f0;color:var(--danger);border-radius:10px;padding:11px 15px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.danger-action:hover{background:#fee2e2}
+.danger-action[hidden]{display:none}
+.rack-dialog-actions{width:100%}.dialog-actions-spacer{flex:1}

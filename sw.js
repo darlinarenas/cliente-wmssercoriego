@@ -1,4 +1,4 @@
-const CACHE = 'sercoriego-lite-wms-v21-modulos-editables';
+const CACHE = 'sercoriego-lite-wms-v22-eliminar-rack';
 const PRECACHE = [
   "./",
   "./index.html",
