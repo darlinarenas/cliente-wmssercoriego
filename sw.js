@@ -1,4 +1,4 @@
-const CACHE = 'sercoriego-lite-wms-v25-startup-timeout';
+const CACHE = 'sercoriego-lite-wms-v26-fix-layout-active';
 const PRECACHE = [
   "./",
   "./index.html",

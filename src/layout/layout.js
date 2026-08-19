@@ -10,13 +10,13 @@ const nav=[
 ];
 
 export function shell(title,content,active='dashboard'){
-  const d=store.data; const active=activeSiteId(d); const site=d.sites.find(s=>s.id===active)||d.sites[0]||{name:'Centro sin definir',code:active}; const currentUser=d.users.find(u=>u.id===d.session.userId)||auth.user; const initials=(currentUser?.name||'Usuario').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
+  const d=store.data; const activeSite=activeSiteId(d); const site=d.sites.find(s=>s.id===activeSite)||d.sites[0]||{name:'Centro sin definir',code:activeSite}; const currentUser=d.users.find(u=>u.id===d.session.userId)||auth.user; const initials=(currentUser?.name||'Usuario').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
   const visibleNav=nav.filter(([id])=>!['usuarios','centros'].includes(id)||currentUser?.role==='ADMINISTRADOR');
   const links=visibleNav.map(([id,label,ico])=>`<a href="#/${id}" class="nav-link ${active===id?'active':''}"><span>${ico}</span><b>${label}</b></a>`).join('');
   return `<div class="app-shell vista-administrativa">
     <aside class="sidebar">
       <div class="brand"><div class="brand-mark">S</div><div><b>SercoRiego Lite WMS</b><small>Control de bodega</small></div></div>
-      <div class="site-chip"><span class="dot"></span><div><b>${esc(site.name)}</b><small>${esc(site.code||site.id||active)} · sede activa</small></div></div>
+      <div class="site-chip"><span class="dot"></span><div><b>${esc(site.name)}</b><small>${esc(site.code||site.id||activeSite)} · sede activa</small></div></div>
       <nav>${links}</nav>
       <div class="sidebar-foot"><a href="#/movil" class="view-switch sidebar-switch"><span class="view-switch-icon">▯</span><span><b>Vista para teléfono</b><small>Abrir modo operativo</small></span></a><small>PostgreSQL · API conectada</small><small>Desarrollado por Vexhora Group · CEO Ing. Carlin Arenas</small>${currentUser?.role==='ADMINISTRADOR'?'<button id="reset-demo" class="ghost small" type="button">Restablecer datos iniciales</button>':''}</div>
     </aside>
