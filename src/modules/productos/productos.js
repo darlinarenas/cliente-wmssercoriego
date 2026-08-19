@@ -8,11 +8,15 @@ import { stockBySite,activeSiteId,stockSitesOrdered } from '../../services/stock
 
 const pesoRotacion={ALTA:3,MEDIA:2,BAJA:1};
 function totalProducto(code){return store.data.inventory.filter(i=>i.productCode===code&&i.qty>0).reduce((a,b)=>a+b.qty,0);}
-function ubicacionesProducto(code){return [...new Set(store.data.inventory.filter(i=>i.productCode===code&&i.qty>0).map(i=>i.palletId||i.locationId))].join(', ')||'Sin ubicación';}
+function ubicacionesProducto(code){
+  const ubicaciones=[...new Set(store.data.inventory.filter(i=>i.productCode===code&&i.qty>0).map(i=>i.palletId||i.locationId).filter(Boolean))];
+  if(!ubicaciones.length)return '<span class="product-location-empty">Sin ubicación</span>';
+  return `<div class="product-location-chips">${ubicaciones.map(u=>`<span class="product-location-chip">${esc(u)}</span>`).join('')}</div>`;
+}
 function tipos(){return [...new Set(store.data.products.map(p=>p.type||p.family).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));}
 function filaProducto(p){
   const total=totalProducto(p.code),active=activeSiteId(),rows=stockSitesOrdered(p.code),activeRow=rows.find(x=>x.active)||{qty:0,name:active},others=rows.filter(x=>!x.active&&x.qty>0).map(x=>`${x.name}: ${x.qty}`).join(' · ');
-  return `<tr class="click-row" data-code="${esc(p.code)}"><td><b>${esc(p.code)}</b><small class="row-sub">${productAliases(p).length-1} código(s) asociado(s)</small></td><td><b>${esc(p.description||p.name||`Producto ${p.code}`)}</b></td><td><b>${activeRow.qty}</b><small class="row-sub"><b>${esc(activeRow.name)} · centro activo</b>${others?` · Otras: ${esc(others)}`:''} · Total red: ${total}</small></td><td>${esc(ubicacionesProducto(p.code))}</td><td><button class="ghost small edit-product-row" data-code="${esc(p.code)}">Ver ficha / Editar</button></td></tr>`;
+  return `<tr class="click-row" data-code="${esc(p.code)}"><td><b>${esc(p.code)}</b><small class="row-sub">${productAliases(p).length-1} código(s) asociado(s)</small></td><td><b>${esc(p.description||p.name||`Producto ${p.code}`)}</b></td><td><b>${activeRow.qty}</b><small class="row-sub"><b>${esc(activeRow.name)} · centro activo</b>${others?` · Otras: ${esc(others)}`:''} · Total red: ${total}</small></td><td>${ubicacionesProducto(p.code)}</td><td><button class="ghost small edit-product-row" data-code="${esc(p.code)}">Ver ficha / Editar</button></td></tr>`;
 }
 function obtenerFiltrados(){
   const texto=(document.querySelector('#productos-buscar')?.value||'').trim().toLowerCase();
