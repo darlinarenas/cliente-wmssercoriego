@@ -1,4 +1,4 @@
-const CACHE = 'sercoriego-lite-wms-v19-ux-safe';
+const CACHE = 'sercoriego-lite-wms-v20-racks-dinamicos';
 const PRECACHE = [
   "./",
   "./index.html",
