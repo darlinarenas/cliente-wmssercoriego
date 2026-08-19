@@ -3,7 +3,7 @@ function defaultLevelPositions(r,level){const n=rackNumber(r);return r.siteId===
 function locationUsed(data,id){return (data.inventory||[]).some(i=>i.locationId===id&&Number(i.qty)>0)||(data.pallets||[]).some(p=>p.locationId===id&&p.status!=='CERRADO');}
 
 export function upgradeState(data){
- let changed=false;if(!Array.isArray(data.product_codes)){data.product_codes=[];changed=true;}if(!Array.isArray(data.orders)){data.orders=[];changed=true;}
+ let changed=false;data.session=data.session||{};if(!data.session.activeSiteId){const u=(data.users||[]).find(x=>x.id===data.session.userId);data.session.activeSiteId=(u?.siteIds||[])[0]||(data.sites||[]).find(s=>s.id==='REC')?.id||(data.sites||[])[0]?.id||'REC';changed=true;}if(!Array.isArray(data.product_codes)){data.product_codes=[];changed=true;}if(!Array.isArray(data.orders)){data.orders=[];changed=true;}
  for(const u of data.users||[]){if(!Array.isArray(u.siteIds)){u.siteIds=[];changed=true;}}
 
  const placeholder=(data.sites||[]).find(s=>s.id==='TIENDA'&&s.active===false);

@@ -1,4 +1,4 @@
-const CACHE = 'sercoriego-lite-wms-v23-centros-sucursales';
+const CACHE = 'sercoriego-lite-wms-v24-admin-feedback-multicentro';
 const PRECACHE = [
   "./",
   "./index.html",
@@ -15,6 +15,7 @@ const PRECACHE = [
   "./src/app.js",
   "./src/modules/login/login.js",
   "./src/services/auth.js",
+  "./src/services/security.js",
   "./src/components/ui.js",
   "./src/core/config.js",
   "./src/core/router.js",
@@ -43,6 +44,8 @@ const PRECACHE = [
   "./src/services/repository.js",
   "./src/services/storage.js",
   "./src/services/store.js",
+  "./src/services/state-upgrade.js",
+  "./src/services/stock.js",
   "./src/services/ubicaciones.js",
   "./src/services/inventory-ops.js",
   "./assets/sounds/scan-no-encontrado.wav",

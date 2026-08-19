@@ -1,8 +1,10 @@
 import { store } from '../../services/store.js';
-import { shell,wireShell,toast } from '../../layout/layout.js';
+import { shell,wireShell,toast,notice } from '../../layout/layout.js';
 import { esc,badge,empty } from '../../components/ui.js';
 import { FORMATO_UBICACION_PREDETERMINADO,recalcularCodigosEscaneables,vistaCodigoUbicacion } from '../../services/ubicaciones.js';
+import { requireAdminSupercode } from '../../services/security.js';
 
+function isAdmin(){const u=store.data.users.find(x=>x.id===store.data.session.userId);return u?.role==='ADMINISTRADOR';}
 function siteId(){return new URLSearchParams(location.hash.split('?')[1]||'').get('site')||'REC';}
 function rackCode(r){return r.rackCode||(/^R\d+$/.test(r.id)?r.id:String(r.id).split('-').pop());}
 function racksFor(site){return store.data.racks.filter(r=>r.siteId===site);}
@@ -208,7 +210,7 @@ export function renderStructure(root){
     renderLevelEditor(editingRack,Number(document.querySelector('#rack-levels').value));
     document.querySelector('#rack-feedback').className='rack-feedback';
     const deleteBtn=document.querySelector('#delete-rack');
-    if(deleteBtn)deleteBtn.hidden=!r;
+    if(deleteBtn)deleteBtn.hidden=!r||!isAdmin();
     dlg.showModal();
   };
   document.querySelector('#new-rack').onclick=()=>open();
@@ -217,7 +219,7 @@ export function renderStructure(root){
   document.querySelector('#close-rack').onclick=()=>dlg.close();
   document.querySelector('#cancel-rack').onclick=()=>dlg.close();
   document.querySelector('#delete-rack').onclick=async()=>{
-    if(!editingRack?.id)return;
+    if(!editingRack?.id||!isAdmin())return;
     const r=store.data.racks.find(x=>x.id===editingRack.id);
     if(!r)return;
     const locs=(store.data.locations||[]).filter(l=>l.rackId===r.id);
@@ -230,6 +232,7 @@ export function renderStructure(root){
       showRackFeedback(`No se puede eliminar ${r.name}: la ubicación ${first.id} contiene ${detail}. Mueve primero todo su contenido desde Mover/Reubicar y vuelve a intentarlo.`);
       return;
     }
+    const authorized=await requireAdminSupercode(`Vas a eliminar ${r.name}. Ingresa el mismo código/contraseña con el que iniciaste sesión como administrador.`);if(!authorized)return;
     if(!confirm(`¿Eliminar ${r.name}? Se eliminará la configuración del rack y sus ubicaciones vacías. Esta acción no se puede deshacer.`))return;
     await store.commit(d=>{
       d.racks=d.racks.filter(x=>x.id!==r.id);
@@ -238,7 +241,7 @@ export function renderStructure(root){
     },`${r.name} eliminado de ${site?.name||sid}`);
     dlg.close();
     renderStructure(root);
-    toast(`${r.name} eliminado correctamente.`);
+    await notice('Rack eliminado',`${r.name} se eliminó correctamente.`,'success');
   };
   document.querySelector('#rack-form').onsubmit=async e=>{
     e.preventDefault();

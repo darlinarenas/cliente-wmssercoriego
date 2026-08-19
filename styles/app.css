@@ -147,3 +147,25 @@
 .danger-action:hover{background:#fee2e2}
 .danger-action[hidden]{display:none}
 .rack-dialog-actions{width:100%}.dialog-actions-spacer{flex:1}
+
+/* 2026-08-18 · autorización administrativa, feedback global y stock multicentro */
+.global-toast{z-index:10050;max-width:min(520px,calc(100vw - 32px));box-shadow:0 18px 50px rgba(15,23,42,.28)}
+.global-toast.success{background:#0d7a3f}.global-toast.warning{background:#8a5a00}.global-toast.error{background:#a52820}
+.operation-notice,.supercode-dialog{z-index:10020}
+.operation-notice::backdrop,.supercode-dialog::backdrop{background:rgba(5,12,22,.66)}
+.operation-notice{width:min(460px,calc(100% - 24px));border:0;border-radius:20px;padding:0}
+.operation-notice-card{padding:28px;display:grid;gap:12px;text-align:center}
+.operation-notice-card h3{margin:0;font-size:23px}.operation-notice-card p{margin:0;color:var(--muted);line-height:1.55}
+.operation-notice-card .primary{justify-self:center;min-width:140px;margin-top:6px}
+.operation-notice-icon{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;margin:auto;background:#e9f8ef;color:#0d873f;font-size:28px;font-weight:900}
+.operation-notice.error .operation-notice-icon{background:#feeceb;color:var(--danger)}.operation-notice.warning .operation-notice-icon{background:var(--warnbg);color:var(--warn)}
+.supercode-dialog{width:min(520px,calc(100% - 24px))}.supercode-card{padding:22px;display:grid;gap:14px}.supercode-card label{display:grid;gap:7px}.operation-inline-error{display:none;padding:10px 12px;border:1px solid #f5c2be;background:#fff0ef;color:#a61b13;border-radius:10px;font-size:12px;font-weight:800}.operation-inline-error.show{display:block}
+.center-card-wrap{position:relative}.center-card-wrap>.center-card{width:100%;height:100%;padding-top:44px}.center-select{position:absolute;top:12px;left:14px;z-index:2;display:flex;grid-template-columns:none;align-items:center;gap:7px;font-size:11px;font-weight:800;color:var(--muted);cursor:pointer}.center-select input{width:auto;margin:0}.center-bulk-bar{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 16px;background:#fff;border:1px solid var(--line);border-radius:14px;margin:-4px 0 16px}.center-bulk-bar>div{display:grid;gap:3px}.center-bulk-bar small{color:var(--muted)}.center-bulk-bar button:disabled{opacity:.45;cursor:not-allowed}
+.product-site-stock,.stock-site-summary,.search-site-stocks{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:9px}
+.product-site-stock-row,.stock-site-summary>span,.search-site-stocks>span{display:grid;gap:3px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:#f8fafc}
+.product-site-stock-row span,.stock-site-summary small,.search-site-stocks small{font-size:10px;font-weight:900;letter-spacing:.06em;color:var(--muted)}
+.product-site-stock-row strong,.stock-site-summary strong,.search-site-stocks strong{font-size:18px}
+.product-site-stock-row.active,.stock-site-summary>span.active,.search-site-stocks>span.active{background:#eefbf2;border-color:#9fd8b3;box-shadow:inset 3px 0 0 var(--accent)}
+.product-site-stock-row.active span,.stock-site-summary>span.active small,.search-site-stocks>span.active small{color:#08753a}
+.inventory-edit-row.active-site-row{border-color:#9fd8b3;background:#f3fbf6}.stock-site-summary{margin:12px 0}.search-site-stocks{margin:14px 0}.active-site-stock{padding:9px 11px;border-radius:12px;background:#eefbf2;border:1px solid #bde6cb}
+@media(max-width:620px){.center-bulk-bar{align-items:stretch;flex-direction:column}.center-bulk-bar button{width:100%}.product-site-stock,.stock-site-summary,.search-site-stocks{grid-template-columns:1fr}}

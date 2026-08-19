@@ -1,9 +1,10 @@
 import { store } from '../../services/store.js';
-import { shell,wireShell,toast } from '../../layout/layout.js';
+import { shell,wireShell,toast,notice } from '../../layout/layout.js';
 import { esc,empty } from '../../components/ui.js';
 import { productPositions,positionKey,deductStock,addStock } from '../../services/inventory-ops.js';
 import { enlazarBotonEscaner } from '../../services/camara-ui.js';
 import { resolveProduct,productAliases } from '../../services/product-codes.js';
+import { inventorySiteId,activeSiteId,stockSitesOrdered } from '../../services/stock.js';
 
 function product(code){return resolveProduct(code);}
 function norm(v=''){return String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
@@ -23,21 +24,22 @@ function buscarProductos(query){
   return {p,score};
  }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||String(a.p.code).localeCompare(String(b.p.code),'es',{numeric:true})).slice(0,8).map(x=>x.p);
 }
+function activePositions(code){const site=activeSiteId();return productPositions(store.data,code).filter(pos=>{const inv={locationId:pos.locationId,palletId:pos.palletId};return inventorySiteId(inv)===site;});}
 function locLabel(pos){
  const l=store.data.locations.find(x=>x.id===pos.locationId), r=l?.rackId?` · ${l.rackId}`:'';
  return `${pos.palletId?`Palet ${pos.palletId} · `:''}${pos.locationId}${r} · ${pos.qty} un.`;
 }
 function stockBox(code){
- const p=product(code),pos=productPositions(store.data,code),total=pos.reduce((a,b)=>a+b.qty,0);
+ const p=product(code),pos=activePositions(code),site=store.data.sites.find(s=>s.id===activeSiteId()),total=pos.reduce((a,b)=>a+b.qty,0),sites=stockSitesOrdered(code);
  if(!p)return `<div class="empty-inline"><b>Selecciona un producto</b><small>Escanea el código o busca por número, nombre o descripción.</small></div>`;
- return `<div class="stock-lookup-card"><div><span class="sku">${esc(p.code)}</span><h3>${esc(p.name)}</h3><small>${esc(p.description||'Sin descripción')}</small></div><div class="stock-total"><small>Stock localizado</small><b>${total}</b></div></div><div class="stock-location-chips">${pos.length?pos.map(x=>`<span><b>${esc(x.palletId?`Palet ${x.palletId}`:x.locationId)}</b> ${x.qty} un.</span>`).join(''):empty('Sin stock localizado','Este producto no tiene existencias disponibles para mover.')}</div>`;
+ return `<div class="stock-lookup-card"><div><span class="sku">${esc(p.code)}</span><h3>${esc(p.name)}</h3><small>${esc(p.description||'Sin descripción')}</small></div><div class="stock-total"><small>${esc(site?.name||activeSiteId())} · stock operativo</small><b>${total}</b></div></div><div class="stock-site-summary">${sites.map(x=>`<span class="${x.active?'active':''}"><small>${x.active?'Centro activo':'Otra sede'}</small><b>${esc(x.name)}</b><strong>${x.qty} un.</strong></span>`).join('')}</div><div class="stock-location-chips">${pos.length?pos.map(x=>`<span><b>${esc(x.palletId?`Palet ${x.palletId}`:x.locationId)}</b> ${x.qty} un.</span>`).join(''):empty('Sin stock en el centro activo','Puede existir stock en otras sucursales, pero Mover/Reubicar solo opera dentro del centro activo.')}</div>`;
 }
-function originOptions(code){return productPositions(store.data,code).map(p=>`<option value="${esc(p.key)}">${esc(locLabel(p))}</option>`).join('');}
+function originOptions(code){return activePositions(code).map(p=>`<option value="${esc(p.key)}">${esc(locLabel(p))}</option>`).join('');}
 function productResult(p){return `<button type="button" class="mv-product-result" data-code="${esc(p.code)}"><span><b>${esc(p.code)}</b><small>${esc(p.name||'Producto sin nombre')}</small></span><em>${esc(p.description||p.type||p.family||'')}</em></button>`;}
 
 export function renderMovements(root){
- const d=store.data;
- const destOpts=d.locations.filter(l=>l.active).map(l=>`<option value="${esc(l.id)}">${esc(l.id)}${l.rackId?` · ${esc(l.rackId)}`:''}</option>`).join('');
+ const d=store.data,active=activeSiteId(d);
+ const destOpts=d.locations.filter(l=>l.active&&l.siteId===active).map(l=>`<option value="${esc(l.id)}">${esc(l.id)}${l.rackId?` · ${esc(l.rackId)}`:''}</option>`).join('');
  root.innerHTML=shell('Mover / Reubicar',`<div class="page-intro"><div><span class="eyebrow">MOVIMIENTO CONTROLADO</span><h2>Mover sin perder trazabilidad</h2><p>La cantidad se descuenta matemáticamente del origen y se suma al destino. El saldo restante queda visible en su ubicación anterior.</p></div></div>
  <form id="move-form" class="panel form-panel"><div class="form-grid"><label>Producto<div class="mv-product-search"><div class="entrada-con-camara"><input id="mv-product-search" autocomplete="off" placeholder="Escanea o busca por código / nombre" aria-label="Buscar producto"><button id="camara-mv-product" class="scan-button" type="button" title="Escanear código con cámara" aria-label="Escanear código con cámara">▣</button></div><input id="mv-product" type="hidden"><div id="mv-product-results" class="mv-product-results" hidden></div><small>Escribe el código completo o parcial, el nombre del producto o escanéalo con la cámara.</small></div></label><label>Cantidad<input id="mv-qty" type="number" min="1" required></label></div>
  <div id="mv-stock-preview" class="stock-preview">${stockBox('')}</div>
@@ -65,10 +67,12 @@ export function renderMovements(root){
  document.querySelector('#move-form').onsubmit=async(e)=>{
   e.preventDefault();const code=hidden.value,qty=Number(document.querySelector('#mv-qty').value),sourceKey=fromSel.value,to=document.querySelector('#mv-to').value,reason=document.querySelector('#mv-reason').value;
   if(!code||!product(code)){toast('Busca y selecciona un producto');search.focus();return;}
-  const source=productPositions(store.data,code).find(p=>p.key===sourceKey); if(!source){toast('Selecciona un origen con existencias');return;} if(source.locationId===to&&!source.palletId){toast('Origen y destino no pueden ser iguales');return;}
+  const source=activePositions(code).find(p=>p.key===sourceKey); if(!source){toast('Selecciona un origen con existencias');return;} if(source.locationId===to&&!source.palletId){toast('Origen y destino no pueden ser iguales');return;}
   if(qty<1||qty>source.qty){toast(`Disponible en el origen seleccionado: ${source.qty}`);return;}
   const at=new Date().toISOString();
-  await store.commit(d=>{const result=deductStock(d,{code,qty,sourceKey});if(!result.ok)throw new Error(result.message);addStock(d,{code,qty,locationId:to,palletId:null});d.movements.unshift({id:`MOV-${Date.now()}`,type:'MOVIMIENTO',productCode:code,qty,from:source.palletId?`${source.palletId} / ${source.locationId}`:source.locationId,to,sourcePalletId:source.palletId||null,reason,userId:d.session.userId,at,allocations:result.allocations});},`Movimiento ${code}: ${source.palletId?`Palet ${source.palletId} / `:''}${source.locationId} → ${to} (${qty} un.)`);
-  toast(`Movimiento registrado: ${qty} descontadas del origen y sumadas al destino`);renderMovements(root);
+  try{
+    await store.commit(d=>{const result=deductStock(d,{code,qty,sourceKey});if(!result.ok)throw new Error(result.message);addStock(d,{code,qty,locationId:to,palletId:null});d.movements.unshift({id:`MOV-${Date.now()}`,type:'MOVIMIENTO',productCode:code,qty,from:source.palletId?`${source.palletId} / ${source.locationId}`:source.locationId,to,sourcePalletId:source.palletId||null,reason,userId:d.session.userId,siteId:active,at,allocations:result.allocations});},`Movimiento ${code}: ${source.palletId?`Palet ${source.palletId} / `:''}${source.locationId} → ${to} (${qty} un.)`);
+    renderMovements(root);await notice('Movimiento realizado',`${qty} unidad(es) de ${code} se descontaron del origen y se sumaron al destino dentro de ${store.data.sites.find(s=>s.id===active)?.name||active}.`,'success');
+  }catch(ex){await notice('Movimiento no realizado',ex.message||'No se pudo guardar el movimiento.','error');}
  };
 }

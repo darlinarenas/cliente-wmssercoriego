@@ -5,6 +5,7 @@ import { crearEscaner } from '../../services/escaner.js';
 import { buscarUbicacionPorCodigo, vistaCodigoUbicacion } from '../../services/ubicaciones.js';
 import { deductStock, addStock } from '../../services/inventory-ops.js';
 import { resolveProduct,productAliases } from '../../services/product-codes.js';
+import { openProductEditor } from '../../services/product-editor.js';
 
 function params(){ return new URLSearchParams(location.hash.split('?')[1]||''); }
 function producto(code){ return resolveProduct(code); }
@@ -85,7 +86,7 @@ function listaContenido(items,palletId,q){
 function itemProducto(x,palletId){
   const p=producto(x.code), {ya,rapidas}=recomendaciones(x.code,palletId);
   const recText=ya.length?`Ya existe en ${ya[0].palletId?`palet ${ya[0].palletId} / `:''}${ya[0].locationId} (${ya[0].qty} un.)`:(rapidas.length?`Posición rápida disponible: ${vistaCodigoUbicacion(rapidas[0],store.data)}`:'Sin posición rápida libre detectada');
-  return `<article class="pallet-item" data-code="${esc(x.code)}"><div class="pallet-item-summary"><div><span class="sku">${esc(x.code)}</span><h3>${esc(p?.name||`Producto ${x.code}`)}</h3><small>${esc(p?.family||'Por clasificar')}</small></div><div class="pallet-item-qty"><b>${x.qty}</b><small>en palet</small></div></div>
+  return `<article class="pallet-item" data-code="${esc(x.code)}"><div class="pallet-item-summary"><div><span class="sku">${esc(x.code)}</span><h3>${esc(p?.name||`Producto ${x.code}`)}</h3><small>${esc(p?.family||'Por clasificar')}</small><button type="button" class="ghost small pallet-product-info" data-code="${esc(x.code)}">Ver ficha y stock por sucursal</button></div><div class="pallet-item-qty"><b>${x.qty}</b><small>en palet</small></div></div>
     <div class="recommendation"><span>✦</span><div><b>Recomendación del sistema</b><small>${esc(recText)}</small></div></div>
     ${ya.length?`<div class="existing-locations"><b>Ubicaciones existentes</b>${ya.slice(0,4).map(e=>`<span>${e.palletId?`Palet ${esc(e.palletId)} · `:''}${esc(e.locationId)} <strong>${e.qty} un.</strong></span>`).join('')}</div>`:''}
     <form class="place-from-pallet" data-code="${esc(x.code)}"><label>Cantidad a ubicar<input name="qty" type="number" min="1" max="${x.qty}" value="${x.qty}" required></label>
@@ -137,6 +138,7 @@ function wireDetail(palletId){
 }
 
 function wirePlacement(palletId){
+  document.querySelectorAll('.pallet-product-info').forEach(b=>b.onclick=()=>openProductEditor(b.dataset.code,{onSaved:()=>renderPallets(document.querySelector('#app'))}));
   document.querySelectorAll('.place-from-pallet').forEach(form=>{
     const code=form.dataset.code,input=form.elements.locationCode,select=form.elements.to,validation=form.querySelector('.location-validation');
     form.querySelector('.scan-location-btn').onclick=()=>abrirCamaraEn(input.id||(input.id=`loc-${code}`),'Escanear ubicación','Apunta a la etiqueta del rack / posición');

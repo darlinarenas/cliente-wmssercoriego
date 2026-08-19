@@ -13,5 +13,6 @@ class AuthService{
   async restore(){if(!this.token())return null;try{const d=await this.request('/auth/me');this.user=d.user;return this.user;}catch{this.logout();return null;}}
   logout(){this.user=null;this.setToken('');}
   async changePassword(currentPassword,newPassword){return this.request('/auth/change-password',{method:'POST',body:JSON.stringify({currentPassword,newPassword})});}
+  async verifySupercode(supercode){return this.request('/auth/verify-supercode',{method:'POST',body:JSON.stringify({supercode})});}
 }
 export const auth=new AuthService();

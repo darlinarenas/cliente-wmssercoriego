@@ -1,7 +1,8 @@
 import { store } from './store.js';
 import { esc } from '../components/ui.js';
-import { toast } from '../layout/layout.js';
+import { toast,notice } from '../layout/layout.js';
 import { addProductCode,codeInUse,normalizeProductCode } from './product-codes.js';
+import { inventorySiteId,activeSiteId,stockSitesOrdered } from './stock.js';
 
 function currentUser(){ return store.data.users.find(u=>u.id===store.data.session.userId); }
 function canEdit(){ return ['ADMINISTRADOR','ENCARGADO'].includes(currentUser()?.role); }
@@ -31,7 +32,8 @@ function dialogHtml(){
       <div id="pe-codes-list" class="product-codes-list"></div>
       <div class="product-code-add"><label>Tipo<select id="pe-code-type"><option value="SKU">SKU</option><option value="IMPORTACION">Importación / caja</option><option value="TIENDA">Tienda / sucursal</option><option value="KAME">Kame</option><option value="SHOPIFY">Shopify / web</option><option value="CONTROL">Control interno</option><option value="OTRO">Otro</option></select></label><label>Código<input id="pe-alt-code" autocomplete="off" placeholder="Escanea o escribe el código"></label><label>Etiqueta opcional<input id="pe-code-label" placeholder="Ej. SKU Vitacura"></label><button type="button" id="pe-add-code" class="secondary">+ Asociar código</button></div>
     </section>
-    <section class="product-editor-section"><div class="section-mini-head"><div><b>Inventario físico por ubicación</b><small>Escribe lo que realmente contaste. El sistema registrará cualquier diferencia como AJUSTE DE INVENTARIO.</small></div><button type="button" id="copy-system-qty" class="ghost small">Mantener cantidades</button></div>
+    <section class="product-editor-section product-site-stock-section"><div class="section-mini-head"><div><b>Stock por centro / sucursal</b><small>El centro operativo actual aparece primero. Las demás sedes son información de consulta.</small></div></div><div id="pe-site-stock" class="product-site-stock"></div></section>
+    <section class="product-editor-section"><div class="section-mini-head"><div><b>Inventario físico por ubicación</b><small>El centro activo se muestra primero. Escribe lo que realmente contaste; cualquier diferencia queda como AJUSTE DE INVENTARIO.</small></div><button type="button" id="copy-system-qty" class="ghost small">Mantener cantidades</button></div>
       <div id="pe-inventory-list" class="inventory-edit-list"></div>
     </section>
     <label>Motivo de la corrección / inventario<textarea id="pe-reason" rows="2" maxlength="220" placeholder="Ej.: Conteo físico, corrección de código, error de digitación…" required></textarea></label>
@@ -47,7 +49,7 @@ function ensureDialog(){
 }
 
 function fill(code){
-  const p=product(code), inv=inventory(code); if(!p)return false;
+  const p=product(code),active=activeSiteId(), inv=inventory(code).sort((a,b)=>Number(inventorySiteId(b)===active)-Number(inventorySiteId(a)===active)||String(a.locationId).localeCompare(String(b.locationId),'es',{numeric:true})); if(!p)return false;
   document.querySelector('#pe-original-code').value=p.code;
   document.querySelector('#pe-code').value=p.code;
   document.querySelector('#pe-name').value=p.name||'';
@@ -59,8 +61,10 @@ function fill(code){
   document.querySelector('#pe-reason').value='';
   const codes=document.querySelector('#pe-codes-list'); const alt=(store.data.product_codes||[]).filter(x=>x.productId===p.id&&x.active!==false); codes.innerHTML=`<div class="product-code-row primary-code"><div><b>${esc(p.code)}</b><small>Código principal</small></div><span class="badge ok">PRINCIPAL</span></div>`+alt.map(x=>`<div class="product-code-row editable-alt-code" data-id="${esc(x.id)}"><label>Código<input class="alt-code-value" value="${esc(x.code)}" autocomplete="off"></label><label>Tipo<select class="alt-code-type">${['SKU','IMPORTACION','TIENDA','KAME','SHOPIFY','CONTROL','OTRO'].map(t=>`<option value="${t}" ${t===(x.type||'OTRO')?'selected':''}>${t}</option>`).join('')}</select></label><label>Etiqueta<input class="alt-code-label" value="${esc(x.label||'')}" placeholder="Opcional"></label><div class="alt-code-actions"><button type="button" class="secondary small save-alt-code" data-id="${esc(x.id)}">Guardar código</button><button type="button" class="ghost small remove-alt-code" data-id="${esc(x.id)}">Quitar</button></div></div>`).join('');
   document.querySelector('#product-editor-subtitle').textContent=`${p.code} · ${p.name||'Producto sin nombre'}`;
+  const siteRows=stockSitesOrdered(p.code),siteBox=document.querySelector('#pe-site-stock');
+  siteBox.innerHTML=siteRows.map(x=>`<div class="product-site-stock-row ${x.active?'active':''}"><div><span>${x.active?'CENTRO ACTIVO':'OTRA SEDE'}</span><b>${esc(x.name)}</b></div><strong>${x.qty} un.</strong></div>`).join('')||'<div class="empty-inline"><b>Sin centros disponibles</b></div>';
   const out=document.querySelector('#pe-inventory-list');
-  out.innerHTML=inv.length?inv.map((i,index)=>`<div class="inventory-edit-row" data-inv-id="${esc(i.id)}"><div><b>${esc(locationLabel(i))}</b><small>${i.palletId?'Existencia dentro de palet':'Ubicación directa'}</small></div><label>Sistema<input class="pe-system-qty" type="number" value="${Number(i.qty)||0}" disabled></label><label>Conteo físico<input class="pe-physical-qty" data-index="${index}" type="number" min="0" step="1" value="${Number(i.qty)||0}" inputmode="numeric"></label><span class="qty-diff neutral">Sin diferencia</span></div>`).join(''):`<div class="empty-inline"><b>Sin existencias localizadas</b><small>Este producto todavía no tiene cantidades registradas por ubicación.</small></div>`;
+  out.innerHTML=inv.length?inv.map((i,index)=>{const sid=inventorySiteId(i),site=store.data.sites.find(s=>s.id===sid);return `<div class="inventory-edit-row ${sid===active?'active-site-row':''}" data-inv-id="${esc(i.id)}"><div><b>${esc(locationLabel(i))}</b><small>${esc(site?.name||sid)}${sid===active?' · CENTRO ACTIVO':''} · ${i.palletId?'Existencia dentro de palet':'Ubicación directa'}</small></div><label>Sistema<input class="pe-system-qty" type="number" value="${Number(i.qty)||0}" disabled></label><label>Conteo físico<input class="pe-physical-qty" data-index="${index}" type="number" min="0" step="1" value="${Number(i.qty)||0}" inputmode="numeric"></label><span class="qty-diff neutral">Sin diferencia</span></div>`;}).join(''):`<div class="empty-inline"><b>Sin existencias localizadas</b><small>Este producto todavía no tiene cantidades registradas por ubicación.</small></div>`;
   out.querySelectorAll('.pe-physical-qty').forEach(inp=>inp.addEventListener('input',()=>{
     const row=inp.closest('.inventory-edit-row'),sys=Number(row.querySelector('.pe-system-qty').value||0),phy=Number(inp.value||0),diff=phy-sys,tag=row.querySelector('.qty-diff');
     tag.textContent=diff===0?'Sin diferencia':`${diff>0?'+':''}${diff} un.`;tag.className=`qty-diff ${diff===0?'neutral':diff>0?'positive':'negative'}`;
@@ -117,7 +121,7 @@ export function openProductEditor(code,{onSaved}={}){
       qtyChanges.forEach(ch=>{const loc=s.locations.find(l=>l.id===ch.locationId);if(loc&&!['BLOQUEADA','RESERVADA','INHABILITADA'].includes(loc.status)){loc.status=s.inventory.some(i=>i.locationId===ch.locationId&&Number(i.qty)>0)?'OCUPADA':'LIBRE';}});
       if(masterChanged)s.audit.unshift({id:`AUD-PROD-${Date.now()}`,type:'PRODUCT_CORRECTION',message:`Producto ${oldCode}${newCode!==oldCode?` → ${newCode}`:''} corregido. Motivo: ${reason}`,userId:s.session.userId,at});
     },`Edición controlada de producto ${oldCode}${newCode!==oldCode?` → ${newCode}`:''}`);
-    close();toast('Producto e inventario actualizados');onSaved?.(newCode);
+    close();onSaved?.(newCode);await notice('Cambios guardados',`El producto ${newCode} y su inventario se actualizaron correctamente.`,'success');
   };
   dlg.showModal();
 }
