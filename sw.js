@@ -1,4 +1,4 @@
-const CACHE = 'sercoriego-lite-wms-v27-product-location-chips';
+const CACHE = 'sercoriego-lite-wms-v28-rack-detail-map';
 const PRECACHE = [
   "./",
   "./index.html",
