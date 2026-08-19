@@ -1,4 +1,4 @@
-const CACHE = 'sercoriego-lite-wms-v22-eliminar-rack';
+const CACHE = 'sercoriego-lite-wms-v23-centros-sucursales';
 const PRECACHE = [
   "./",
   "./index.html",
@@ -33,6 +33,7 @@ const PRECACHE = [
   "./src/modules/productos/productos.js",
   "./src/modules/racks/racks.js",
   "./src/modules/recepciones/recepciones.js",
+  "./src/modules/centros/centros.js",
   "./src/modules/usuarios/usuarios.js",
   "./src/services/api.js",
   "./src/services/camara-ui.js",

@@ -16,9 +16,10 @@ import { renderReceipts } from './modules/recepciones/recepciones.js';
 import { renderTransfers } from './modules/despachos/despachos.js';
 import { renderMovil } from './modules/movil/movil.js';
 import { renderUsers } from './modules/usuarios/usuarios.js';
+import { renderCenters } from './modules/centros/centros.js';
 import { renderImport } from './modules/importar/importar.js';
 const root=document.querySelector('#app');let router;
-function buildRouter(){if(router)return router;router=new Router({dashboard:()=>renderDashboard(root),racks:()=>renderRacks(root),buscar:()=>renderSearch(root),productos:()=>renderProducts(root),estructura:()=>renderStructure(root),movimientos:()=>renderMovements(root),historial:()=>renderHistory(root),recepciones:()=>renderReceipts(root),transferencias:()=>renderTransfers(root),palets:()=>renderPallets(root),usuarios:()=>renderUsers(root),importar:()=>renderImport(root),movil:()=>renderMovil(root)});return router;}
+function buildRouter(){if(router)return router;router=new Router({dashboard:()=>renderDashboard(root),racks:()=>renderRacks(root),buscar:()=>renderSearch(root),productos:()=>renderProducts(root),estructura:()=>renderStructure(root),movimientos:()=>renderMovements(root),historial:()=>renderHistory(root),recepciones:()=>renderReceipts(root),transferencias:()=>renderTransfers(root),palets:()=>renderPallets(root),centros:()=>renderCenters(root),usuarios:()=>renderUsers(root),importar:()=>renderImport(root),movil:()=>renderMovil(root)});return router;}
 async function enterApp(){await store.init();solicitarPermisoSonidoGlobal();if(!location.hash&&window.matchMedia('(max-width: 760px)').matches)location.hash='#/movil';buildRouter().render();}
 window.addEventListener('serco:logout',()=>{auth.logout();location.hash='';renderLogin(root,enterApp);});
 iniciarPWA();const user=await auth.restore();if(user)await enterApp();else renderLogin(root,enterApp);
