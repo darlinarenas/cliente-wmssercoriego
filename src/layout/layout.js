@@ -16,9 +16,13 @@ export function shell(title,content,active='dashboard'){
   const links=visibleNav.map(([id,label,ico])=>`<a href="#/${id}" class="nav-link ${active===id?'active':''}"><span>${ico}</span><b>${label}</b></a>`).join('');
   return `<div class="app-shell vista-administrativa">
     <aside class="sidebar">
-      <div class="brand"><div class="brand-mark">S</div><div><b>SercoRiego Lite WMS</b><small>Control de bodega</small></div></div>
-      <div class="site-chip"><span class="dot"></span><div><b>${esc(companyName(activeCompany,d))}</b><small>${esc(site.name)} · ${esc(site.code||site.id||activeSite)}</small></div></div>${allowedCompanies.length>1?`<label class="sidebar-context"><small>Empresa activa</small><select id="company-switch">${allowedCompanies.map(c=>`<option value="${esc(c.id)}" ${c.id===activeCompany?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>`:''}${allowedSites.length>1?`<label class="sidebar-context"><small>Centro activo</small><select id="site-switch">${allowedSites.map(s=>`<option value="${esc(s.id)}" ${s.id===activeSite?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label>`:''}
-      <nav>${links}</nav>
+      <div class="sidebar-head">
+        <div class="brand"><div class="brand-mark">S</div><div><b>SercoRiego Lite WMS</b><small>Control de bodega</small></div></div>
+        <div class="site-chip"><span class="dot"></span><div><b>${esc(companyName(activeCompany,d))}</b><small>${esc(site.name)} · ${esc(site.code||site.id||activeSite)}</small></div></div>${allowedCompanies.length>1?`<label class="sidebar-context"><small>Empresa activa</small><select id="company-switch">${allowedCompanies.map(c=>`<option value="${esc(c.id)}" ${c.id===activeCompany?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>`:''}${allowedSites.length>1?`<label class="sidebar-context"><small>Centro activo</small><select id="site-switch">${allowedSites.map(s=>`<option value="${esc(s.id)}" ${s.id===activeSite?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label>`:''}
+      </div>
+      <div class="sidebar-nav-scroll" data-sidebar-scroll>
+        <nav>${links}</nav>
+      </div>
       <div class="sidebar-foot"><a href="#/movil" class="view-switch sidebar-switch"><span class="view-switch-icon">▯</span><span><b>Vista para teléfono</b><small>Abrir modo operativo</small></span></a><small>PostgreSQL · API conectada</small><small>Desarrollado por Vexhora Group · CEO Ing. Carlin Arenas</small>${currentUser?.role==='ADMINISTRADOR'?'<button id="reset-demo" class="ghost small" type="button">Restablecer datos iniciales</button>':''}</div>
     </aside>
     <main>
@@ -35,6 +39,7 @@ export function wireShell(){
   document.querySelector('#company-switch')?.addEventListener('change',e=>{const companyId=e.target.value;const candidate=(store.data.sites||[]).find(s=>siteCompanyId(s,store.data)===companyId&&s.active!==false&&(currentUser?.role==='ADMINISTRADOR'||!(currentUser?.siteIds||[]).length||(currentUser.siteIds||[]).includes(s.id)));if(!candidate){toast('No tienes un centro activo disponible en esa empresa','warning');return;}localStorage.setItem('serco_wms_active_company',companyId);localStorage.setItem('serco_wms_active_site',candidate.id);location.reload();});
   document.querySelector('#site-switch')?.addEventListener('change',e=>{const siteId=e.target.value,site=(store.data.sites||[]).find(s=>s.id===siteId);if(!site)return;localStorage.setItem('serco_wms_active_company',siteCompanyId(site,store.data));localStorage.setItem('serco_wms_active_site',siteId);location.reload();});
   const installBtn=document.querySelector('#install-pwa');if(installBtn){const refrescar=()=>{const e=estadoPWA();installBtn.hidden=e.instalada;};refrescar();installBtn.addEventListener('click',()=>instalarPWA());}
+  const sidebarScroll=document.querySelector('[data-sidebar-scroll]');const activeLink=sidebarScroll?.querySelector('.nav-link.active');if(sidebarScroll&&activeLink){requestAnimationFrame(()=>activeLink.scrollIntoView({block:'nearest'}));}
   document.querySelector('#menu-btn')?.addEventListener('click',()=>document.body.classList.toggle('menu-open'));
   document.querySelectorAll('.nav-link').forEach(a=>a.addEventListener('click',()=>document.body.classList.remove('menu-open')));
   document.querySelector('#reset-demo')?.addEventListener('click',async()=>{if(confirm('¿Restablecer inventario, racks, palets y movimientos a los datos iniciales? Los usuarios creados se conservarán.')){await store.reset();location.hash='#/dashboard';location.reload();}});

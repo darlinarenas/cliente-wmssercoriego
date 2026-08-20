@@ -278,3 +278,84 @@
   .vista-administrativa>.sidebar nav{flex:1 1 0;min-height:0;overflow-y:auto;overflow-x:hidden}
   .vista-administrativa>main{margin-left:0}
 }
+
+/* 2026-08-19 · Sidebar global definitivo: misma estructura para todos los roles, empresas, centros y vistas */
+.vista-administrativa>.sidebar{
+  display:grid!important;
+  grid-template-rows:auto minmax(0,1fr) auto!important;
+  align-content:stretch!important;
+  overflow:hidden!important;
+  height:100dvh!important;
+  max-height:100dvh!important;
+}
+.vista-administrativa>.sidebar .sidebar-head{
+  min-width:0;
+  min-height:0;
+  overflow:visible;
+}
+.vista-administrativa>.sidebar .sidebar-head>.brand,
+.vista-administrativa>.sidebar .sidebar-head>.site-chip,
+.vista-administrativa>.sidebar .sidebar-head>.sidebar-context{
+  flex:none!important;
+  min-width:0;
+}
+.vista-administrativa>.sidebar .sidebar-nav-scroll{
+  min-width:0;
+  min-height:0;
+  overflow-y:scroll!important;
+  overflow-x:hidden!important;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-gutter:stable;
+  scrollbar-width:thin;
+  scrollbar-color:#4b5f7d #111b2e;
+  padding:2px 5px 6px 0;
+  margin:0 -5px 0 0;
+}
+.vista-administrativa>.sidebar .sidebar-nav-scroll::-webkit-scrollbar{width:8px}
+.vista-administrativa>.sidebar .sidebar-nav-scroll::-webkit-scrollbar-track{background:#111b2e;border-radius:999px}
+.vista-administrativa>.sidebar .sidebar-nav-scroll::-webkit-scrollbar-thumb{background:#4b5f7d;border-radius:999px;border:2px solid #111b2e}
+.vista-administrativa>.sidebar .sidebar-nav-scroll::-webkit-scrollbar-thumb:hover{background:#647896}
+.vista-administrativa>.sidebar .sidebar-nav-scroll nav{
+  display:grid!important;
+  gap:5px;
+  align-content:start;
+  overflow:visible!important;
+  min-height:max-content;
+}
+.vista-administrativa>.sidebar .sidebar-foot{
+  flex:none!important;
+  min-width:0;
+  margin-top:0!important;
+  padding-top:10px;
+  border-top:1px solid #1c2a44;
+  background:var(--nav);
+  position:relative;
+  z-index:2;
+}
+
+@media (min-width:761px) and (max-height:760px){
+  .vista-administrativa>.sidebar{padding-top:10px!important;padding-bottom:10px!important}
+  .vista-administrativa>.sidebar .brand{padding-bottom:8px!important}
+  .vista-administrativa>.sidebar .brand-mark{width:34px;height:34px;font-size:18px}
+  .vista-administrativa>.sidebar .site-chip{padding:8px 10px!important;margin-bottom:6px!important}
+  .vista-administrativa>.sidebar .sidebar-context{margin-bottom:5px!important}
+  .vista-administrativa>.sidebar .sidebar-context select{padding:7px 9px!important}
+  .vista-administrativa>.sidebar .sidebar-nav-scroll .nav-link{min-height:35px!important;padding:7px 10px!important;font-size:13px!important}
+  .vista-administrativa>.sidebar .sidebar-foot{padding-top:6px!important;gap:5px!important}
+  .vista-administrativa>.sidebar .sidebar-foot small{font-size:9px!important;line-height:1.15!important}
+  .vista-administrativa>.sidebar .sidebar-switch{min-height:36px!important;padding:5px 8px!important}
+}
+
+@media (max-width:760px){
+  .vista-administrativa>.sidebar{
+    display:grid!important;
+    grid-template-rows:auto minmax(0,1fr) auto!important;
+    top:0!important;
+    bottom:0!important;
+    height:100dvh!important;
+    max-height:100dvh!important;
+    overflow:hidden!important;
+  }
+  .vista-administrativa>.sidebar .sidebar-nav-scroll{overflow-y:scroll!important;min-height:0!important}
+}
