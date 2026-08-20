@@ -81,8 +81,38 @@ export async function iniciarPWA() {
   });
   if ('serviceWorker' in navigator) {
     try {
-      const reg = await navigator.serviceWorker.register('./sw.js', { scope:'./', updateViaCache:'none' });
-      reg.update().catch(()=>{});
+      let recargandoPorActualizacion = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (recargandoPorActualizacion) return;
+        recargandoPorActualizacion = true;
+        window.location.reload();
+      });
+
+      const reg = await navigator.serviceWorker.register('./sw.js', {
+        scope: './',
+        updateViaCache: 'none'
+      });
+
+      const activarActualizacion = worker => {
+        if (worker?.state === 'installed' && navigator.serviceWorker.controller) {
+          worker.postMessage({ type: 'SKIP_WAITING' });
+        }
+      };
+
+      reg.addEventListener('updatefound', () => {
+        const worker = reg.installing;
+        if (!worker) return;
+        worker.addEventListener('statechange', () => activarActualizacion(worker));
+      });
+
+      const comprobarActualizacion = () => reg.update().catch(() => {});
+      await comprobarActualizacion();
+
+      window.addEventListener('focus', comprobarActualizacion);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') comprobarActualizacion();
+      });
+      window.setInterval(comprobarActualizacion, 30 * 60 * 1000);
     } catch (err) {
       console.warn('No fue posible registrar el Service Worker:', err);
     }
