@@ -14,5 +14,6 @@ class AuthService{
   logout(){this.user=null;this.setToken('');}
   async changePassword(currentPassword,newPassword){return this.request('/auth/change-password',{method:'POST',body:JSON.stringify({currentPassword,newPassword})});}
   async verifySupercode(supercode){return this.request('/auth/verify-supercode',{method:'POST',body:JSON.stringify({supercode})});}
+  async recoverAdmin(recoveryKey,newPassword){return this.request('/auth/recover-admin',{method:'POST',body:JSON.stringify({recoveryKey,newPassword})});}
 }
 export const auth=new AuthService();
