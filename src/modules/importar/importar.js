@@ -1,6 +1,7 @@
 import { store } from '../../services/store.js';
 import { shell, wireShell, toast } from '../../layout/layout.js';
 import { esc } from '../../components/ui.js';
+import { activeSiteId } from '../../services/stock.js';
 
 const REQUIRED=['CODIGO','DESCRIPCION','CANTIDAD','UBICACION'];
 const OPTIONAL=['TIPO','CATEGORIA','SUBCATEGORIA','ROTACION'];
@@ -121,11 +122,11 @@ function ensureLocation(data,label){
   let loc=pallet?data.locations.find(l=>l.id===pallet.locationId):data.locations.find(l=>String(l.label||'').toUpperCase()===clean||String(l.id||'').toUpperCase()===clean);
   if(!loc){
     const id=`IMP${clean.replace(/[^A-Z0-9]/g,'')||Date.now()}`;
-    loc={id,siteId:'REC',rackId:null,module:null,level:null,label:clean,scanCode:clean,status:'OCUPADA',access:'DIRECTO',kind:'IMPORTADA',active:true,capacity:null,notes:'Ubicación creada por importación Excel.'};
+    loc={id,siteId:activeSiteId(data),rackId:null,module:null,level:null,label:clean,scanCode:clean,status:'OCUPADA',access:'DIRECTO',kind:'IMPORTADA',active:true,capacity:null,notes:'Ubicación creada por importación Excel.'};
     data.locations.push(loc);
   }
   if(!pallet){
-    pallet={id:clean,siteId:'REC',status:'UBICADO',locationId:loc.id,origin:'Importación Excel',createdAt:new Date().toISOString()};
+    pallet={id:clean,siteId:activeSiteId(data),status:'UBICADO',locationId:loc.id,origin:'Importación Excel',createdAt:new Date().toISOString()};
     data.pallets.push(pallet);
   }
   return {locationId:loc.id,palletId:pallet.id};

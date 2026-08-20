@@ -2,6 +2,7 @@ import { store } from '../../services/store.js';
 import { shell,wireShell,toast } from '../../layout/layout.js';
 import { esc,badge,empty } from '../../components/ui.js';
 import { enlazarBotonEscaner } from '../../services/camara-ui.js';
+import { activeSiteId } from '../../services/stock.js';
 import { resolveProduct } from '../../services/product-codes.js';
 
 function activeReceipt(){return store.data.receipts.find(r=>r.status==='RECIBIENDO');}
@@ -47,7 +48,7 @@ export function renderReceipts(root){
      const btn=document.querySelector('#create-receipt');btn.disabled=true;
      try{
        const idx=d.receipts.length+1,id=`REC-${String(idx).padStart(6,'0')}`,pid=`PAL-${String(100+idx).padStart(4,'0')}`,now=new Date().toISOString(),origin=document.querySelector('#new-origin').value,broughtBy=document.querySelector('#new-brought').value.trim(),note=document.querySelector('#new-note').value.trim();
-       await store.commit(s=>{s.receipts.unshift({id,palletId:pid,status:'RECIBIENDO',origin,broughtBy,note,arrivedAt:now,receivedBy:s.session.userId,supervisedBy:null,tempLocationId:null,items:[]});s.pallets.push({id:pid,siteId:'REC',status:'RECIBIENDO',locationId:null,origin,createdAt:now});},`Recepción ${id} iniciada`);
+       await store.commit(s=>{s.receipts.unshift({id,siteId:activeSiteId(s),palletId:pid,status:'RECIBIENDO',origin,broughtBy,note,arrivedAt:now,receivedBy:s.session.userId,supervisedBy:null,tempLocationId:null,items:[]});s.pallets.push({id:pid,siteId:activeSiteId(s),status:'RECIBIENDO',locationId:null,origin,createdAt:now});},`Recepción ${id} iniciada`);
        dlg.close();toast('Recepción iniciada');renderReceipts(root);
      }catch(error){console.error('Error creando recepción',error);toast('No fue posible crear la recepción');btn.disabled=false;}
    };

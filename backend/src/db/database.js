@@ -7,7 +7,7 @@ const { Pool } = pg;
 if(!env.databaseUrl) console.warn('[WMS] DATABASE_URL no configurada.');
 export const pool = new Pool({connectionString:env.databaseUrl,ssl:env.databaseSsl?{rejectUnauthorized:false}:false});
 
-const ENTITY_TABLES=['sites','sectors','racks','locations','products','product_codes','inventory','pallets','receipts','transfers','orders','movements','audit'];
+const ENTITY_TABLES=['companies','sites','sectors','racks','locations','products','product_codes','inventory','pallets','receipts','transfers','orders','movements','audit'];
 
 const schemaSql=`
 CREATE TABLE IF NOT EXISTS wms_meta (
@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS wms_meta (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS companies (id TEXT PRIMARY KEY, data JSONB NOT NULL);
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -48,6 +49,7 @@ CREATE INDEX IF NOT EXISTS idx_inventory_location ON inventory(location_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_pallet ON inventory(pallet_id);
 CREATE INDEX IF NOT EXISTS idx_users_active ON users(active);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS site_ids JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS company_ids JSONB NOT NULL DEFAULT '[]'::jsonb;
 `;
 
 function makeUserId(name){
@@ -67,10 +69,15 @@ export async function ensureDatabase(){
     await client.query('BEGIN');
     await client.query(schemaSql);
     await client.query("INSERT INTO wms_meta(id,revision,settings,planning) VALUES(1,1,$1::jsonb,$2::jsonb) ON CONFLICT(id) DO NOTHING",[JSON.stringify(INITIAL_STATE.settings||{}),JSON.stringify(INITIAL_STATE.planning||{})]);
-    const hash=await bcrypt.hash(env.adminPassword,12);
-    await client.query(`INSERT INTO users(id,name,username,password_hash,role,active,must_change_password)
-      VALUES('USR-ADMIN',$1,$2,$3,'ADMINISTRADOR',true,true)
-      ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name, username=EXCLUDED.username, active=true`,[env.adminName,env.adminUsername.toLowerCase(),hash]);
+    // El administrador principal se crea una sola vez. Si ya existe, el arranque
+    // NO modifica username, nombre, contraseña, estado ni ningún otro dato.
+    const adminExists=(await client.query("SELECT 1 FROM users WHERE id='USR-ADMIN' LIMIT 1")).rowCount>0;
+    if(!adminExists){
+      const hash=await bcrypt.hash(env.adminPassword,12);
+      await client.query(`INSERT INTO users(id,name,username,password_hash,role,active,must_change_password)
+        VALUES('USR-ADMIN',$1,$2,$3,'ADMINISTRADOR',true,true)
+        ON CONFLICT(id) DO NOTHING`,[env.adminName,env.adminUsername.toLowerCase(),hash]);
+    }
     const count=(await client.query('SELECT count(*)::int AS n FROM products')).rows[0].n;
     if(count===0){
       for(const table of ENTITY_TABLES){
@@ -96,6 +103,7 @@ export async function readState(client=pool,currentUser=null){
       m.planning,
       m.created_at,
       m.updated_at,
+      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM companies),'[]'::jsonb) AS companies,
       COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM sites),'[]'::jsonb) AS sites,
       COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM sectors),'[]'::jsonb) AS sectors,
       COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM racks),'[]'::jsonb) AS racks,
@@ -118,6 +126,7 @@ export async function readState(client=pool,currentUser=null){
             'role',u.role,
             'active',u.active,
             'siteIds',u.site_ids,
+            'companyIds',u.company_ids,
             'createdAt',u.created_at
           ) ORDER BY u.name
         ) FROM users u
@@ -130,7 +139,8 @@ export async function readState(client=pool,currentUser=null){
     meta:{version:12,revision:Number(row?.revision||1),updatedAt:row?.updated_at,createdAt:row?.created_at},
     settings:row?.settings||{},
     planning:row?.planning||{},
-    session:{userId:currentUser?.id||'USR-ADMIN',activeSiteId:(currentUser?.siteIds||currentUser?.site_ids||[])[0]||'REC'},
+    session:{userId:currentUser?.id||'USR-ADMIN',activeSiteId:(currentUser?.siteIds||currentUser?.site_ids||[])[0]||'REC',activeCompanyId:(currentUser?.companyIds||currentUser?.company_ids||[])[0]||'SERCO_RIEGO'},
+    companies:row?.companies||[],
     sites:row?.sites||[],
     sectors:row?.sectors||[],
     racks:row?.racks||[],

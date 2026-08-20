@@ -8,6 +8,8 @@ function migrar(data){
   data.meta=data.meta||{};
   data.settings=data.settings||{};
   data.settings.locationCodeFormat=data.settings.locationCodeFormat||FORMATO_UBICACION_PREDETERMINADO;
+  data.settings.erpStockBySite=data.settings.erpStockBySite&&typeof data.settings.erpStockBySite==='object'?data.settings.erpStockBySite:{};
+  data.companies=Array.isArray(data.companies)&&data.companies.length?data.companies:(base.companies||[{id:'SERCO_RIEGO',name:'Serco Riego',code:'SERCO_RIEGO',active:true}]);
   data.products=Array.isArray(data.products)?data.products:base.products;
   data.receipts=Array.isArray(data.receipts)?data.receipts:[];
   data.transfers=Array.isArray(data.transfers)?data.transfers:[];

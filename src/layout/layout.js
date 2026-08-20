@@ -2,26 +2,27 @@ import { instalarPWA, estadoPWA } from '../services/pwa.js';
 import { store } from '../services/store.js';
 import { auth } from '../services/auth.js';
 import { esc } from '../components/ui.js';
-import { activeSiteId } from '../services/stock.js';
+import { activeSiteId,userAllowedSites } from '../services/stock.js';
+import { activeCompanyId,companyName,siteCompanyId,userCanCompany } from '../services/company.js';
 
 const nav=[
  ['dashboard','Inicio','⌂'],['ordenes','Órdenes / Mis tareas','✓'],['buscar','Buscar','⌕'],['racks','Racks','▦'],['productos','Productos','◫'],
- ['recepciones','Recepción','⇩'],['transferencias','Despacho / Tránsito','⇄'],['movimientos','Mover','↔'],['palets','Palets','▣'],['historial','Historial','◷'],['importar','Importar Excel','⇧'],['centros','Centros y Sucursales','⌂'],['usuarios','Usuarios','♙'],['estructura','Estructura','⚙']
+ ['recepciones','Recepción','⇩'],['conciliacion','Conciliación Kame','≋'],['transferencias','Despacho / Tránsito','⇄'],['movimientos','Mover','↔'],['palets','Palets','▣'],['historial','Historial','◷'],['importar','Importar Excel','⇧'],['centros','Centros y Sucursales','⌂'],['usuarios','Usuarios','♙'],['estructura','Estructura','⚙']
 ];
 
 export function shell(title,content,active='dashboard'){
-  const d=store.data; const activeSite=activeSiteId(d); const site=d.sites.find(s=>s.id===activeSite)||d.sites[0]||{name:'Centro sin definir',code:activeSite}; const currentUser=d.users.find(u=>u.id===d.session.userId)||auth.user; const initials=(currentUser?.name||'Usuario').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
+  const d=store.data; const activeSite=activeSiteId(d); const site=d.sites.find(s=>s.id===activeSite)||d.sites[0]||{name:'Centro sin definir',code:activeSite}; const currentUser=d.users.find(u=>u.id===d.session.userId)||auth.user; const activeCompany=activeCompanyId(d); const allowedCompanies=(d.companies||[]).filter(c=>c.active!==false&&userCanCompany(currentUser,c.id)); const allowedSites=userAllowedSites(d); const initials=(currentUser?.name||'Usuario').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
   const visibleNav=nav.filter(([id])=>!['usuarios','centros'].includes(id)||currentUser?.role==='ADMINISTRADOR');
   const links=visibleNav.map(([id,label,ico])=>`<a href="#/${id}" class="nav-link ${active===id?'active':''}"><span>${ico}</span><b>${label}</b></a>`).join('');
   return `<div class="app-shell vista-administrativa">
     <aside class="sidebar">
       <div class="brand"><div class="brand-mark">S</div><div><b>SercoRiego Lite WMS</b><small>Control de bodega</small></div></div>
-      <div class="site-chip"><span class="dot"></span><div><b>${esc(site.name)}</b><small>${esc(site.code||site.id||activeSite)} · sede activa</small></div></div>
+      <div class="site-chip"><span class="dot"></span><div><b>${esc(companyName(activeCompany,d))}</b><small>${esc(site.name)} · ${esc(site.code||site.id||activeSite)}</small></div></div>${allowedCompanies.length>1?`<label class="sidebar-context"><small>Empresa activa</small><select id="company-switch">${allowedCompanies.map(c=>`<option value="${esc(c.id)}" ${c.id===activeCompany?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>`:''}${allowedSites.length>1?`<label class="sidebar-context"><small>Centro activo</small><select id="site-switch">${allowedSites.map(s=>`<option value="${esc(s.id)}" ${s.id===activeSite?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label>`:''}
       <nav>${links}</nav>
       <div class="sidebar-foot"><a href="#/movil" class="view-switch sidebar-switch"><span class="view-switch-icon">▯</span><span><b>Vista para teléfono</b><small>Abrir modo operativo</small></span></a><small>PostgreSQL · API conectada</small><small>Desarrollado por Vexhora Group · CEO Ing. Carlin Arenas</small>${currentUser?.role==='ADMINISTRADOR'?'<button id="reset-demo" class="ghost small" type="button">Restablecer datos iniciales</button>':''}</div>
     </aside>
     <main>
-      <header class="topbar"><div><button id="menu-btn" class="menu-btn">☰</button><div><small>Serco Riego · WMS multicentro</small><h1>${esc(title)}</h1></div></div><div class="top-actions"><button id="install-pwa" class="pwa-install-btn" type="button"><span>▣</span><span><b>Instalar app</b><small>PC / teléfono</small></span></button><a href="#/movil" class="view-switch"><span class="view-switch-icon">▯</span><span><b>Vista para teléfono</b><small>Modo operativo</small></span></a>${currentUser?.role==='ADMINISTRADOR'?`<a href="#/usuarios" class="user-pill" title="Administrar usuarios">${esc(initials)} <span>${esc(currentUser?.name||'Usuario')}</span></a>`:`<span class="user-pill">${esc(initials)} <span>${esc(currentUser?.name||'Usuario')}</span></span>`}<button id="logout-btn" class="ghost logout-btn" type="button">Salir</button></div></header>
+      <header class="topbar"><div><button id="menu-btn" class="menu-btn">☰</button><div><small>${esc(companyName(activeCompany,d))} · WMS multiempresa</small><h1>${esc(title)}</h1></div></div><div class="top-actions"><button id="install-pwa" class="pwa-install-btn" type="button"><span>▣</span><span><b>Instalar app</b><small>PC / teléfono</small></span></button><a href="#/movil" class="view-switch"><span class="view-switch-icon">▯</span><span><b>Vista para teléfono</b><small>Modo operativo</small></span></a>${currentUser?.role==='ADMINISTRADOR'?`<a href="#/usuarios" class="user-pill" title="Administrar usuarios">${esc(initials)} <span>${esc(currentUser?.name||'Usuario')}</span></a>`:`<span class="user-pill">${esc(initials)} <span>${esc(currentUser?.name||'Usuario')}</span></span>`}<button id="logout-btn" class="ghost logout-btn" type="button">Salir</button></div></header>
       <section class="content">${content}</section>
     </main>
     <div id="toast" class="toast"></div>
@@ -29,6 +30,10 @@ export function shell(title,content,active='dashboard'){
 }
 
 export function wireShell(){
+  const currentUser=store.data.users.find(u=>u.id===store.data.session.userId)||auth.user;
+
+  document.querySelector('#company-switch')?.addEventListener('change',e=>{const companyId=e.target.value;const candidate=(store.data.sites||[]).find(s=>siteCompanyId(s,store.data)===companyId&&s.active!==false&&(currentUser?.role==='ADMINISTRADOR'||!(currentUser?.siteIds||[]).length||(currentUser.siteIds||[]).includes(s.id)));if(!candidate){toast('No tienes un centro activo disponible en esa empresa','warning');return;}localStorage.setItem('serco_wms_active_company',companyId);localStorage.setItem('serco_wms_active_site',candidate.id);location.reload();});
+  document.querySelector('#site-switch')?.addEventListener('change',e=>{const siteId=e.target.value,site=(store.data.sites||[]).find(s=>s.id===siteId);if(!site)return;localStorage.setItem('serco_wms_active_company',siteCompanyId(site,store.data));localStorage.setItem('serco_wms_active_site',siteId);location.reload();});
   const installBtn=document.querySelector('#install-pwa');if(installBtn){const refrescar=()=>{const e=estadoPWA();installBtn.hidden=e.instalada;};refrescar();installBtn.addEventListener('click',()=>instalarPWA());}
   document.querySelector('#menu-btn')?.addEventListener('click',()=>document.body.classList.toggle('menu-open'));
   document.querySelectorAll('.nav-link').forEach(a=>a.addEventListener('click',()=>document.body.classList.remove('menu-open')));

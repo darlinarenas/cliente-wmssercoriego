@@ -18,6 +18,8 @@ import { renderMovil } from './modules/movil/movil.js';
 import { renderUsers } from './modules/usuarios/usuarios.js';
 import { renderCenters } from './modules/centros/centros.js';
 import { renderImport } from './modules/importar/importar.js';
+import { renderOrders } from './modules/ordenes/ordenes.js';
+import { renderReconciliation } from './modules/conciliacion/conciliacion.js';
 
 const root=document.querySelector('#app');
 let router;
@@ -26,6 +28,8 @@ function buildRouter(){
   if(router)return router;
   router=new Router({
     dashboard:()=>renderDashboard(root),
+    ordenes:()=>renderOrders(root),
+    conciliacion:()=>renderReconciliation(root),
     racks:()=>renderRacks(root),
     buscar:()=>renderSearch(root),
     productos:()=>renderProducts(root),

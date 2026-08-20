@@ -1,11 +1,12 @@
 import { store } from '../../services/store.js';
+import { activeSiteId } from '../../services/stock.js';
 import { shell,wireShell,toast,notice } from '../../layout/layout.js';
 import { esc,badge,empty } from '../../components/ui.js';
 import { FORMATO_UBICACION_PREDETERMINADO,recalcularCodigosEscaneables,vistaCodigoUbicacion } from '../../services/ubicaciones.js';
 import { requireAdminSupercode } from '../../services/security.js';
 
 function isAdmin(){const u=store.data.users.find(x=>x.id===store.data.session.userId);return u?.role==='ADMINISTRADOR';}
-function siteId(){return new URLSearchParams(location.hash.split('?')[1]||'').get('site')||'REC';}
+function siteId(){return new URLSearchParams(location.hash.split('?')[1]||'').get('site')||activeSiteId();}
 function rackCode(r){return r.rackCode||(/^R\d+$/.test(r.id)?r.id:String(r.id).split('-').pop());}
 function racksFor(site){return store.data.racks.filter(r=>r.siteId===site);}
 function rackNumber(r){return Number(String(rackCode(r)).replace(/\D/g,''))||0;}

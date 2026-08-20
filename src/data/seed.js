@@ -745,8 +745,9 @@ export function createSeed(){
     {id:"Y",siteId:'REC',status:'UBICADO',locationId:"PAL-Y",origin:'Inventario físico inicial',createdAt:now}
   ];
   return {
-    meta:{createdAt:now,updatedAt:now,version:10},settings:{locationCodeFormat:'{SEDE}-{RACK}-M{MODULO}-N{NIVEL}'},session:{userId:'USR-ADMIN'},
-    sites:[{id:'REC',name:'Bodega Recoleta',type:'BODEGA',active:true,code:'REC',notes:'Sede activa.'},{id:'TIENDA',name:'Bodega Tienda de Ventas',type:'BODEGA_TIENDA',active:false,code:'TDA',notes:'Preparada para futura conexión.'}],
+    meta:{createdAt:now,updatedAt:now,version:14},settings:{locationCodeFormat:'{SEDE}-{RACK}-M{MODULO}-N{NIVEL}',erpStockBySite:{}},session:{userId:'USR-ADMIN',activeCompanyId:'SERCO_RIEGO'},
+    companies:[{id:'SERCO_RIEGO',name:'Serco Riego',code:'SERCO_RIEGO',active:true,notes:'Empresa principal'}],
+    sites:[{id:'REC',companyId:'SERCO_RIEGO',name:'Bodega Recoleta',type:'BODEGA',active:true,code:'REC',notes:'Sede activa.'},{id:'TIENDA',companyId:'SERCO_RIEGO',name:'Bodega Tienda de Ventas',type:'BODEGA_TIENDA',active:false,code:'TDA',notes:'Preparada para futura conexión.'}],
     sectors:[
       {id:'REC-A',siteId:'REC',name:'Sector amplio',description:'Racks 1 al 5 · Orbit y productos ya ubicables.'},
       {id:'REC-B',siteId:'REC',name:'Sector nuevo',description:'Racks 6 al 9 · ubicación rápida de cajas / SKU.'}
