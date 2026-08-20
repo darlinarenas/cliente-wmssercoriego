@@ -18,7 +18,11 @@ export function shell(title,content,active='dashboard'){
     <aside class="sidebar">
       <div class="sidebar-head">
         <div class="brand"><div class="brand-mark">S</div><div><b>SercoRiego Lite WMS</b><small>Control de bodega</small></div></div>
-        <div class="site-chip"><span class="dot"></span><div><b>${esc(companyName(activeCompany,d))}</b><small>${esc(site.name)} · ${esc(site.code||site.id||activeSite)}</small></div></div>${allowedCompanies.length>1?`<label class="sidebar-context"><small>Empresa activa</small><select id="company-switch">${allowedCompanies.map(c=>`<option value="${esc(c.id)}" ${c.id===activeCompany?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>`:''}${allowedSites.length>1?`<label class="sidebar-context"><small>Centro activo</small><select id="site-switch">${allowedSites.map(s=>`<option value="${esc(s.id)}" ${s.id===activeSite?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label>`:''}
+        <div class="site-chip"><span class="dot"></span><div><b>${esc(companyName(activeCompany,d))}</b><small>${esc(site.name)} · ${esc(site.code||site.id||activeSite)}</small></div></div>
+        <div class="sidebar-context-stack">
+          <label class="sidebar-context"><small>Empresa activa</small><select id="company-switch" ${allowedCompanies.length<=1?'disabled':''}>${allowedCompanies.map(c=>`<option value="${esc(c.id)}" ${c.id===activeCompany?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
+          <label class="sidebar-context"><small>Centro activo</small><select id="site-switch" ${allowedSites.length<=1?'disabled':''}>${allowedSites.map(s=>`<option value="${esc(s.id)}" ${s.id===activeSite?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label>
+        </div>
       </div>
       <div class="sidebar-nav-scroll" data-sidebar-scroll>
         <nav>${links}</nav>

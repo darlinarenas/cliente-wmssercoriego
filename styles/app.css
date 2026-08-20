@@ -359,3 +359,174 @@
   }
   .vista-administrativa>.sidebar .sidebar-nav-scroll{overflow-y:scroll!important;min-height:0!important}
 }
+
+/* 2026-08-19 · SIDEBAR GLOBAL REAL
+   Regla única: cabecera/contexto fijo, navegación con scroll propio, pie fijo.
+   Se aplica igual a admin/usuario y a cualquier empresa/centro. */
+.vista-administrativa>.sidebar{
+  box-sizing:border-box!important;
+}
+.vista-administrativa>.sidebar .sidebar-context-stack{
+  display:grid!important;
+  grid-template-rows:auto auto!important;
+  gap:0!important;
+  min-width:0!important;
+}
+.vista-administrativa>.sidebar .sidebar-context select:disabled{
+  opacity:1!important;
+  color:inherit!important;
+  -webkit-text-fill-color:currentColor!important;
+  cursor:default!important;
+}
+
+@media (min-width:761px){
+  .vista-administrativa.app-shell{
+    display:block!important;
+    min-height:100vh!important;
+  }
+  .vista-administrativa>.sidebar{
+    position:fixed!important;
+    left:0!important;
+    top:0!important;
+    bottom:0!important;
+    width:250px!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    padding:12px 14px 10px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    flex-wrap:nowrap!important;
+    overflow:hidden!important;
+    background:var(--nav)!important;
+    z-index:40!important;
+  }
+  .vista-administrativa>.sidebar>.sidebar-head{
+    flex:0 0 auto!important;
+    min-height:0!important;
+    min-width:0!important;
+    overflow:visible!important;
+  }
+  .vista-administrativa>.sidebar>.sidebar-nav-scroll{
+    flex:1 1 0%!important;
+    min-height:0!important;
+    min-width:0!important;
+    height:0!important;
+    max-height:none!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    overscroll-behavior:contain!important;
+    scrollbar-gutter:stable!important;
+    padding:2px 4px 5px 0!important;
+    margin:0 -4px 0 0!important;
+  }
+  .vista-administrativa>.sidebar>.sidebar-nav-scroll>nav{
+    display:flex!important;
+    flex-direction:column!important;
+    gap:3px!important;
+    align-items:stretch!important;
+    overflow:visible!important;
+    min-height:min-content!important;
+  }
+  .vista-administrativa>.sidebar>.sidebar-foot{
+    flex:0 0 auto!important;
+    min-width:0!important;
+    min-height:0!important;
+    margin:0!important;
+    padding:6px 0 0!important;
+    border-top:1px solid #1c2a44!important;
+    background:var(--nav)!important;
+    display:grid!important;
+    gap:4px!important;
+    position:static!important;
+  }
+  .vista-administrativa>.sidebar .brand{
+    padding:0 6px 9px!important;
+  }
+  .vista-administrativa>.sidebar .site-chip{
+    padding:8px 9px!important;
+    margin-bottom:6px!important;
+  }
+  .vista-administrativa>.sidebar .sidebar-context{
+    display:grid!important;
+    gap:3px!important;
+    margin:0 0 5px!important;
+  }
+  .vista-administrativa>.sidebar .sidebar-context>small{
+    font-size:9px!important;
+    line-height:1.1!important;
+  }
+  .vista-administrativa>.sidebar .sidebar-context select{
+    width:100%!important;
+    min-width:0!important;
+    min-height:34px!important;
+    padding:6px 8px!important;
+    font-size:12px!important;
+  }
+  .vista-administrativa>.sidebar .nav-link{
+    flex:0 0 auto!important;
+    min-height:34px!important;
+    padding:6px 9px!important;
+    font-size:13px!important;
+    line-height:1.15!important;
+  }
+  .vista-administrativa>.sidebar .sidebar-switch{
+    min-height:32px!important;
+    padding:4px 7px!important;
+  }
+  .vista-administrativa>.sidebar .sidebar-switch .view-switch-icon{
+    width:24px!important;
+    height:24px!important;
+  }
+  .vista-administrativa>.sidebar .sidebar-foot small{
+    font-size:8.5px!important;
+    line-height:1.15!important;
+  }
+  .vista-administrativa>.sidebar .sidebar-foot .ghost.small{
+    min-height:28px!important;
+    padding:4px 7px!important;
+    font-size:10px!important;
+  }
+  .vista-administrativa>main{
+    margin-left:250px!important;
+    min-width:0!important;
+  }
+}
+
+@media (min-width:761px) and (max-height:720px){
+  .vista-administrativa>.sidebar{padding-top:8px!important;padding-bottom:8px!important}
+  .vista-administrativa>.sidebar .brand{padding-bottom:6px!important}
+  .vista-administrativa>.sidebar .brand-mark{width:32px!important;height:32px!important;font-size:17px!important}
+  .vista-administrativa>.sidebar .brand small,.vista-administrativa>.sidebar .site-chip small{font-size:10px!important}
+  .vista-administrativa>.sidebar .site-chip{padding:6px 8px!important;margin-bottom:4px!important}
+  .vista-administrativa>.sidebar .sidebar-context{margin-bottom:4px!important}
+  .vista-administrativa>.sidebar .sidebar-context select{min-height:30px!important;padding:4px 7px!important;font-size:11px!important}
+  .vista-administrativa>.sidebar .nav-link{min-height:31px!important;padding:5px 8px!important;font-size:12px!important}
+  .vista-administrativa>.sidebar>.sidebar-foot{padding-top:4px!important;gap:3px!important}
+  .vista-administrativa>.sidebar .sidebar-switch{min-height:29px!important}
+  .vista-administrativa>.sidebar .sidebar-foot small{font-size:8px!important}
+  .vista-administrativa>.sidebar .sidebar-foot .ghost.small{min-height:25px!important;padding:3px 6px!important;font-size:9px!important}
+}
+
+@media (max-width:760px){
+  .vista-administrativa>.sidebar{
+    display:flex!important;
+    flex-direction:column!important;
+    top:0!important;
+    bottom:0!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow:hidden!important;
+  }
+  .vista-administrativa>.sidebar>.sidebar-head,
+  .vista-administrativa>.sidebar>.sidebar-foot{flex:0 0 auto!important}
+  .vista-administrativa>.sidebar>.sidebar-nav-scroll{
+    flex:1 1 0%!important;
+    height:0!important;
+    min-height:0!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+}
