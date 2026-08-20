@@ -5,15 +5,27 @@ class AuthService{
   token(){return localStorage.getItem(TOKEN_KEY)||'';}
   setToken(token){token?localStorage.setItem(TOKEN_KEY,token):localStorage.removeItem(TOKEN_KEY);}
   async request(path,options={}){
-    const headers={'Content-Type':'application/json',...(options.headers||{})};const token=this.token();if(token)headers.Authorization=`Bearer ${token}`;
-    const res=await fetch(`${APP_CONFIG.apiBaseUrl}${path}`,{...options,headers});
-    const data=res.status===204?null:await res.json().catch(()=>({}));if(!res.ok)throw Object.assign(new Error(data?.error||`API ${res.status}`),{status:res.status,code:data?.code});return data;
+    const {auth:useAuth=true,...fetchOptions}=options;
+    const headers={'Content-Type':'application/json',...(fetchOptions.headers||{})};
+    const token=useAuth?this.token():'';
+    if(token)headers.Authorization=`Bearer ${token}`;
+    const res=await fetch(`${APP_CONFIG.apiBaseUrl}${path}`,{...fetchOptions,headers});
+    const data=res.status===204?null:await res.json().catch(()=>({}));
+    if(!res.ok)throw Object.assign(new Error(data?.error||`API ${res.status}`),{status:res.status,code:data?.code});
+    return data;
   }
-  async login(username,password){const data=await this.request('/auth/login',{method:'POST',body:JSON.stringify({username,password})});this.setToken(data.token);this.user=data.user;return data.user;}
+  async login(username,password){
+    // Un inicio de sesión SIEMPRE es una autenticación nueva contra PostgreSQL.
+    // Nunca reutiliza un token anterior para decidir si las credenciales son válidas.
+    this.logout();
+    const data=await this.request('/auth/login',{method:'POST',auth:false,body:JSON.stringify({username,password})});
+    this.setToken(data.token);
+    this.user=data.user;
+    return data.user;
+  }
   async restore(){if(!this.token())return null;try{const d=await this.request('/auth/me');this.user=d.user;return this.user;}catch{this.logout();return null;}}
   logout(){this.user=null;this.setToken('');}
   async changePassword(currentPassword,newPassword){return this.request('/auth/change-password',{method:'POST',body:JSON.stringify({currentPassword,newPassword})});}
   async verifySupercode(supercode){return this.request('/auth/verify-supercode',{method:'POST',body:JSON.stringify({supercode})});}
-  async recoverAdmin(recoveryKey,newPassword){return this.request('/auth/recover-admin',{method:'POST',body:JSON.stringify({recoveryKey,newPassword})});}
 }
 export const auth=new AuthService();
