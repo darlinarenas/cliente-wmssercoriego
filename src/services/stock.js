@@ -5,6 +5,10 @@ export function stockBySite(productCode,state=store.data){
   const out={}; for(const i of state.inventory||[]){if(i.productCode!==productCode||Number(i.qty)<=0)continue;const site=inventorySiteId(i,state);out[site]=(out[site]||0)+Number(i.qty||0);} return out;
 }
 export function totalStock(productCode,state=store.data){return Object.values(stockBySite(productCode,state)).reduce((a,b)=>a+b,0);}
+export function totalCompanyStock(productCode,state=store.data,companyId=activeCompanyId(state)){
+  const by=stockBySite(productCode,state),siteIds=new Set((state.sites||[]).filter(s=>siteCompanyId(s,state)===companyId).map(s=>s.id));
+  return Object.entries(by).reduce((sum,[siteId,qty])=>sum+(siteIds.has(siteId)?Number(qty||0):0),0);
+}
 const RESERVING_STATUSES=new Set(['ACEPTADA','ASIGNADA','EN_PICKING','PREPARADA','ESPERANDO_REPOSICION']);
 export function reservedBySite(productCode,state=store.data,excludeOrderId=''){
   const out={};

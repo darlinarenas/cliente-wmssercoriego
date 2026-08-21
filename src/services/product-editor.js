@@ -2,12 +2,13 @@ import { store } from './store.js';
 import { esc } from '../components/ui.js';
 import { toast,notice } from '../layout/layout.js';
 import { addProductCode,codeInUse,normalizeProductCode } from './product-codes.js';
-import { inventorySiteId,activeSiteId,stockSitesOrdered } from './stock.js';
+import { inventorySiteId,activeSiteId,stockSitesOrdered,totalCompanyStock } from './stock.js';
+import { activeCompanyId,siteCompanyId } from './company.js';
 
 function currentUser(){ return store.data.users.find(u=>u.id===store.data.session.userId); }
 function canEdit(){ return ['ADMINISTRADOR','ENCARGADO'].includes(currentUser()?.role); }
 function product(code){ return store.data.products.find(p=>p.code===code); }
-function inventory(code){ return store.data.inventory.filter(i=>i.productCode===code); }
+function inventory(code){ const company=activeCompanyId(store.data); return store.data.inventory.filter(i=>i.productCode===code&&siteCompanyId(store.data.sites.find(s=>s.id===inventorySiteId(i,store.data)),store.data)===company); }
 function locationLabel(inv){
   const loc=store.data.locations.find(l=>l.id===inv.locationId);
   return `${inv.locationId}${inv.palletId?` · ${inv.palletId}`:''}${loc?.scanCode&&loc.scanCode!==inv.locationId?` · ${loc.scanCode}`:''}`;
@@ -61,8 +62,8 @@ function fill(code){
   document.querySelector('#pe-reason').value='';
   const codes=document.querySelector('#pe-codes-list'); const alt=(store.data.product_codes||[]).filter(x=>x.productId===p.id&&x.active!==false); codes.innerHTML=`<div class="product-code-row primary-code"><div><b>${esc(p.code)}</b><small>Código principal</small></div><span class="badge ok">PRINCIPAL</span></div>`+alt.map(x=>`<div class="product-code-row editable-alt-code" data-id="${esc(x.id)}"><label>Código<input class="alt-code-value" value="${esc(x.code)}" autocomplete="off"></label><label>Tipo<select class="alt-code-type">${['SKU','IMPORTACION','TIENDA','KAME','SHOPIFY','CONTROL','OTRO'].map(t=>`<option value="${t}" ${t===(x.type||'OTRO')?'selected':''}>${t}</option>`).join('')}</select></label><label>Etiqueta<input class="alt-code-label" value="${esc(x.label||'')}" placeholder="Opcional"></label><div class="alt-code-actions"><button type="button" class="secondary small save-alt-code" data-id="${esc(x.id)}">Guardar código</button><button type="button" class="ghost small remove-alt-code" data-id="${esc(x.id)}">Quitar</button></div></div>`).join('');
   document.querySelector('#product-editor-subtitle').textContent=`${p.code} · ${p.name||'Producto sin nombre'}`;
-  const siteRows=stockSitesOrdered(p.code),siteBox=document.querySelector('#pe-site-stock');
-  siteBox.innerHTML=siteRows.map(x=>`<div class="product-site-stock-row ${x.active?'active':''}"><div><span>${x.active?'CENTRO ACTIVO':'OTRA SEDE'}</span><b>${esc(x.name)}</b></div><strong>${x.qty} un.</strong></div>`).join('')||'<div class="empty-inline"><b>Sin centros disponibles</b></div>';
+  const siteRows=stockSitesOrdered(p.code),siteBox=document.querySelector('#pe-site-stock'),globalTotal=totalCompanyStock(p.code,store.data);
+  siteBox.innerHTML=`<div class="product-site-stock-global"><div><span>STOCK GLOBAL WMS</span><b>Total empresa activa</b></div><strong>${globalTotal} un.</strong></div>`+(siteRows.map(x=>`<div class="product-site-stock-row ${x.active?'active':''}"><div><span>${x.active?'CENTRO ACTIVO':'OTRA SEDE'}</span><b>${esc(x.name)}</b></div><strong>${x.qty} un.</strong></div>`).join('')||'<div class="empty-inline"><b>Sin centros disponibles</b></div>');
   const out=document.querySelector('#pe-inventory-list');
   out.innerHTML=inv.length?inv.map((i,index)=>{const sid=inventorySiteId(i),site=store.data.sites.find(s=>s.id===sid),editable=sid===active;return `<div class="inventory-edit-row ${editable?'active-site-row':'other-site-row'}" data-inv-id="${esc(i.id)}"><div><b>${esc(locationLabel(i))}</b><small>${esc(site?.name||sid)}${editable?' · CENTRO ACTIVO':' · SOLO CONSULTA'} · ${i.palletId?'Existencia dentro de palet':'Ubicación directa'}</small></div><label>Sistema<input class="pe-system-qty" type="number" value="${Number(i.qty)||0}" disabled></label><label>${editable?'Conteo físico':'Otra sede'}<input class="pe-physical-qty ${editable?'':'other-site-qty'}" data-index="${index}" type="number" min="0" step="1" value="${Number(i.qty)||0}" inputmode="numeric" ${editable?'':'disabled'}></label><span class="qty-diff neutral">${editable?'Sin diferencia':'Solo consulta'}</span></div>`;}).join(''):`<div class="empty-inline"><b>Sin existencias localizadas</b><small>Este producto todavía no tiene cantidades registradas por ubicación.</small></div>`;
   out.querySelectorAll('.pe-physical-qty').forEach(inp=>inp.addEventListener('input',()=>{

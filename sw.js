@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.20-ubicaciones-globales-contexto-v3';
+const APP_VERSION = '2026.08.20-stock-global-wms-v1';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

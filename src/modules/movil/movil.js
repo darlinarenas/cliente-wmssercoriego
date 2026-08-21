@@ -1,6 +1,6 @@
 import { instalarPWA, estadoPWA } from '../../services/pwa.js';
 import { store } from '../../services/store.js';
-import { activeSiteId,inventorySiteId } from '../../services/stock.js';
+import { activeSiteId,inventorySiteId,totalCompanyStock } from '../../services/stock.js';
 import { esc, badge, empty } from '../../components/ui.js';
 import { crearEscaner } from '../../services/escaner.js';
 import { openProductEditor } from '../../services/product-editor.js';
@@ -15,7 +15,7 @@ function ir(sec){location.hash=`#/movil${sec==='inicio'?'':`?seccion=${sec}`}`;}
 function producto(c){return resolveProduct(c);}
 function nombre(c){return producto(c)?.name||`Producto ${c}`;}
 function normalizar(v=''){return String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
-function inventarioProducto(code){return store.data.inventory.filter(i=>i.productCode===code&&i.qty>0);}
+function inventarioProducto(code){const company=activeCompanyId();return store.data.inventory.filter(i=>i.productCode===code&&i.qty>0&&siteCompanyId(store.data.sites.find(s=>s.id===inventorySiteId(i)),store.data)===company);}
 function opcionesUsuarios(){return store.data.users.filter(u=>u.active).map(u=>`<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('');}
 function opcionesDestinos(){const active=activeSiteId(),company=activeCompanyId();return store.data.sites.filter(s=>s.active!==false&&s.id!==active&&siteCompanyId(s)===company).map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');}
 function operadorActual(){return store.data.users.find(u=>u.id===store.data.session.userId);}
@@ -30,8 +30,8 @@ function resultados(q){
   }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,12).map(x=>x.p);
   if(!lista.length)return empty('Sin resultados','Prueba con otra palabra, descripción o código.');
   return lista.map(p=>{
-    const inv=inventarioProducto(p.code),total=inv.reduce((a,b)=>a+b.qty,0);
-    return `<article class="movil-producto"><button class="movil-producto-resumen desplegar" data-id="detalle-${esc(p.code)}"><div class="movil-producto-datos"><span class="sku">CÓDIGO ${esc(p.code)}</span><b>${esc(p.name)}</b><small><b>Descripción:</b> ${esc(p.description||'No registrada')}</small></div><div class="movil-cantidad"><small>Cantidad</small>${badge(`${total} un.`,total?'ok':'warn')}<span class="chevron">⌄</span></div></button><div id="detalle-${esc(p.code)}" class="movil-detalle oculto"><div class="movil-detalle-resumen"><span><b>Descripción</b><small>${esc(p.description||'No registrada')}</small></span><span><b>Cantidad total</b><small>${total} unidades</small></span></div>${inv.length?inv.map(i=>`<div class="movil-ubicacion"><span><b>${esc(i.locationId)}</b><small>${esc(store.data.sites.find(s=>s.id===inventorySiteId(i))?.name||inventorySiteId(i))} · ${i.palletId?`Palet ${esc(i.palletId)}`:'Ubicación directa'}</small></span><strong>${i.qty} un.</strong></div>`).join(''):'<p class="muted">Aún sin ubicación registrada.</p>'}<div class="movil-acciones"><a class="secondary" href="#/movimientos?code=${encodeURIComponent(p.code)}">Mover</a><a class="ghost" href="#/transferencias?code=${encodeURIComponent(p.code)}">Despachar</a><button class="ghost movil-edit-product" data-code="${esc(p.code)}" type="button">Editar / Inventario</button></div></div></article>`;
+    const inv=inventarioProducto(p.code),total=totalCompanyStock(p.code,store.data);
+    return `<article class="movil-producto"><button class="movil-producto-resumen desplegar" data-id="detalle-${esc(p.code)}"><div class="movil-producto-datos"><span class="sku">CÓDIGO ${esc(p.code)}</span><b>${esc(p.name)}</b><small><b>Descripción:</b> ${esc(p.description||'No registrada')}</small></div><div class="movil-cantidad"><small>Stock global WMS</small>${badge(`${total} un.`,total?'ok':'warn')}<span class="chevron">⌄</span></div></button><div id="detalle-${esc(p.code)}" class="movil-detalle oculto"><div class="movil-detalle-resumen"><span><b>Descripción</b><small>${esc(p.description||'No registrada')}</small></span><span><b>Stock global WMS</b><small>${total} unidades en la empresa activa</small></span></div>${inv.length?inv.map(i=>`<div class="movil-ubicacion"><span><b>${esc(i.locationId)}</b><small>${esc(store.data.sites.find(s=>s.id===inventorySiteId(i))?.name||inventorySiteId(i))} · ${i.palletId?`Palet ${esc(i.palletId)}`:'Ubicación directa'}</small></span><strong>${i.qty} un.</strong></div>`).join(''):'<p class="muted">Aún sin ubicación registrada.</p>'}<div class="movil-acciones"><a class="secondary" href="#/movimientos?code=${encodeURIComponent(p.code)}">Mover</a><a class="ghost" href="#/transferencias?code=${encodeURIComponent(p.code)}">Despachar</a><button class="ghost movil-edit-product" data-code="${esc(p.code)}" type="button">Editar / Inventario</button></div></div></article>`;
   }).join('');
 }
 

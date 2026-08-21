@@ -4,23 +4,24 @@ import { esc,badge,empty } from '../../components/ui.js';
 import { openProductEditor } from '../../services/product-editor.js';
 import { enlazarBotonEscaner } from '../../services/camara-ui.js';
 import { productAliases,codeInUse,normalizeProductCode,addProductCode } from '../../services/product-codes.js';
-import { stockBySite,activeSiteId,stockSitesOrdered } from '../../services/stock.js';
+import { stockBySite,activeSiteId,stockSitesOrdered,totalCompanyStock,inventorySiteId } from '../../services/stock.js';
 
 const pesoRotacion={ALTA:3,MEDIA:2,BAJA:1};
 function currentUser(){return store.data.users.find(u=>u.id===store.data.session.userId);}
 function canCreateProduct(){return ['ADMINISTRADOR','ENCARGADO'].includes(currentUser()?.role);}
 function stockCentroActivo(code){return Number(stockBySite(code)[activeSiteId()]||0);}
 function cleanNewCode(v){return normalizeProductCode(v).replaceAll('-','');}
-function totalProducto(code){return store.data.inventory.filter(i=>i.productCode===code&&i.qty>0).reduce((a,b)=>a+b.qty,0);}
+function totalProducto(code){return totalCompanyStock(code,store.data);}
 function ubicacionesProducto(code){
-  const ubicaciones=[...new Set(store.data.inventory.filter(i=>i.productCode===code&&i.qty>0).map(i=>i.palletId||i.locationId).filter(Boolean))];
+  const companySites=new Set(stockSitesOrdered(code,store.data).map(x=>x.siteId));
+  const ubicaciones=[...new Set(store.data.inventory.filter(i=>i.productCode===code&&i.qty>0&&companySites.has(inventorySiteId(i,store.data))).map(i=>i.palletId||i.locationId).filter(Boolean))];
   if(!ubicaciones.length)return '<span class="product-location-empty">Sin ubicación</span>';
   return `<div class="product-location-chips">${ubicaciones.map(u=>`<span class="product-location-chip">${esc(u)}</span>`).join('')}</div>`;
 }
 function tipos(){return [...new Set(store.data.products.map(p=>p.type||p.family).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));}
 function filaProducto(p){
   const total=totalProducto(p.code),active=activeSiteId(),rows=stockSitesOrdered(p.code),activeRow=rows.find(x=>x.active)||{qty:0,name:active},others=rows.filter(x=>!x.active&&x.qty>0).map(x=>`${x.name}: ${x.qty}`).join(' · ');
-  return `<tr class="click-row" data-code="${esc(p.code)}"><td><b>${esc(p.code)}</b><small class="row-sub">${productAliases(p).length-1} código(s) asociado(s)</small></td><td><b>${esc(p.description||p.name||`Producto ${p.code}`)}</b></td><td><b>${activeRow.qty}</b><small class="row-sub"><b>${esc(activeRow.name)} · centro activo</b>${others?` · Otras: ${esc(others)}`:''} · Total red: ${total}</small></td><td>${ubicacionesProducto(p.code)}</td><td><button class="ghost small edit-product-row" data-code="${esc(p.code)}">Ver ficha / Editar</button></td></tr>`;
+  return `<tr class="click-row" data-code="${esc(p.code)}"><td><b>${esc(p.code)}</b><small class="row-sub">${productAliases(p).length-1} código(s) asociado(s)</small></td><td><b>${esc(p.description||p.name||`Producto ${p.code}`)}</b></td><td><b>${activeRow.qty}</b><small class="row-sub"><b>${esc(activeRow.name)} · centro activo</b>${others?` · Otras: ${esc(others)}`:''} · <b>Stock global WMS: ${total}</b></small></td><td>${ubicacionesProducto(p.code)}</td><td><button class="ghost small edit-product-row" data-code="${esc(p.code)}">Ver ficha / Editar</button></td></tr>`;
 }
 function obtenerFiltrados(){
   const texto=(document.querySelector('#productos-buscar')?.value||'').trim().toLowerCase();
@@ -124,7 +125,7 @@ export function renderProducts(root){
   root.innerHTML=shell('Productos',`<div class="page-intro"><div><span class="eyebrow">CATÁLOGO</span><h2>Productos y ubicación localizada</h2><p>El mismo producto puede existir en varias ubicaciones. El total se calcula sumando todas las posiciones registradas.</p></div><div class="product-page-actions"><button id="nuevo-producto" class="primary">+ Nuevo producto</button><button id="abrir-filtros" class="secondary filter-button">☷ Filtrar y ordenar</button></div></div>
   <section id="panel-filtros" class="panel filtros-productos oculto"><div class="filtros-grid"><label>Buscar<div class="entrada-con-camara"><input id="productos-buscar" placeholder="Código, descripción o palabra"><button id="camara-productos-buscar" class="scan-button" type="button" title="Escanear código con cámara">▣</button></div></label><label>Rotación<select id="filtro-rotacion"><option value="">Todas</option><option>ALTA</option><option>MEDIA</option><option>BAJA</option></select></label><label>Tipo<select id="filtro-tipo"><option value="">Todos</option>${tipos().map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select></label><label>Stock en ${esc(d.sites.find(s=>s.id===activeSiteId(d))?.name||activeSiteId(d))}<select id="filtro-stock-centro"><option value="">Todos los productos</option><option value="con-stock">Solo con stock en este centro</option><option value="sin-stock">Sin stock en este centro</option></select></label><label>Ordenar por<select id="orden-productos"><option value="codigo-asc">Código · menor a mayor</option><option value="codigo-desc">Código · mayor a menor</option><option value="descripcion-asc">Descripción · A a Z</option><option value="descripcion-desc">Descripción · Z a A</option><option value="cantidad-desc">Cantidad · mayor a menor</option><option value="cantidad-asc">Cantidad · menor a mayor</option><option value="rotacion-desc">Rotación · alta a baja</option><option value="rotacion-asc">Rotación · baja a alta</option><option value="tipo">Tipo</option></select></label></div></section>
   <div class="tabla-resumen"><span id="contador-productos">${d.products.length} productos</span><small><b>Preparación rápida (Picking):</b> ubicación destinada a tener el producto accesible para preparar pedidos con mayor velocidad.</small></div>
-  <div class="table-wrap"><table><thead><tr><th>Código</th><th>Descripción</th><th>Cantidad</th><th>Ubicación actual</th><th>Acciones</th></tr></thead><tbody id="cuerpo-productos">${d.products.map(filaProducto).join('')}</tbody></table></div>`,'productos');
+  <div class="table-wrap"><table><thead><tr><th>Código</th><th>Descripción</th><th>Stock / Global WMS</th><th>Ubicación actual</th><th>Acciones</th></tr></thead><tbody id="cuerpo-productos">${d.products.map(filaProducto).join('')}</tbody></table></div>`,'productos');
   wireShell();
   document.querySelector('#abrir-filtros').onclick=()=>document.querySelector('#panel-filtros').classList.toggle('oculto');
   document.querySelector('#nuevo-producto').onclick=()=>openNewProductDialog(()=>pintarTabla());
