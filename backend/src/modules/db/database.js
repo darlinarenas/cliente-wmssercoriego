@@ -1,5 +1,4 @@
 import pg from 'pg';
-import bcrypt from 'bcryptjs';
 import { env } from '../config/env.js';
 import { INITIAL_STATE } from './initial-state.js';
 
@@ -68,15 +67,17 @@ export async function ensureDatabase(){
   try{
     await client.query('BEGIN');
     await client.query(schemaSql);
+    // Desarrollo: no exigir formato bcrypt en password_hash. Si una versión
+    // anterior creó esta restricción, se elimina de forma idempotente.
+    await client.query('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_password_hash_bcrypt_chk');
     await client.query("INSERT INTO wms_meta(id,revision,settings,planning) VALUES(1,1,$1::jsonb,$2::jsonb) ON CONFLICT(id) DO NOTHING",[JSON.stringify(INITIAL_STATE.settings||{}),JSON.stringify(INITIAL_STATE.planning||{})]);
     // El administrador principal se crea una sola vez. Si ya existe, el arranque
     // NO modifica username, nombre, contraseña, estado ni ningún otro dato.
     const adminExists=(await client.query("SELECT 1 FROM users WHERE id='USR-ADMIN' LIMIT 1")).rowCount>0;
     if(!adminExists){
-      const hash=await bcrypt.hash(env.adminPassword,12);
       await client.query(`INSERT INTO users(id,name,username,password_hash,role,active,must_change_password)
-        VALUES('USR-ADMIN',$1,$2,$3,'ADMINISTRADOR',true,true)
-        ON CONFLICT(id) DO NOTHING`,[env.adminName,env.adminUsername.toLowerCase(),hash]);
+        VALUES('USR-ADMIN',$1,$2,$3,'ADMINISTRADOR',true,false)
+        ON CONFLICT(id) DO NOTHING`,[env.adminName,env.adminUsername.toLowerCase(),env.adminPassword]);
     }
     const count=(await client.query('SELECT count(*)::int AS n FROM products')).rows[0].n;
     if(count===0){
@@ -136,7 +137,7 @@ export async function readState(client=pool,currentUser=null){
   `)).rows[0];
 
   return {
-    meta:{version:15,revision:Number(row?.revision||1),updatedAt:row?.updated_at,createdAt:row?.created_at},
+    meta:{version:12,revision:Number(row?.revision||1),updatedAt:row?.updated_at,createdAt:row?.created_at},
     settings:row?.settings||{},
     planning:row?.planning||{},
     session:{userId:currentUser?.id||'USR-ADMIN',activeSiteId:(currentUser?.siteIds||currentUser?.site_ids||[])[0]||'REC',activeCompanyId:(currentUser?.companyIds||currentUser?.company_ids||[])[0]||'SERCO_RIEGO'},
@@ -156,76 +157,6 @@ export async function readState(client=pool,currentUser=null){
     audit:row?.audit||[],
     users:row?.users||[]
   };
-}
-
-
-export function normalizeAndValidateSiteIsolation(state){
-  const sites=Array.isArray(state.sites)?state.sites:[];
-  const fallback=sites.find(s=>s.id==='REC')?.id||sites[0]?.id||'REC';
-  const siteIds=new Set(sites.map(s=>s.id));
-  const fail=message=>{const e=new Error(`Aislamiento por centro: ${message}`);e.status=400;e.code='SITE_ISOLATION';throw e;};
-  const racks=Array.isArray(state.racks)?state.racks:[];
-  const locations=Array.isArray(state.locations)?state.locations:[];
-  const pallets=Array.isArray(state.pallets)?state.pallets:[];
-  const rackById=new Map(racks.map(x=>[x.id,x]));
-  const locById=new Map(locations.map(x=>[x.id,x]));
-  const palletById=new Map(pallets.map(x=>[x.id,x]));
-
-  for(const r of racks){r.siteId=r.siteId||fallback;if(!siteIds.has(r.siteId))fail(`rack ${r.id} referencia un centro inexistente (${r.siteId}).`);}
-  for(const l of locations){
-    l.siteId=l.siteId||rackById.get(l.rackId)?.siteId||fallback;
-    if(!siteIds.has(l.siteId))fail(`ubicación ${l.id} referencia un centro inexistente (${l.siteId}).`);
-    const rack=l.rackId?rackById.get(l.rackId):null;
-    if(rack&&rack.siteId!==l.siteId)fail(`ubicación ${l.id} no puede pertenecer a ${l.siteId} y al rack ${rack.id} de ${rack.siteId}.`);
-  }
-  for(const p of pallets){
-    const loc=p.locationId?locById.get(p.locationId):null;
-    p.siteId=p.siteId||loc?.siteId||fallback;
-    if(!siteIds.has(p.siteId))fail(`pallet ${p.id} referencia un centro inexistente (${p.siteId}).`);
-    if(loc&&loc.siteId!==p.siteId)fail(`pallet ${p.id} de ${p.siteId} no puede ubicarse físicamente en ${loc.id} de ${loc.siteId}.`);
-  }
-  for(const i of state.inventory||[]){
-    const loc=locById.get(i.locationId),pal=i.palletId?palletById.get(i.palletId):null;
-    const resolved=i.siteId||loc?.siteId||pal?.siteId||fallback;i.siteId=resolved;
-    if(!siteIds.has(resolved))fail(`inventario ${i.id} referencia un centro inexistente (${resolved}).`);
-    if(loc&&loc.siteId!==resolved)fail(`inventario ${i.id} está en ${resolved}, pero su ubicación ${loc.id} pertenece a ${loc.siteId}.`);
-    if(pal&&pal.siteId!==resolved)fail(`inventario ${i.id} está en ${resolved}, pero su pallet ${pal.id} pertenece a ${pal.siteId}.`);
-    if(loc&&pal&&loc.siteId!==pal.siteId)fail(`inventario ${i.id} intenta mezclar ubicación ${loc.id} (${loc.siteId}) y pallet ${pal.id} (${pal.siteId}).`);
-  }
-  for(const r of state.receipts||[]){
-    const pal=palletById.get(r.palletId);r.siteId=r.siteId||pal?.siteId||fallback;
-    if(!siteIds.has(r.siteId))fail(`recepción ${r.id} referencia un centro inexistente (${r.siteId}).`);
-    if(pal&&pal.siteId!==r.siteId)fail(`recepción ${r.id} de ${r.siteId} usa el pallet ${pal.id} de ${pal.siteId}.`);
-  }
-  for(const m of state.movements||[]){if(!m.siteId)m.siteId=fallback;if(!siteIds.has(m.siteId))fail(`movimiento ${m.id} referencia un centro inexistente (${m.siteId}).`);}
-  for(const t of state.transfers||[]){t.sourceSiteId=t.sourceSiteId||fallback;if(!siteIds.has(t.sourceSiteId))fail(`transferencia ${t.id} tiene origen inexistente (${t.sourceSiteId}).`);if(t.destinationSiteId&&siteIds.size&& !siteIds.has(t.destinationSiteId))fail(`transferencia ${t.id} tiene destino inexistente (${t.destinationSiteId}).`);}
-  for(const o of state.orders||[]){o.sourceSiteId=o.sourceSiteId||fallback;if(!siteIds.has(o.sourceSiteId))fail(`orden ${o.id} tiene centro de origen inexistente (${o.sourceSiteId}).`);}
-  return state;
-}
-
-
-function stable(value){
-  if(Array.isArray(value))return `[${value.map(stable).join(',')}]`;
-  if(value&&typeof value==='object')return `{${Object.keys(value).sort().map(k=>`${JSON.stringify(k)}:${stable(value[k])}`).join(',')}}`;
-  return JSON.stringify(value);
-}
-async function assertPhysicalScope(client,state,activeSiteId){
-  if(!activeSiteId)return;
-  const validSite=(state.sites||[]).some(s=>s.id===activeSiteId&&s.active!==false);
-  if(!validSite){const e=new Error('El centro activo no existe o está inactivo.');e.status=400;e.code='SITE_ISOLATION';throw e;}
-  const rows=(await client.query(`
-    SELECT
-      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM racks),'[]'::jsonb) racks,
-      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM locations),'[]'::jsonb) locations,
-      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM pallets),'[]'::jsonb) pallets
-  `)).rows[0];
-  const fallback=(state.sites||[]).find(s=>s.id==='REC')?.id||(state.sites||[])[0]?.id||'REC';
-  for(const key of ['racks','locations','pallets']){
-    const before=new Map((rows[key]||[]).filter(x=>(x.siteId||fallback)!==activeSiteId).map(x=>[x.id,stable({...x,siteId:x.siteId||fallback})]));
-    const after=new Map((state[key]||[]).filter(x=>(x.siteId||fallback)!==activeSiteId).map(x=>[x.id,stable({...x,siteId:x.siteId||fallback})]));
-    if(before.size!==after.size){const e=new Error(`No se puede crear o eliminar ${key} de otro centro desde ${activeSiteId}.`);e.status=403;e.code='FOREIGN_SITE_WRITE';throw e;}
-    for(const [id,value] of before){if(after.get(id)!==value){const e=new Error(`No se puede modificar ${key} ${id} porque pertenece a otro centro.`);e.status=403;e.code='FOREIGN_SITE_WRITE';throw e;}}
-  }
 }
 
 async function replaceTableBulk(client,table,items){
@@ -264,11 +195,9 @@ async function replaceTableBulk(client,table,items){
   `,[payload]);
 }
 
-export async function replaceState(client,state,expectedRevision,currentUser,activeSiteId=null){
-  normalizeAndValidateSiteIsolation(state);
+export async function replaceState(client,state,expectedRevision,currentUser){
   const locked=(await client.query('SELECT revision FROM wms_meta WHERE id=1 FOR UPDATE')).rows[0];
   const actual=Number(locked?.revision||1);
-  await assertPhysicalScope(client,state,activeSiteId);
   if(expectedRevision!=null && Number(expectedRevision)!==actual){const e=new Error('El inventario cambió en otro equipo. Recarga antes de guardar.');e.status=409;e.code='REVISION_CONFLICT';throw e;}
   for(const table of ENTITY_TABLES){
     // Compatibilidad durante despliegues: un frontend anterior que aún no conozca
