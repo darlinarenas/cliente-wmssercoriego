@@ -6,20 +6,22 @@ import { buscarUbicacionPorCodigo, vistaCodigoUbicacion } from '../../services/u
 import { deductStock, addStock } from '../../services/inventory-ops.js';
 import { resolveProduct,productAliases } from '../../services/product-codes.js';
 import { openProductEditor } from '../../services/product-editor.js';
+import { activeSiteId,inventorySiteId } from '../../services/stock.js';
 
 function params(){ return new URLSearchParams(location.hash.split('?')[1]||''); }
 function producto(code){ return resolveProduct(code); }
 function normalizar(v=''){ return String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); }
-function contenidoPalet(id){ return store.data.inventory.filter(i=>i.palletId===id && i.qty>0); }
+function contenidoPalet(id){ const site=activeSiteId(); return store.data.inventory.filter(i=>i.palletId===id && i.qty>0 && inventorySiteId(i)===site); }
 function totalUnidades(id){ return contenidoPalet(id).reduce((a,b)=>a+b.qty,0); }
 function totalSku(id){ return new Set(contenidoPalet(id).map(i=>i.productCode)).size; }
 function usuario(id){ return store.data.users.find(u=>u.id===id)?.name || id || 'No registrado'; }
-function recepcionPalet(id){ return store.data.receipts.find(r=>r.palletId===id); }
-function ocupado(locationId){ return store.data.inventory.some(i=>i.locationId===locationId && i.qty>0); }
+function recepcionPalet(id){ const site=activeSiteId(); return store.data.receipts.find(r=>r.siteId===site&&r.palletId===id); }
+function ocupado(locationId){ const site=activeSiteId(); return store.data.inventory.some(i=>i.locationId===locationId && i.qty>0 && inventorySiteId(i)===site); }
 
 function existentes(code, palletId){
   const map=new Map();
-  store.data.inventory.filter(i=>i.productCode===code && i.qty>0 && i.palletId!==palletId).forEach(i=>{
+  const site=activeSiteId();
+  store.data.inventory.filter(i=>i.productCode===code && i.qty>0 && i.palletId!==palletId && inventorySiteId(i)===site).forEach(i=>{
     const key=`${i.locationId}@@${i.palletId||''}`;
     const prev=map.get(key)||{locationId:i.locationId,palletId:i.palletId||null,qty:0};
     prev.qty+=i.qty; map.set(key,prev);
@@ -27,7 +29,8 @@ function existentes(code, palletId){
   return [...map.values()];
 }
 function libresRapidas(limit=10){
-  return store.data.locations.filter(l=>l.active && l.kind==='PICKING_RACK' && !ocupado(l.id) && l.status!=='BLOQUEADA' && l.status!=='INHABILITADA')
+  const site=activeSiteId();
+  return store.data.locations.filter(l=>l.siteId===site && l.active && l.kind==='PICKING_RACK' && !ocupado(l.id) && l.status!=='BLOQUEADA' && l.status!=='INHABILITADA')
     .sort((a,b)=>a.id.localeCompare(b.id,undefined,{numeric:true})).slice(0,limit);
 }
 function recomendaciones(code,palletId){ return {ya:existentes(code,palletId),rapidas:libresRapidas(8)}; }
@@ -36,7 +39,7 @@ function opcionesDestino(code,palletId){
   const {ya,rapidas}=recomendaciones(code,palletId), vistos=new Set(), out=[];
   ya.forEach(x=>{const key=`${x.locationId}@@${x.palletId||''}`;if(!vistos.has(key)){vistos.add(key);out.push(`<option value="${esc(key)}">Reponer existente · ${x.palletId?`Palet ${esc(x.palletId)} · `:''}${esc(x.locationId)} · ${x.qty} un.</option>`);}});
   rapidas.forEach(l=>{const key=`${l.id}@@`;if(!vistos.has(key)){vistos.add(key);out.push(`<option value="${esc(key)}">Posición rápida libre · ${esc(vistaCodigoUbicacion(l,store.data))}</option>`);}});
-  store.data.locations.filter(l=>l.active && l.kind==='RACK' && !ocupado(l.id)).slice(0,12).forEach(l=>{const key=`${l.id}@@`;if(!vistos.has(key)){vistos.add(key);out.push(`<option value="${esc(key)}">Posición libre · ${esc(vistaCodigoUbicacion(l,store.data))}</option>`);}});
+  store.data.locations.filter(l=>l.siteId===activeSiteId() && l.active && l.kind==='RACK' && !ocupado(l.id)).slice(0,12).forEach(l=>{const key=`${l.id}@@`;if(!vistos.has(key)){vistos.add(key);out.push(`<option value="${esc(key)}">Posición libre · ${esc(vistaCodigoUbicacion(l,store.data))}</option>`);}});
   return out.join('');
 }
 
@@ -97,10 +100,11 @@ function itemProducto(x,palletId){
 function resolverDestino(code,palletId,codigoManual,selectValue){
   if(codigoManual){
     const location=buscarUbicacionPorCodigo(codigoManual,store.data); if(!location)return {error:'El código de ubicación no existe'};
-    const same=store.data.inventory.find(i=>i.locationId===location.id&&i.productCode===code&&i.qty>0&&i.palletId!==palletId);
+    if(location.siteId!==activeSiteId())return {error:'La ubicación escaneada pertenece a otro centro. Cambia primero el centro activo.'};
+    const same=store.data.inventory.find(i=>i.locationId===location.id&&i.productCode===code&&i.qty>0&&i.palletId!==palletId&&inventorySiteId(i)===activeSiteId());
     return {to:location.id,destPallet:same?.palletId||null,location};
   }
-  if(selectValue){const [to,destPalletRaw='']=selectValue.split('@@');return {to,destPallet:destPalletRaw||null,location:store.data.locations.find(l=>l.id===to)};}
+  if(selectValue){const [to,destPalletRaw='']=selectValue.split('@@'),site=activeSiteId();return {to,destPallet:destPalletRaw||null,location:store.data.locations.find(l=>l.id===to&&l.siteId===site)};}
   return {error:'Escanea, escribe o selecciona una ubicación'};
 }
 
@@ -108,13 +112,13 @@ function validarDestino(code,palletId,dest){
   if(dest.error)return dest.error;const location=dest.location;
   if(!location||!location.active)return 'La ubicación no está disponible';
   if(['BLOQUEADA','INHABILITADA'].includes(location.status))return 'La ubicación está bloqueada o inhabilitada';
-  const otros=store.data.inventory.filter(i=>i.locationId===location.id&&i.qty>0&&i.productCode!==code&&i.palletId!==palletId);
+  const otros=store.data.inventory.filter(i=>i.locationId===location.id&&i.qty>0&&i.productCode!==code&&i.palletId!==palletId&&inventorySiteId(i)===activeSiteId());
   if(location.kind==='PICKING_RACK'&&otros.length)return `Posición ocupada por ${otros[0].productCode}. Elige otra ubicación.`;
   return '';
 }
 
 async function moverDesdePalet({palletId,code,qty,codigoManual='',selectValue=''}){
-  const palletBefore=store.data.pallets.find(x=>x.id===palletId), sourceRows=store.data.inventory.filter(i=>i.palletId===palletId&&i.productCode===code&&i.qty>0), available=sourceRows.reduce((a,b)=>a+b.qty,0);
+  const site=activeSiteId(),palletBefore=store.data.pallets.find(x=>x.id===palletId&&x.siteId===site), sourceRows=store.data.inventory.filter(i=>i.palletId===palletId&&i.productCode===code&&i.qty>0&&inventorySiteId(i)===site), available=sourceRows.reduce((a,b)=>a+b.qty,0);
   if(!code||!available)return {ok:false,message:'Ese producto no está disponible en el palet'};
   if(qty<1||qty>available)return {ok:false,message:`Disponible en el palet: ${available}`};
   const dest=resolverDestino(code,palletId,codigoManual,selectValue), error=validarDestino(code,palletId,dest);if(error)return {ok:false,message:error};
@@ -123,7 +127,7 @@ async function moverDesdePalet({palletId,code,qty,codigoManual='',selectValue=''
     const result=deductStock(d,{code,qty,sourceKey:`${sourceRows[0].locationId}@@${palletId}`});
     if(!result.ok)throw new Error(result.message);
     const added=addStock(d,{code,qty,locationId:to,palletId:destPallet});
-    d.movements.unshift({id:`MOV-${Date.now()}`,type:'MOVIMIENTO_DESDE_PALET',productCode:code,qty,from:`${palletId} / ${palletBefore?.locationId||'POR UBICAR'}`,to:destPallet?`${destPallet} / ${to}`:to,reason:destPallet?'Consolidación / reposición desde palet':'Ubicación desde palet por doble escaneo',userId:d.session.userId,palletId,at:now,method:codigoManual?'ESCANEO_O_CODIGO':'SELECCION_MANUAL',beforeQty:available,afterQty:available-qty,destinationBeforeQty:added.beforeQty,destinationAfterQty:added.afterQty,allocations:result.allocations});
+    d.movements.unshift({id:`MOV-${Date.now()}`,siteId:activeSiteId(d),type:'MOVIMIENTO_DESDE_PALET',productCode:code,qty,from:`${palletId} / ${palletBefore?.locationId||'POR UBICAR'}`,to:destPallet?`${destPallet} / ${to}`:to,reason:destPallet?'Consolidación / reposición desde palet':'Ubicación desde palet por doble escaneo',userId:d.session.userId,palletId,at:now,method:codigoManual?'ESCANEO_O_CODIGO':'SELECCION_MANUAL',beforeQty:available,afterQty:available-qty,destinationBeforeQty:added.beforeQty,destinationAfterQty:added.afterQty,allocations:result.allocations});
     const pal=d.pallets.find(x=>x.id===palletId), remains=d.inventory.some(i=>i.palletId===palletId&&i.qty>0);if(pal)pal.status=remains?'POR_UBICAR':'VACÍO';
   },`${code}: ${qty} un. descontadas de ${palletId} y sumadas a ${to}`);
   return {ok:true,message:`${code} ubicado en ${destPallet?`${destPallet} / `:''}${vistaCodigoUbicacion(location,store.data)}`,to};
@@ -142,7 +146,7 @@ function wirePlacement(palletId){
   document.querySelectorAll('.place-from-pallet').forEach(form=>{
     const code=form.dataset.code,input=form.elements.locationCode,select=form.elements.to,validation=form.querySelector('.location-validation');
     form.querySelector('.scan-location-btn').onclick=()=>abrirCamaraEn(input.id||(input.id=`loc-${code}`),'Escanear ubicación','Apunta a la etiqueta del rack / posición');
-    input.oninput=()=>{const loc=buscarUbicacionPorCodigo(input.value,store.data);validation.textContent=!input.value?'Puedes escanear la etiqueta física de la posición.':loc?`✓ Ubicación válida: ${vistaCodigoUbicacion(loc,store.data)}`:'Código aún no reconocido';validation.classList.toggle('valid',!!loc);};
+    input.oninput=()=>{const loc=buscarUbicacionPorCodigo(input.value,store.data),valid=loc&&loc.siteId===activeSiteId();validation.textContent=!input.value?'Puedes escanear la etiqueta física de la posición.':valid?`✓ Ubicación válida: ${vistaCodigoUbicacion(loc,store.data)}`:loc?'La ubicación pertenece a otro centro':'Código aún no reconocido';validation.classList.toggle('valid',!!valid);};
     select.onchange=()=>{if(select.value)input.value='';};
     form.onsubmit=async e=>{e.preventDefault();const result=await moverDesdePalet({palletId,code,qty:Number(form.elements.qty.value),codigoManual:input.value.trim(),selectValue:select.value});if(!result.ok){toast(result.message);return;}toast(result.message);renderPallets(document.querySelector('#app'));};
   });
@@ -152,13 +156,13 @@ function wireQuickMode(palletId){
   const pInput=document.querySelector('#quick-product'),lInput=document.querySelector('#quick-location'),qty=document.querySelector('#quick-qty'),pStatus=document.querySelector('#quick-product-status'),lStatus=document.querySelector('#quick-location-status'),recs=document.querySelector('#quick-recommendations'),last=document.querySelector('#quick-last');
   document.querySelector('#quick-scan-product').onclick=()=>abrirCamaraEn('quick-product','1 · Escanear producto','Apunta al código de barras de la caja');document.querySelector('#quick-scan-location').onclick=()=>abrirCamaraEn('quick-location','2 · Escanear ubicación','Apunta a la etiqueta física de la posición');
   const refreshProduct=()=>{const code=pInput.value.trim(),row=contenidoPalet(palletId).filter(i=>i.productCode===code).reduce((a,b)=>a+b.qty,0),prod=producto(code);pStatus.textContent=!code?`Escanea o escribe un producto de ${palletId}.`:row?`✓ ${prod?.name||`Producto ${code}`} · ${row} un. disponibles`:'Ese código no está en este palet';pStatus.classList.toggle('valid',!!row);recs.innerHTML='';if(row){qty.max=row;qty.value='1';const {ya,rapidas}=recomendaciones(code,palletId);const opciones=[...ya.slice(0,2).map(x=>({code:x.locationId,label:`Reponer ${x.locationId} · ${x.qty} un.`})),...rapidas.slice(0,3).map(x=>({code:vistaCodigoUbicacion(x,store.data),label:`Libre ${vistaCodigoUbicacion(x,store.data)}`}))];if(opciones.length)recs.innerHTML=`<small>Atajos recomendados</small><div>${opciones.map(o=>`<button type="button" data-loc="${esc(o.code)}">${esc(o.label)}</button>`).join('')}</div>`;recs.querySelectorAll('button').forEach(b=>b.onclick=()=>{lInput.value=b.dataset.loc;lInput.dispatchEvent(new Event('input',{bubbles:true}));});}};
-  const refreshLocation=()=>{const loc=buscarUbicacionPorCodigo(lInput.value,store.data);lStatus.textContent=!lInput.value?'Escanea la etiqueta de la posición o escribe su código.':loc?`✓ ${vistaCodigoUbicacion(loc,store.data)} · ${loc.status.replaceAll('_',' ')}`:'Ubicación no reconocida';lStatus.classList.toggle('valid',!!loc);};
+  const refreshLocation=()=>{const loc=buscarUbicacionPorCodigo(lInput.value,store.data),valid=loc&&loc.siteId===activeSiteId();lStatus.textContent=!lInput.value?'Escanea la etiqueta de la posición o escribe su código.':valid?`✓ ${vistaCodigoUbicacion(loc,store.data)} · ${loc.status.replaceAll('_',' ')}`:loc?'La ubicación pertenece a otro centro':'Ubicación no reconocida';lStatus.classList.toggle('valid',!!valid);};
   pInput.oninput=refreshProduct;lInput.oninput=refreshLocation;
   document.querySelector('#quick-confirm').onclick=async()=>{const code=pInput.value.trim(),result=await moverDesdePalet({palletId,code,qty:Number(qty.value||1),codigoManual:lInput.value.trim()});if(!result.ok){toast(result.message);return;}last.classList.remove('oculto');last.innerHTML=`<b>✓ ${esc(result.message)}</b><small>Movimiento guardado en historial. Continúa con la siguiente caja.</small>`;toast(result.message);pInput.value='';lInput.value='';qty.value='1';pStatus.textContent=`Escanea o escribe un producto de ${palletId}.`;pStatus.classList.remove('valid');lStatus.textContent='Escanea la etiqueta de la posición o escribe su código.';lStatus.classList.remove('valid');recs.innerHTML='';pInput.focus();};
 }
 
 export function renderPallets(root){
-  const d=store.data, selected=params().get('id'), p=d.pallets.find(x=>x.id===selected), pending=d.pallets.filter(x=>x.status==='POR_UBICAR'||x.status==='RECIBIENDO');
-  const body=`<div class="page-intro"><div><span class="eyebrow">UNIDAD LOGÍSTICA</span><h2>Palets con identidad propia</h2><p>Abre un palet, escanea el producto y luego escanea la etiqueta de la ubicación. También puedes escribir el código o elegir una posición manualmente.</p></div><div class="pallet-summary"><b>${pending.length}</b><small>palets por organizar</small></div></div>${p?detallePalet(p):`<div class="rack-grid pallet-grid">${d.pallets.length?d.pallets.map(card).join(''):empty('Sin palets','Los palets aparecerán cuando registres una recepción.')}</div>`}`;
+  const d=store.data,siteId=activeSiteId(d),site=d.sites.find(s=>s.id===siteId),pallets=d.pallets.filter(x=>x.siteId===siteId),selected=params().get('id'),p=pallets.find(x=>x.id===selected),pending=pallets.filter(x=>x.status==='POR_UBICAR'||x.status==='RECIBIENDO');
+  const body=`<div class="page-intro"><div><span class="eyebrow">UNIDAD LOGÍSTICA · CENTRO ACTIVO</span><h2>Palets · ${esc(site?.name||siteId)}</h2><p>Solo se muestran y administran los palets del centro activo. Los palets de otras bodegas no aparecen en esta vista.</p></div><div class="pallet-summary"><b>${pending.length}</b><small>palets por organizar</small></div></div>${p?detallePalet(p):`<div class="rack-grid pallet-grid">${pallets.length?pallets.map(card).join(''):empty('Sin palets en este centro','Los palets aparecerán aquí cuando registres una recepción en este centro.')}</div>`}`;
   root.innerHTML=shell('Palets',body,'palets');wireShell();if(p)wireDetail(p.id);else document.querySelectorAll('.pallet-card-click').forEach(b=>b.onclick=()=>location.hash=`#/palets?id=${encodeURIComponent(b.dataset.pallet)}`);
 }

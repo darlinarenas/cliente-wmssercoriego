@@ -117,30 +117,32 @@ function renderPreview(){
 }
 
 function ensureLocation(data,label){
-  const clean=locationKey(label);
-  let pallet=data.pallets.find(p=>String(p.id).toUpperCase()===clean);
-  let loc=pallet?data.locations.find(l=>l.id===pallet.locationId):data.locations.find(l=>String(l.label||'').toUpperCase()===clean||String(l.id||'').toUpperCase()===clean);
+  const clean=locationKey(label),siteId=activeSiteId(data),safe=clean.replace(/[^A-Z0-9]/g,'')||String(Date.now()),physicalPalletId=siteId==='REC'?clean:`${siteId}-${clean}`;
+  let pallet=data.pallets.find(p=>p.siteId===siteId&&(String(p.id).toUpperCase()===physicalPalletId.toUpperCase()||String(p.label||'').toUpperCase()===clean));
+  let loc=pallet?data.locations.find(l=>l.id===pallet.locationId&&l.siteId===siteId):data.locations.find(l=>l.siteId===siteId&&(String(l.label||'').toUpperCase()===clean||String(l.id||'').toUpperCase()===clean));
   if(!loc){
-    const id=`IMP${clean.replace(/[^A-Z0-9]/g,'')||Date.now()}`;
-    loc={id,siteId:activeSiteId(data),rackId:null,module:null,level:null,label:clean,scanCode:clean,status:'OCUPADA',access:'DIRECTO',kind:'IMPORTADA',active:true,capacity:null,notes:'Ubicación creada por importación Excel.'};
+    const id=siteId==='REC'?`IMP${safe}`:`${siteId}-IMP${safe}`;
+    loc={id,siteId,rackId:null,module:null,level:null,label:clean,scanCode:clean,status:'OCUPADA',access:'DIRECTO',kind:'IMPORTADA',active:true,capacity:null,notes:'Ubicación creada por importación Excel.'};
     data.locations.push(loc);
   }
   if(!pallet){
-    pallet={id:clean,siteId:activeSiteId(data),status:'UBICADO',locationId:loc.id,origin:'Importación Excel',createdAt:new Date().toISOString()};
+    pallet={id:physicalPalletId,label:clean,siteId,status:'UBICADO',locationId:loc.id,origin:'Importación Excel',createdAt:new Date().toISOString()};
     data.pallets.push(pallet);
   }
-  return {locationId:loc.id,palletId:pallet.id};
+  return {siteId,locationId:loc.id,palletId:pallet.id};
 }
 
 async function applyImport(mode){
   if(!preview||preview.errors.length||!preview.valid.length)return;
   const rows=preview.valid;
   await store.commit(data=>{
+    const siteId=activeSiteId(data);
     if(mode==='replace'){
-      data.products=[];
-      data.inventory=[];
-      data.pallets=[];
-      data.locations=data.locations.filter(l=>l.kind!=='IMPORTADA'&&l.kind!=='PALET_EXISTENTE');
+      // Reemplaza solo la operación física del centro activo. El catálogo de
+      // productos es maestro/global y los demás centros permanecen intactos.
+      data.inventory=data.inventory.filter(i=>i.siteId!==siteId);
+      data.pallets=data.pallets.filter(p=>p.siteId!==siteId);
+      data.locations=data.locations.filter(l=>l.siteId!==siteId||!['IMPORTADA','PALET_EXISTENTE'].includes(l.kind));
     }
     const productMap=new Map(data.products.map(p=>[String(p.code),p]));
     const touchedPairs=new Set();
@@ -154,10 +156,10 @@ async function applyImport(mode){
       }
       const pos=ensureLocation(data,row.location);
       const pair=`${row.code}::${pos.palletId}`; touchedPairs.add(pair);
-      let inv=data.inventory.find(i=>String(i.productCode)===row.code&&String(i.palletId||'')===String(pos.palletId));
+      let inv=data.inventory.find(i=>i.siteId===siteId&&String(i.productCode)===row.code&&String(i.palletId||'')===String(pos.palletId));
       if(!inv){
-        inv={id:`INVIMP${row.code}${String(pos.palletId).replace(/[^A-Z0-9]/gi,'')}`,productCode:row.code,locationId:pos.locationId,qty:row.qty,palletId:pos.palletId}; data.inventory.push(inv);
-      }else{ inv.locationId=pos.locationId; inv.qty=row.qty; inv.palletId=pos.palletId; }
+        inv={id:`INVIMP-${siteId}-${row.code}-${String(pos.palletId).replace(/[^A-Z0-9]/gi,'')}`,siteId,productCode:row.code,locationId:pos.locationId,qty:row.qty,palletId:pos.palletId}; data.inventory.push(inv);
+      }else{ inv.siteId=siteId; inv.locationId=pos.locationId; inv.qty=row.qty; inv.palletId=pos.palletId; }
     }
   },`Importación Excel: ${rows.length} registros`);
   toast(`Importación completada: ${preview.stats.products} productos`);
@@ -170,7 +172,7 @@ export function renderImport(root){
   <section class="panel import-guide"><div class="panel-head"><div><span class="eyebrow">PASO 1</span><h3>Descarga la plantilla oficial</h3></div><a class="primary" href="./assets/templates/Plantilla_Carga_Inventario_SercoRiego.xlsx" download>Descargar Excel</a></div><p>Columnas obligatorias: <b>CODIGO, DESCRIPCION, CANTIDAD y UBICACION</b>. TIPO, CATEGORIA, SUBCATEGORIA y ROTACION son opcionales. No existe columna Foto.</p><div class="import-columns"><span><b>CODIGO</b> Solo números</span><span><b>DESCRIPCION</b> Nombre completo</span><span><b>CANTIDAD</b> Entero ≥ 0</span><span><b>UBICACION</b> Ej. BT1</span></div></section>
   <section class="panel"><div><span class="eyebrow">PASO 2</span><h3>Selecciona tu Excel</h3><p>El sistema valida el archivo antes de cargarlo. No modifica nada hasta que confirmes.</p></div><div class="import-drop"><input id="excel-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"><small>Formato permitido: .xlsx</small></div></section>
   <section class="panel"><div class="panel-head"><div><span class="eyebrow">PASO 3</span><h3>Revisión previa</h3></div></div><div id="import-preview" class="import-empty">Selecciona un archivo Excel para ver aquí el resultado de la validación.</div></section>
-  <section class="panel import-actions-panel"><div><h3>Modo de importación</h3><p><b>Actualizar</b> conserva lo existente y reemplaza la cantidad del mismo código en la misma ubicación. <b>Reemplazar</b> usa el Excel como nuevo catálogo e inventario.</p></div><label>Acción<select id="import-mode"><option value="merge">Actualizar / agregar al inventario actual</option><option value="replace">Reemplazar catálogo e inventario con este Excel</option></select></label><button id="confirm-import" class="primary" disabled>Confirmar importación</button></section>`,'importar');
+  <section class="panel import-actions-panel"><div><h3>Modo de importación</h3><p><b>Actualizar</b> conserva lo existente y reemplaza la cantidad del mismo código en la misma ubicación. <b>Reemplazar</b> sustituye únicamente el inventario físico del centro activo; el catálogo maestro y las demás sedes se conservan.</p></div><label>Acción<select id="import-mode"><option value="merge">Actualizar / agregar al inventario actual</option><option value="replace">Reemplazar catálogo e inventario con este Excel</option></select></label><button id="confirm-import" class="primary" disabled>Confirmar importación</button></section>`,'importar');
   wireShell();
   document.querySelector('#excel-file')?.addEventListener('change',async e=>{
     const file=e.target.files?.[0]; if(!file)return;
@@ -180,7 +182,7 @@ export function renderImport(root){
   });
   document.querySelector('#confirm-import')?.addEventListener('click',()=>{
     const mode=document.querySelector('#import-mode')?.value||'merge';
-    if(mode==='replace'&&!confirm('Esto reemplazará el catálogo y el inventario actual con el contenido del Excel. ¿Continuar?'))return;
+    if(mode==='replace'&&!confirm('Esto reemplazará el inventario físico del centro activo con el contenido del Excel. Los demás centros no se modificarán. ¿Continuar?'))return;
     applyImport(mode);
   });
 }

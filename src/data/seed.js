@@ -745,7 +745,7 @@ export function createSeed(){
     {id:"Y",siteId:'REC',status:'UBICADO',locationId:"PAL-Y",origin:'Inventario físico inicial',createdAt:now}
   ];
   return {
-    meta:{createdAt:now,updatedAt:now,version:14},settings:{locationCodeFormat:'{SEDE}-{RACK}-M{MODULO}-N{NIVEL}',erpStockBySite:{}},session:{userId:'USR-ADMIN',activeCompanyId:'SERCO_RIEGO'},
+    meta:{createdAt:now,updatedAt:now,version:15},settings:{locationCodeFormat:'{SEDE}-{RACK}-M{MODULO}-N{NIVEL}',erpStockBySite:{}},session:{userId:'USR-ADMIN',activeCompanyId:'SERCO_RIEGO'},
     companies:[{id:'SERCO_RIEGO',name:'Serco Riego',code:'SERCO_RIEGO',active:true,notes:'Empresa principal'}],
     sites:[{id:'REC',companyId:'SERCO_RIEGO',name:'Bodega Recoleta',type:'BODEGA',active:true,code:'REC',notes:'Sede activa.'},{id:'TIENDA',companyId:'SERCO_RIEGO',name:'Bodega Tienda de Ventas',type:'BODEGA_TIENDA',active:false,code:'TDA',notes:'Preparada para futura conexión.'}],
     sectors:[

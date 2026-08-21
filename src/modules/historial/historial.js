@@ -1,6 +1,7 @@
 import { store } from '../../services/store.js';
 import { shell,wireShell } from '../../layout/layout.js';
 import { esc,empty,badge } from '../../components/ui.js';
+import { activeSiteId, inventorySiteId } from '../../services/stock.js';
 
 function mapaUsuarios(){return Object.fromEntries(store.data.users.map(u=>[u.id,u.name]));}
 function usuario(id,users){return users[id]||id||'No registrado';}
@@ -13,14 +14,14 @@ function contiene(haystack,q){return normalizar(haystack).includes(normalizar(q)
 function textoItems(items=[]){return items.map(x=>{const p=store.data.products.find(p=>p.code===x.code);return `${x.code} ${nombreProducto(x.code)} ${p?.description||''} ${x.qty}`;}).join(' ');}
 
 function eventosOperativos(){
-  const d=store.data,users=mapaUsuarios(),eventos=[];
-  d.receipts.filter(r=>r.status!=='RECIBIENDO').forEach(r=>eventos.push({
+  const d=store.data,users=mapaUsuarios(),eventos=[],site=activeSiteId();
+  d.receipts.filter(r=>r.siteId===site&&r.status!=='RECIBIENDO').forEach(r=>eventos.push({
     tipo:'RECEPCIÓN',fecha:r.closedAt||r.arrivedAt,id:r.id,titulo:`Mercadería recibida · ${r.origin}`,
     items:r.items||[],productCodes:(r.items||[]).map(x=>x.code),
     searchable:[r.id,r.palletId,r.origin,r.status,r.tempLocationId,r.broughtBy,usuario(r.receivedBy,users),usuario(r.supervisedBy,users),r.note,textoItems(r.items)].join(' '),
     detalle:`${productos(r.items)}<div class="responsables"><span><b>Recibió:</b> ${esc(usuario(r.receivedBy,users))}</span><span><b>Supervisó:</b> ${esc(usuario(r.supervisedBy,users))}</span><span><b>Trajo:</b> ${esc(r.broughtBy||'No registrado')}</span></div><small>Palet ${esc(r.palletId)} · Ubicación temporal ${esc(r.tempLocationId||'—')} · Llegada ${fecha(r.arrivedAt)} · Cierre ${fecha(r.closedAt)}</small>`
   }));
-  d.transfers.filter(t=>t.status==='EN_TRANSITO'||t.departedAt).forEach(t=>eventos.push({
+  d.transfers.filter(t=>(t.sourceSiteId===site||t.destinationSiteId===site)&&(t.status==='EN_TRANSITO'||t.departedAt)).forEach(t=>eventos.push({
     tipo:'DESPACHO',fecha:t.departedAt||t.createdAt,id:t.id,titulo:`Productos enviados a ${t.destinationName}`,
     items:t.items||[],productCodes:(t.items||[]).map(x=>x.code),
     searchable:[t.id,t.destinationName,t.status,t.driver,usuario(t.dispatchedBy||t.scannedBy,users),usuario(t.supervisedBy,users),textoItems(t.items)].join(' '),
@@ -30,8 +31,12 @@ function eventosOperativos(){
 }
 
 function movimientosNormalizados(){
-  const users=mapaUsuarios();
-  return store.data.movements.map(m=>({
+  const users=mapaUsuarios(),site=activeSiteId();
+  return store.data.movements.filter(m=>{
+    if(m.siteId)return m.siteId===site;
+    const loc=store.data.locations.find(l=>l.id===m.to)||store.data.locations.find(l=>l.id===m.from);
+    return (loc?.siteId||'REC')===site;
+  }).map(m=>({
     ...m,
     searchable:[m.productCode,nombreProducto(m.productCode),m.qty,m.delta,m.beforeQty,m.afterQty,m.from,m.to,m.reason,usuario(m.userId,users),m.id].join(' ')
   }));
@@ -65,7 +70,7 @@ function trazaProducto(code){
   const inv=d.inventory.filter(i=>i.productCode===canonical&&Number(i.qty)>0);
   const total=inv.reduce((s,i)=>s+Number(i.qty||0),0);
   return `<section class="panel trace-card"><div class="panel-head"><div><span class="eyebrow">FICHA DE TRAZABILIDAD</span><h3>${esc(canonical)} · ${esc(product.name)}</h3><small>${esc(product.description||'Descripción no registrada')} · ${esc(product.type||product.family||'Sin clasificar')} · Total localizado actual: ${total} · Códigos válidos: ${esc(productAliases(product).join(', '))}</small></div>${badge(`${timeline.length} eventos`,'neutral')}</div>
-  <div class="trace-locations"><b>Ubicación actual</b>${inv.length?inv.map(i=>`<span>${esc(i.locationId)}${i.palletId?` · ${esc(i.palletId)}`:''} <strong>${i.qty}</strong></span>`).join(''):'<span>Sin ubicación registrada</span>'}</div>
+  <div class="trace-locations"><b>Ubicación actual</b>${inv.length?inv.map(i=>{const sid=inventorySiteId(i,d);const s=d.sites.find(x=>x.id===sid);return `<span>${esc(s?.name||sid)} · ${esc(i.locationId)}${i.palletId?` · ${esc(i.palletId)}`:''} <strong>${i.qty}</strong></span>`;}).join(''):'<span>Sin ubicación registrada</span>'}</div>
   <div class="trace-timeline">${timeline.length?timeline.map(x=>`<article class="trace-event"><div><span class="trace-type">${esc(x.tipo)}</span><b>${esc(x.detalle)}</b><small>${fecha(x.fecha)} · ${esc(x.horas)}</small></div><strong>${x.cantidad} un.</strong><p>${esc(x.meta)}</p><p>${esc(x.responsables)}</p></article>`).join(''):empty('Sin eventos para este producto','Todavía no hay recepciones, despachos ni movimientos registrados para este código.')}</div></section>`;
 }
 
@@ -95,7 +100,7 @@ function actualizarBusqueda(){
 }
 
 export function renderHistory(root){
- root.innerHTML=shell('Historial',`<div class="page-intro"><div><span class="eyebrow">TRAZABILIDAD</span><h2>Busca cualquier movimiento de la bodega</h2><p>Busca por código, descripción, recepción, palet, usuario, origen, destino, conductor o cualquier palabra registrada.</p></div></div>
+ root.innerHTML=shell('Historial',`<div class="page-intro"><div><span class="eyebrow">TRAZABILIDAD</span><h2>Historial del centro activo</h2><p>Las operaciones listadas corresponden al centro activo. La búsqueda exacta de un producto conserva visibilidad de sus ubicaciones en otros centros.</p></div></div>
  <section class="panel history-search-panel"><label>Buscar absolutamente en todo el historial<div class="history-search"><span>⌕</span><input id="historial-search" placeholder="Ej.: 448660, PAL-0101, Importación, responsable, REC-PU-01…" autocomplete="off"><button id="clear-history" class="ghost small" type="button">Limpiar</button></div></label><div class="history-search-meta"><small id="historial-result-count">Mostrando actividad reciente</small><span>Si escribes un código exacto, verás su ficha completa de trazabilidad.</span></div></section>
  <div id="product-trace"></div>
  <section class="panel"><div class="panel-head"><div><h3>Entradas y salidas</h3><small>Historial cronológico de productos</small></div><select id="filtro-eventos" class="select-compacto"><option value="TODOS">Todas las operaciones</option><option value="RECEPCIÓN">Solo recepciones</option><option value="DESPACHO">Solo despachos</option></select></div><div id="eventos-operativos"></div></section>

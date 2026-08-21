@@ -1,0 +1,1002 @@
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/backend/src/app.js /mnt/data/wms_center_work/WMS-sercoriego/backend/src/app.js
+--- /mnt/data/wms_center_baseline/backend/src/app.js	2026-08-20 01:57:46.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/backend/src/app.js	2026-08-21 00:14:23.589564042 +0000
+@@ -47,7 +47,7 @@
+   },
+   credentials:false,
+   methods:['GET','HEAD','PUT','PATCH','POST','DELETE','OPTIONS'],
+-  allowedHeaders:['Content-Type','Authorization','X-Kame-Integration-Key'],
++  allowedHeaders:['Content-Type','Authorization','X-Kame-Integration-Key','X-WMS-Site'],
+   optionsSuccessStatus:204,
+ }));
+ 
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/backend/src/db/database.js /mnt/data/wms_center_work/WMS-sercoriego/backend/src/db/database.js
+--- /mnt/data/wms_center_baseline/backend/src/db/database.js	2026-08-20 01:46:49.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/backend/src/db/database.js	2026-08-21 00:14:23.589856208 +0000
+@@ -136,7 +136,7 @@
+   `)).rows[0];
+ 
+   return {
+-    meta:{version:12,revision:Number(row?.revision||1),updatedAt:row?.updated_at,createdAt:row?.created_at},
++    meta:{version:15,revision:Number(row?.revision||1),updatedAt:row?.updated_at,createdAt:row?.created_at},
+     settings:row?.settings||{},
+     planning:row?.planning||{},
+     session:{userId:currentUser?.id||'USR-ADMIN',activeSiteId:(currentUser?.siteIds||currentUser?.site_ids||[])[0]||'REC',activeCompanyId:(currentUser?.companyIds||currentUser?.company_ids||[])[0]||'SERCO_RIEGO'},
+@@ -158,6 +158,76 @@
+   };
+ }
+ 
++
++export function normalizeAndValidateSiteIsolation(state){
++  const sites=Array.isArray(state.sites)?state.sites:[];
++  const fallback=sites.find(s=>s.id==='REC')?.id||sites[0]?.id||'REC';
++  const siteIds=new Set(sites.map(s=>s.id));
++  const fail=message=>{const e=new Error(`Aislamiento por centro: ${message}`);e.status=400;e.code='SITE_ISOLATION';throw e;};
++  const racks=Array.isArray(state.racks)?state.racks:[];
++  const locations=Array.isArray(state.locations)?state.locations:[];
++  const pallets=Array.isArray(state.pallets)?state.pallets:[];
++  const rackById=new Map(racks.map(x=>[x.id,x]));
++  const locById=new Map(locations.map(x=>[x.id,x]));
++  const palletById=new Map(pallets.map(x=>[x.id,x]));
++
++  for(const r of racks){r.siteId=r.siteId||fallback;if(!siteIds.has(r.siteId))fail(`rack ${r.id} referencia un centro inexistente (${r.siteId}).`);}
++  for(const l of locations){
++    l.siteId=l.siteId||rackById.get(l.rackId)?.siteId||fallback;
++    if(!siteIds.has(l.siteId))fail(`ubicación ${l.id} referencia un centro inexistente (${l.siteId}).`);
++    const rack=l.rackId?rackById.get(l.rackId):null;
++    if(rack&&rack.siteId!==l.siteId)fail(`ubicación ${l.id} no puede pertenecer a ${l.siteId} y al rack ${rack.id} de ${rack.siteId}.`);
++  }
++  for(const p of pallets){
++    const loc=p.locationId?locById.get(p.locationId):null;
++    p.siteId=p.siteId||loc?.siteId||fallback;
++    if(!siteIds.has(p.siteId))fail(`pallet ${p.id} referencia un centro inexistente (${p.siteId}).`);
++    if(loc&&loc.siteId!==p.siteId)fail(`pallet ${p.id} de ${p.siteId} no puede ubicarse físicamente en ${loc.id} de ${loc.siteId}.`);
++  }
++  for(const i of state.inventory||[]){
++    const loc=locById.get(i.locationId),pal=i.palletId?palletById.get(i.palletId):null;
++    const resolved=i.siteId||loc?.siteId||pal?.siteId||fallback;i.siteId=resolved;
++    if(!siteIds.has(resolved))fail(`inventario ${i.id} referencia un centro inexistente (${resolved}).`);
++    if(loc&&loc.siteId!==resolved)fail(`inventario ${i.id} está en ${resolved}, pero su ubicación ${loc.id} pertenece a ${loc.siteId}.`);
++    if(pal&&pal.siteId!==resolved)fail(`inventario ${i.id} está en ${resolved}, pero su pallet ${pal.id} pertenece a ${pal.siteId}.`);
++    if(loc&&pal&&loc.siteId!==pal.siteId)fail(`inventario ${i.id} intenta mezclar ubicación ${loc.id} (${loc.siteId}) y pallet ${pal.id} (${pal.siteId}).`);
++  }
++  for(const r of state.receipts||[]){
++    const pal=palletById.get(r.palletId);r.siteId=r.siteId||pal?.siteId||fallback;
++    if(!siteIds.has(r.siteId))fail(`recepción ${r.id} referencia un centro inexistente (${r.siteId}).`);
++    if(pal&&pal.siteId!==r.siteId)fail(`recepción ${r.id} de ${r.siteId} usa el pallet ${pal.id} de ${pal.siteId}.`);
++  }
++  for(const m of state.movements||[]){if(!m.siteId)m.siteId=fallback;if(!siteIds.has(m.siteId))fail(`movimiento ${m.id} referencia un centro inexistente (${m.siteId}).`);}
++  for(const t of state.transfers||[]){t.sourceSiteId=t.sourceSiteId||fallback;if(!siteIds.has(t.sourceSiteId))fail(`transferencia ${t.id} tiene origen inexistente (${t.sourceSiteId}).`);if(t.destinationSiteId&&siteIds.size&& !siteIds.has(t.destinationSiteId))fail(`transferencia ${t.id} tiene destino inexistente (${t.destinationSiteId}).`);}
++  for(const o of state.orders||[]){o.sourceSiteId=o.sourceSiteId||fallback;if(!siteIds.has(o.sourceSiteId))fail(`orden ${o.id} tiene centro de origen inexistente (${o.sourceSiteId}).`);}
++  return state;
++}
++
++
++function stable(value){
++  if(Array.isArray(value))return `[${value.map(stable).join(',')}]`;
++  if(value&&typeof value==='object')return `{${Object.keys(value).sort().map(k=>`${JSON.stringify(k)}:${stable(value[k])}`).join(',')}}`;
++  return JSON.stringify(value);
++}
++async function assertPhysicalScope(client,state,activeSiteId){
++  if(!activeSiteId)return;
++  const validSite=(state.sites||[]).some(s=>s.id===activeSiteId&&s.active!==false);
++  if(!validSite){const e=new Error('El centro activo no existe o está inactivo.');e.status=400;e.code='SITE_ISOLATION';throw e;}
++  const rows=(await client.query(`
++    SELECT
++      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM racks),'[]'::jsonb) racks,
++      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM locations),'[]'::jsonb) locations,
++      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM pallets),'[]'::jsonb) pallets
++  `)).rows[0];
++  const fallback=(state.sites||[]).find(s=>s.id==='REC')?.id||(state.sites||[])[0]?.id||'REC';
++  for(const key of ['racks','locations','pallets']){
++    const before=new Map((rows[key]||[]).filter(x=>(x.siteId||fallback)!==activeSiteId).map(x=>[x.id,stable({...x,siteId:x.siteId||fallback})]));
++    const after=new Map((state[key]||[]).filter(x=>(x.siteId||fallback)!==activeSiteId).map(x=>[x.id,stable({...x,siteId:x.siteId||fallback})]));
++    if(before.size!==after.size){const e=new Error(`No se puede crear o eliminar ${key} de otro centro desde ${activeSiteId}.`);e.status=403;e.code='FOREIGN_SITE_WRITE';throw e;}
++    for(const [id,value] of before){if(after.get(id)!==value){const e=new Error(`No se puede modificar ${key} ${id} porque pertenece a otro centro.`);e.status=403;e.code='FOREIGN_SITE_WRITE';throw e;}}
++  }
++}
++
+ async function replaceTableBulk(client,table,items){
+   // Conserva exactamente la semántica anterior (reemplazo completo de la
+   // colección), pero inserta toda la colección en una sola consulta SQL.
+@@ -194,9 +264,11 @@
+   `,[payload]);
+ }
+ 
+-export async function replaceState(client,state,expectedRevision,currentUser){
++export async function replaceState(client,state,expectedRevision,currentUser,activeSiteId=null){
++  normalizeAndValidateSiteIsolation(state);
+   const locked=(await client.query('SELECT revision FROM wms_meta WHERE id=1 FOR UPDATE')).rows[0];
+   const actual=Number(locked?.revision||1);
++  await assertPhysicalScope(client,state,activeSiteId);
+   if(expectedRevision!=null && Number(expectedRevision)!==actual){const e=new Error('El inventario cambió en otro equipo. Recarga antes de guardar.');e.status=409;e.code='REVISION_CONFLICT';throw e;}
+   for(const table of ENTITY_TABLES){
+     // Compatibilidad durante despliegues: un frontend anterior que aún no conozca
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/backend/src/db/initial-state.js /mnt/data/wms_center_work/WMS-sercoriego/backend/src/db/initial-state.js
+--- /mnt/data/wms_center_baseline/backend/src/db/initial-state.js	2026-08-20 01:46:49.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/backend/src/db/initial-state.js	2026-08-21 00:12:07.790156225 +0000
+@@ -2,7 +2,7 @@
+   "meta": {
+     "createdAt": "2026-08-16T21:36:53.921Z",
+     "updatedAt": "2026-08-16T21:36:53.921Z",
+-    "version": 12
++    "version": 15
+   },
+   "settings": {
+     "locationCodeFormat": "{SEDE}-{RACK}-M{MODULO}-N{NIVEL}"
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/backend/src/modules/state/state.routes.js /mnt/data/wms_center_work/WMS-sercoriego/backend/src/modules/state/state.routes.js
+--- /mnt/data/wms_center_baseline/backend/src/modules/state/state.routes.js	2026-08-18 01:40:29.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/backend/src/modules/state/state.routes.js	2026-08-21 00:14:23.589689341 +0000
+@@ -4,5 +4,5 @@
+ import { requireRole } from '../../middleware/auth.js';
+ export const stateRouter=Router();
+ stateRouter.get('/',async(req,res,next)=>{try{res.json(await readState(undefined,req.user));}catch(e){next(e);}});
+-stateRouter.put('/',async(req,res,next)=>{try{const expected=req.body?.meta?.revision;const nextState=await withTransaction(c=>replaceState(c,req.body,expected,req.user));res.json(nextState);}catch(e){next(e);}});
++stateRouter.put('/',async(req,res,next)=>{try{const expected=req.body?.meta?.revision;const nextState=await withTransaction(c=>replaceState(c,req.body,expected,req.user,req.get('X-WMS-Site')||null));res.json(nextState);}catch(e){next(e);}});
+ stateRouter.post('/reset',requireRole('ADMINISTRADOR'),async(req,res,next)=>{try{const current=await readState(undefined,req.user);const fresh={...INITIAL_STATE,users:current.users,session:{userId:req.user.id},meta:{...INITIAL_STATE.meta,revision:current.meta.revision}};res.json(await withTransaction(c=>replaceState(c,fresh,current.meta.revision,req.user)));}catch(e){next(e);}});
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/backend/test/logic.test.js /mnt/data/wms_center_work/WMS-sercoriego/backend/test/logic.test.js
+--- /mnt/data/wms_center_baseline/backend/test/logic.test.js	2026-08-20 01:45:34.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/backend/test/logic.test.js	2026-08-21 00:12:49.137959099 +0000
+@@ -14,12 +14,12 @@
+ assert.ok(Array.isArray(INITIAL_STATE.orders),'orders debe existir');
+ 
+ const legacy={meta:{version:13},settings:{},session:{userId:'U',activeSiteId:'REC'},sites:[{id:'REC',name:'Recoleta',parentSiteId:null},{id:'VIT',name:'Vitacura',parentSiteId:'REC'}],users:[{id:'U',role:'ENCARGADO',siteIds:['REC']}],product_codes:[],orders:[],racks:[],locations:[],inventory:[],pallets:[]};
+-assert.equal(upgradeState(legacy),true,'la migración V14 debe detectar cambios');
++assert.equal(upgradeState(legacy),true,'la migración V15 debe detectar cambios');
+ assert.equal(legacy.companies[0].id,'SERCO_RIEGO');
+ assert.equal(legacy.sites[1].companyId,'SERCO_RIEGO');
+ assert.equal('parentSiteId' in legacy.sites[1],false,'dependencia debe desaparecer');
+ assert.deepEqual(legacy.users[0].companyIds,['SERCO_RIEGO']);
+-assert.equal(legacy.meta.version,14);
++assert.equal(legacy.meta.version,15);
+ 
+ const { stockBySite,stockStatus,reservedBySite }=await import('../../src/services/stock.js');
+ const sample={companies:[{id:'A',active:true},{id:'B',active:true}],sites:[{id:'REC',companyId:'A',active:true},{id:'VIT',companyId:'A',active:true},{id:'MKP',companyId:'B',active:true}],locations:[{id:'L1',siteId:'REC'},{id:'L2',siteId:'VIT'},{id:'L3',siteId:'MKP'}],pallets:[],inventory:[{id:'I1',productCode:'P1',locationId:'L1',qty:18},{id:'I2',productCode:'P1',locationId:'L2',qty:2},{id:'I3',productCode:'P1',locationId:'L3',qty:99}],orders:[{id:'O1',sourceSiteId:'REC',status:'ACEPTADA',items:[{productCode:'P1',qty:5}]}],users:[],session:{}};
+@@ -28,4 +28,20 @@
+ assert.deepEqual(stockStatus('P1','REC',sample),{physical:18,reserved:5,available:13});
+ assert.deepEqual(stockStatus('P1','REC',sample,'O1'),{physical:18,reserved:0,available:18});
+ 
+-console.log('OK · estructura V14 multiempresa, migración y stock reservado válidos');
++const legacyPhysical={meta:{version:14},settings:{},session:{userId:'U',activeSiteId:'REC'},companies:[{id:'SERCO_RIEGO',active:true}],sites:[{id:'REC',companyId:'SERCO_RIEGO',active:true},{id:'VIT',companyId:'SERCO_RIEGO',active:true}],users:[{id:'U',role:'ADMINISTRADOR',siteIds:[],companyIds:[]}],racks:[{id:'R1',siteId:'REC',levels:1,modules:1}],locations:[{id:'REC-R1-M1-N1',siteId:'REC',rackId:'R1',active:true}],pallets:[{id:'PAL-1',locationId:'REC-R1-M1-N1'}],inventory:[{id:'I1',productCode:'P1',locationId:'REC-R1-M1-N1',palletId:'PAL-1',qty:10}],receipts:[{id:'REC-1',palletId:'PAL-1',status:'CERRADA'}],movements:[],transfers:[],orders:[],product_codes:[]};
++upgradeState(legacyPhysical);
++assert.equal(legacyPhysical.pallets[0].siteId,'REC','los pallets legados deben quedar en Recoleta');
++assert.equal(legacyPhysical.inventory[0].siteId,'REC','el inventario legado debe quedar en Recoleta');
++assert.equal(legacyPhysical.receipts[0].siteId,'REC','las recepciones legadas deben quedar en Recoleta');
++assert.equal(legacyPhysical.racks.some(r=>r.siteId==='VIT'),false,'Vitacura no debe heredar racks de Recoleta');
++
++const { deductStock,availableFrom }=await import('../../src/services/inventory-ops.js');
++const isolated={locations:[{id:'REC-L1',siteId:'REC'},{id:'VIT-L1',siteId:'VIT'}],pallets:[],inventory:[{id:'IR',siteId:'REC',productCode:'P',locationId:'REC-L1',qty:5},{id:'IV',siteId:'VIT',productCode:'P',locationId:'VIT-L1',qty:9}]};
++assert.equal(availableFrom(isolated,'P','AUTO','REC'),5);
++assert.equal(availableFrom(isolated,'P','AUTO','VIT'),9);
++const take=deductStock(isolated,{code:'P',qty:4,sourceKey:'AUTO',siteId:'REC'});
++assert.equal(take.ok,true);
++assert.equal(isolated.inventory.find(i=>i.id==='IR').qty,1);
++assert.equal(isolated.inventory.find(i=>i.id==='IV').qty,9,'un despacho de Recoleta no puede descontar Vitacura');
++
++console.log('OK · estructura V15 multiempresa, aislamiento por centro, migración y stock reservado válidos');
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/src/data/seed.js /mnt/data/wms_center_work/WMS-sercoriego/src/data/seed.js
+--- /mnt/data/wms_center_baseline/src/data/seed.js	2026-08-20 01:45:19.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/src/data/seed.js	2026-08-21 00:12:34.993283742 +0000
+@@ -745,7 +745,7 @@
+     {id:"Y",siteId:'REC',status:'UBICADO',locationId:"PAL-Y",origin:'Inventario físico inicial',createdAt:now}
+   ];
+   return {
+-    meta:{createdAt:now,updatedAt:now,version:14},settings:{locationCodeFormat:'{SEDE}-{RACK}-M{MODULO}-N{NIVEL}',erpStockBySite:{}},session:{userId:'USR-ADMIN',activeCompanyId:'SERCO_RIEGO'},
++    meta:{createdAt:now,updatedAt:now,version:15},settings:{locationCodeFormat:'{SEDE}-{RACK}-M{MODULO}-N{NIVEL}',erpStockBySite:{}},session:{userId:'USR-ADMIN',activeCompanyId:'SERCO_RIEGO'},
+     companies:[{id:'SERCO_RIEGO',name:'Serco Riego',code:'SERCO_RIEGO',active:true,notes:'Empresa principal'}],
+     sites:[{id:'REC',companyId:'SERCO_RIEGO',name:'Bodega Recoleta',type:'BODEGA',active:true,code:'REC',notes:'Sede activa.'},{id:'TIENDA',companyId:'SERCO_RIEGO',name:'Bodega Tienda de Ventas',type:'BODEGA_TIENDA',active:false,code:'TDA',notes:'Preparada para futura conexión.'}],
+     sectors:[
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/src/modules/centros/centros.js /mnt/data/wms_center_work/WMS-sercoriego/src/modules/centros/centros.js
+--- /mnt/data/wms_center_baseline/src/modules/centros/centros.js	2026-08-20 01:44:31.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/src/modules/centros/centros.js	2026-08-21 00:12:24.904800202 +0000
+@@ -15,7 +15,7 @@
+ function detailHtml(site){
+   const inv=(store.data.inventory||[]).filter(i=>inventorySiteId(i)===site.id&&Number(i.qty)>0);
+   const rows=[...new Set(inv.map(i=>i.productCode))].map(code=>{const p=store.data.products.find(x=>x.code===code);const qty=inv.filter(i=>i.productCode===code).reduce((a,b)=>a+Number(b.qty||0),0);return `<tr><td><b>${esc(code)}</b></td><td>${esc(p?.name||p?.description||`Producto ${code}`)}</td><td><b>${qty}</b></td><td><button class="ghost small open-product" data-code="${esc(code)}">Ver ficha</button></td></tr>`;}).join('');
+-  return `<section class="panel center-detail"><div class="panel-head"><div><span class="eyebrow">${esc(companyName(siteCompanyId(site)))}</span><h2>${esc(site.name)}</h2><small>${esc(typeName(site.type))} · Código ${esc(site.code||site.id)} · Centro autónomo</small></div><div class="center-detail-actions">${canAdmin()?`<a class="secondary" href="#/estructura?site=${encodeURIComponent(site.id)}">Configurar estructura</a><button class="secondary" id="edit-center" type="button">Editar centro</button><button class="danger-action" id="delete-center" type="button">Eliminar centro</button>`:''}<button class="ghost" id="close-center" type="button">Cerrar</button></div></div><div class="center-summary"><div><small>Stock</small><b>${siteStock(site.id)}</b></div><div><small>Productos distintos</small><b>${siteSku(site.id)}</b></div><div><small>Ubicaciones</small><b>${siteLocations(site.id)}</b></div><div><small>Estado</small><b>${site.active!==false?'Activo':'Inactivo'}</b></div></div>${site.notes?`<div class="warning-box">${esc(site.notes)}</div>`:''}<div class="table-wrap"><table><thead><tr><th>Código</th><th>Producto</th><th>Stock en este centro</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="4">${empty('Sin stock registrado','Este centro ya está creado. Cuando tenga ubicaciones o reciba inventario aparecerá aquí.')}</td></tr>`}</tbody></table></div></section>`;
++  return `<section class="panel center-detail"><div class="panel-head"><div><span class="eyebrow">${esc(companyName(siteCompanyId(site)))}</span><h2>${esc(site.name)}</h2><small>${esc(typeName(site.type))} · Código ${esc(site.code||site.id)} · Centro autónomo</small></div><div class="center-detail-actions">${canAdmin()?`<button class="secondary" id="activate-center-structure" data-site="${esc(site.id)}" type="button">Activar y configurar estructura</button><button class="secondary" id="edit-center" type="button">Editar centro</button><button class="danger-action" id="delete-center" type="button">Eliminar centro</button>`:''}<button class="ghost" id="close-center" type="button">Cerrar</button></div></div><div class="center-summary"><div><small>Stock</small><b>${siteStock(site.id)}</b></div><div><small>Productos distintos</small><b>${siteSku(site.id)}</b></div><div><small>Ubicaciones</small><b>${siteLocations(site.id)}</b></div><div><small>Estado</small><b>${site.active!==false?'Activo':'Inactivo'}</b></div></div>${site.notes?`<div class="warning-box">${esc(site.notes)}</div>`:''}<div class="table-wrap"><table><thead><tr><th>Código</th><th>Producto</th><th>Stock en este centro</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="4">${empty('Sin stock registrado','Este centro ya está creado. Cuando tenga ubicaciones o reciba inventario aparecerá aquí.')}</td></tr>`}</tbody></table></div></section>`;
+ }
+ function companyOptions(selected=''){return (store.data.companies||[]).filter(c=>c.active!==false).map(c=>`<option value="${esc(c.id)}" ${c.id===selected?'selected':''}>${esc(c.name)}</option>`).join('');}
+ function dialogHtml(){return `<dialog id="center-dialog"><form id="center-form" class="dialog-card"><div class="dialog-head"><div><span class="eyebrow">CENTRO / SUCURSAL</span><h3 id="center-dialog-title">Nuevo centro</h3></div><button type="button" id="close-center-dialog" class="ghost">×</button></div><input id="center-id" type="hidden"><label>Empresa<select id="center-company" required>${companyOptions(activeCompanyId())}</select></label><label>Nombre<input id="center-name" required maxlength="100" placeholder="Ej. Sucursal Vitacura"></label><label>Código corto<input id="center-code" required maxlength="12" placeholder="Ej. VIT"></label><label>Tipo<select id="center-type"><option value="BODEGA">Bodega / centro de distribución</option><option value="TIENDA">Tienda / sucursal</option><option value="BODEGA_TIENDA">Bodega + tienda</option><option value="DEPARTAMENTO">Departamento / área</option><option value="OFICINA">Oficina / administración</option><option value="OTRO">Otro centro</option></select></label><label>Notas<textarea id="center-notes" rows="2" maxlength="240" placeholder="Opcional"></textarea></label><label class="toggle-line"><input id="center-active" type="checkbox" checked> Centro activo</label><div class="warning-box">Los centros son autónomos. No existe dependencia padre-hijo: los pedidos y traspasos se realizan entre cualquier par de centros autorizados.</div><div class="dialog-actions"><button type="button" id="cancel-center" class="ghost">Cancelar</button><button class="primary" type="submit">Guardar centro</button></div></form></dialog>
+@@ -41,6 +41,6 @@
+  document.querySelector('#new-center')?.addEventListener('click',()=>openDialog());const companyDlg=document.querySelector('#company-dialog');document.querySelector('#new-company')?.addEventListener('click',()=>companyDlg.showModal());document.querySelector('#close-company-dialog')?.addEventListener('click',()=>companyDlg.close());document.querySelector('#cancel-company')?.addEventListener('click',()=>companyDlg.close());
+  document.querySelector('#company-form')?.addEventListener('submit',async e=>{e.preventDefault();const name=document.querySelector('#company-name').value.trim(),id=safeId(document.querySelector('#company-code').value);if(!name||!id){toast('Nombre y código son obligatorios','warning');return;}if(companies.some(c=>c.id===id)){toast('Ese código de empresa ya existe','warning');return;}await store.commit(d=>d.companies.push({id,name,code:id,active:true,notes:document.querySelector('#company-notes').value.trim()}),`Empresa creada: ${name}`);companyDlg.close();renderCenters(root);await notice('Empresa creada',`${name} quedó disponible para crear sus centros.`,'success');});
+  const updateBulk=()=>{const b=document.querySelector('#delete-selected-centers');if(b)b.disabled=!document.querySelectorAll('.center-select-input:checked').length;};document.querySelectorAll('.center-select-input').forEach(c=>c.addEventListener('change',updateBulk));document.querySelector('#delete-selected-centers')?.addEventListener('click',()=>deleteSites([...document.querySelectorAll('.center-select-input:checked')].map(c=>c.value),root));
+- document.querySelectorAll('.center-card').forEach(b=>b.addEventListener('click',()=>{const site=store.data.sites.find(s=>s.id===b.dataset.site);if(!site)return;const slot=document.querySelector('#center-detail-slot');slot.innerHTML=detailHtml(site);slot.scrollIntoView({behavior:'smooth',block:'start'});document.querySelector('#close-center').onclick=()=>slot.innerHTML='';document.querySelector('#edit-center')?.addEventListener('click',()=>openDialog(site));document.querySelector('#delete-center')?.addEventListener('click',()=>deleteSites([site.id],root));document.querySelectorAll('.open-product').forEach(x=>x.onclick=e=>{e.stopPropagation();location.hash=`#/productos?code=${encodeURIComponent(x.dataset.code)}`;});}));
++ document.querySelectorAll('.center-card').forEach(b=>b.addEventListener('click',()=>{const site=store.data.sites.find(s=>s.id===b.dataset.site);if(!site)return;const slot=document.querySelector('#center-detail-slot');slot.innerHTML=detailHtml(site);slot.scrollIntoView({behavior:'smooth',block:'start'});document.querySelector('#close-center').onclick=()=>slot.innerHTML='';document.querySelector('#activate-center-structure')?.addEventListener('click',()=>{localStorage.setItem('serco_wms_active_company',siteCompanyId(site));localStorage.setItem('serco_wms_active_site',site.id);location.hash='#/estructura';location.reload();});document.querySelector('#edit-center')?.addEventListener('click',()=>openDialog(site));document.querySelector('#delete-center')?.addEventListener('click',()=>deleteSites([site.id],root));document.querySelectorAll('.open-product').forEach(x=>x.onclick=e=>{e.stopPropagation();location.hash=`#/productos?code=${encodeURIComponent(x.dataset.code)}`;});}));
+  const dlg=document.querySelector('#center-dialog');document.querySelector('#close-center-dialog').onclick=()=>dlg.close();document.querySelector('#cancel-center').onclick=()=>dlg.close();document.querySelector('#center-form').onsubmit=async e=>{e.preventDefault();const existingId=document.querySelector('#center-id').value,code=safeId(document.querySelector('#center-code').value,12),name=document.querySelector('#center-name').value.trim(),companyId=document.querySelector('#center-company').value;if(!name||!code||!companyId){toast('Empresa, nombre y código son obligatorios','warning');return;}if(!existingId&&sites.some(s=>s.id===code||String(s.code||'').toUpperCase()===code)){toast('Ese código de centro ya existe','warning');return;}try{await store.commit(s=>{let site=s.sites.find(x=>x.id===existingId);if(!site){site={id:code};s.sites.push(site);}site.companyId=companyId;site.name=name;site.code=site.code||code;site.type=document.querySelector('#center-type').value;delete site.parentSiteId;site.notes=document.querySelector('#center-notes').value.trim();site.active=document.querySelector('#center-active').checked;},`${existingId?'Centro actualizado':'Centro creado'}: ${name}`);dlg.close();renderCenters(root);await notice(existingId?'Centro actualizado':'Centro creado',`${name} se guardó como centro autónomo.`,'success');}catch(err){console.error(err);await notice('No se pudo guardar',err.message||'Error al guardar el centro.','error');}};
+ }
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/src/modules/despachos/despachos.js /mnt/data/wms_center_work/WMS-sercoriego/src/modules/despachos/despachos.js
+--- /mnt/data/wms_center_baseline/src/modules/despachos/despachos.js	2026-08-20 01:44:13.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/src/modules/despachos/despachos.js	2026-08-21 00:11:30.668941900 +0000
+@@ -4,27 +4,28 @@
+ import { enlazarBotonEscaner } from '../../services/camara-ui.js';
+ import { productPositions,availableFrom,deductStock } from '../../services/inventory-ops.js';
+ import { resolveProduct } from '../../services/product-codes.js';
+-import { activeSiteId } from '../../services/stock.js';
++import { activeSiteId,inventorySiteId } from '../../services/stock.js';
+ import { activeCompanyId,siteCompanyId } from '../../services/company.js';
+ 
+ function pname(c){return resolveProduct(c)?.name||c;}
+ function pdesc(c){return resolveProduct(c)?.description||'';}
+ function uname(id){return store.data.users.find(u=>u.id===id)?.name||id||'No registrado';}
+ function userOpts(){return store.data.users.filter(u=>u.active).map(u=>`<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('');}
+-function available(code){return availableFrom(store.data,code,'AUTO');}
+-function openTransfer(){return store.data.transfers.find(t=>['PREPARANDO','LISTO'].includes(t.status));}
++function activePositions(code){const site=activeSiteId();return productPositions(store.data,code).filter(p=>inventorySiteId({locationId:p.locationId,palletId:p.palletId})===site);}
++function available(code){return availableFrom(store.data,code,'AUTO',activeSiteId());}
++function openTransfer(){const site=activeSiteId();return store.data.transfers.find(t=>t.sourceSiteId===site&&['PREPARANDO','LISTO'].includes(t.status));}
+ function sourceLabel(pos){
+  const loc=store.data.locations.find(l=>l.id===pos.locationId);return `${pos.palletId?`Palet ${pos.palletId} · `:''}${pos.locationId}${loc?.rackId?` · ${loc.rackId}`:''} · ${pos.qty} un.`;
+ }
+ function sourceOptions(code){
+- const pos=productPositions(store.data,code),total=pos.reduce((a,b)=>a+b.qty,0);
++ const pos=activePositions(code),total=pos.reduce((a,b)=>a+b.qty,0);
+  return `<option value="AUTO">Automático · rack primero · ${total} un. totales</option>${pos.map(p=>`<option value="${esc(p.key)}">${esc(sourceLabel(p))}</option>`).join('')}`;
+ }
+ function productLookup(code){
+  const p=resolveProduct(code);
+  if(!code)return `<div class="lookup-empty"><b>Escribe o escanea un código</b><small>Aquí verás qué producto estás agregando, cuánto stock tiene y dónde está.</small></div>`;
+  if(!p)return `<div class="lookup-error"><b>Código ${esc(code)} no registrado</b><small>No se agregará al despacho hasta que exista en Productos.</small></div>`;
+- const pos=productPositions(store.data,code),total=pos.reduce((a,b)=>a+b.qty,0);
++ const pos=activePositions(code),total=pos.reduce((a,b)=>a+b.qty,0);
+  return `<div class="dispatch-product-card"><div><span class="sku">Código ${esc(p.code)}</span><h3>${esc(p.name)}</h3><small>${esc(p.description||'Sin descripción')}</small></div><div class="stock-total"><small>Disponible ahora</small><b>${total}</b><span>unidades</span></div></div><div class="stock-location-chips">${pos.length?pos.map(x=>`<span><b>${esc(x.palletId?`Palet ${x.palletId}`:x.locationId)}</b> ${x.qty} un.</span>`).join(''):empty('Sin stock disponible','El producto existe, pero no tiene unidades localizadas.')}</div>`;
+ }
+ function allocationText(a){return `${a.palletId?`Palet ${a.palletId} / `:''}${a.locationId}: ${a.qty} un. (${a.beforeQty} → ${a.afterQty})`;}
+@@ -38,7 +39,7 @@
+  <div class="dispatch-note"><b>Importante:</b> agregar prepara la salida; el descuento matemático se ejecuta al pulsar <b>Confirmar despacho → EN TRÁNSITO</b>.</div>
+  <div class="scan-list">${(t.items||[]).length?t.items.map((x,i)=>`<div class="scan-row transfer-item-row"><div><b>${esc(x.code)}</b><small>${esc(pname(x.code))}</small><small>Origen: ${esc(x.sourceKey&&x.sourceKey!=='AUTO'?(x.sourceLabel||x.sourceKey):'Automático · prioriza stock en rack')}</small></div><strong>${x.qty}</strong><button class="ghost tr-remove" data-i="${i}">×</button></div>`).join(''):empty('Salida vacía','Agrega los productos que retirará el conductor.')}</div>
+  <div class="transfer-actions transfer-actions-grid"><label>Supervisado / revisado por<select id="tr-supervisor"><option value="">Seleccionar…</option>${userOpts()}</select></label><button id="mark-transit" class="primary">Confirmar despacho → EN TRÁNSITO</button></div></section>`:`<section class="panel">${empty('Sin salida en preparación','Crea una salida cuando la tienda o la bodega de ventas venga a retirar productos.')}</section>`}
+- <section class="panel"><div class="panel-head"><div><h3>Transferencias / salidas recientes</h3><small>Stock descontado, destino y responsables</small></div></div>${d.transfers.length?d.transfers.slice(0,10).map(x=>`<div class="history-row"><div class="hist-icon">⇄</div><div><b>${esc(x.id)} · ${esc(x.destinationName)}</b><small>${esc(x.status)} · ${(x.items||[]).reduce((a,b)=>a+b.qty,0)} unidades</small><small>Despachó: ${esc(uname(x.dispatchedBy||x.scannedBy))} · Supervisó: ${esc(uname(x.supervisedBy))} · Conductor: ${esc(x.driver||'No registrado')}</small>${x.status==='EN_TRANSITO'?`<small>Inventario descontado al confirmar salida.</small>`:''}</div><time>${new Date(x.departedAt||x.createdAt).toLocaleString('es-CL')}</time></div>`).join(''):empty('Sin transferencias','Las salidas registradas aparecerán aquí.')}</section>
++ <section class="panel"><div class="panel-head"><div><h3>Transferencias / salidas recientes</h3><small>Stock descontado, destino y responsables</small></div></div>${d.transfers.filter(x=>x.sourceSiteId===activeSiteId(d)||x.destinationSiteId===activeSiteId(d)).length?d.transfers.filter(x=>x.sourceSiteId===activeSiteId(d)||x.destinationSiteId===activeSiteId(d)).slice(0,10).map(x=>`<div class="history-row"><div class="hist-icon">⇄</div><div><b>${esc(x.id)} · ${esc(x.destinationName)}</b><small>${esc(x.status)} · ${(x.items||[]).reduce((a,b)=>a+b.qty,0)} unidades</small><small>Despachó: ${esc(uname(x.dispatchedBy||x.scannedBy))} · Supervisó: ${esc(uname(x.supervisedBy))} · Conductor: ${esc(x.driver||'No registrado')}</small>${x.status==='EN_TRANSITO'?`<small>Inventario descontado al confirmar salida.</small>`:''}</div><time>${new Date(x.departedAt||x.createdAt).toLocaleString('es-CL')}</time></div>`).join(''):empty('Sin transferencias','Las salidas registradas aparecerán aquí.')}</section>
+  <dialog id="transfer-dialog"><form method="dialog"><div class="dialog-head"><h3>Nueva salida</h3><button value="cancel" class="ghost">×</button></div><label>Destino<select id="tr-dest">${d.sites.filter(s=>s.active!==false&&s.id!==activeSiteId(d)&&siteCompanyId(s,d)===activeCompanyId(d)).map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select></label><label>Conductor / quien retira<input id="tr-driver" placeholder="Nombre"></label><div class="dialog-actions"><button value="cancel" class="ghost">Cancelar</button><button id="create-transfer" value="default" class="primary">Crear salida</button></div></form></dialog>`,'transferencias');
+  wireShell();
+  if(!t){
+@@ -47,22 +48,22 @@
+  }else{
+    enlazarBotonEscaner('camara-tr-code','tr-code',{titulo:'Escanear producto para despacho',ayuda:'Apunta al código de barras del producto'});
+    const codeInput=document.querySelector('#tr-code'),sourceSel=document.querySelector('#tr-source'),preview=document.querySelector('#tr-product-preview'),qtyInput=document.querySelector('#tr-qty');
+-   const refreshLookup=()=>{const raw=codeInput.value.trim(),p=resolveProduct(raw),code=p?.code||raw;preview.innerHTML=productLookup(raw);sourceSel.innerHTML=p?sourceOptions(code):'<option value="AUTO">Automático</option>';const avail=p?availableFrom(store.data,code,sourceSel.value):0;qtyInput.max=avail||'';};
+-   codeInput.addEventListener('input',refreshLookup);codeInput.addEventListener('change',refreshLookup);sourceSel.addEventListener('change',()=>{const p=resolveProduct(codeInput.value.trim()),code=p?.code||'',avail=p?availableFrom(store.data,code,sourceSel.value):0;qtyInput.max=avail||'';});refreshLookup();
++   const refreshLookup=()=>{const raw=codeInput.value.trim(),p=resolveProduct(raw),code=p?.code||raw;preview.innerHTML=productLookup(raw);sourceSel.innerHTML=p?sourceOptions(code):'<option value="AUTO">Automático</option>';const avail=p?availableFrom(store.data,code,sourceSel.value,activeSiteId()):0;qtyInput.max=avail||'';};
++   codeInput.addEventListener('input',refreshLookup);codeInput.addEventListener('change',refreshLookup);sourceSel.addEventListener('change',()=>{const p=resolveProduct(codeInput.value.trim()),code=p?.code||'',avail=p?availableFrom(store.data,code,sourceSel.value,activeSiteId()):0;qtyInput.max=avail||'';});refreshLookup();
+    document.querySelector('#add-transfer-item').onsubmit=async(e)=>{
+-     e.preventDefault();const found=resolveProduct(codeInput.value.trim());if(!found){toast('Código no registrado');return;}const code=found.code,qty=Number(qtyInput.value),sourceKey=sourceSel.value||'AUTO',avail=availableFrom(store.data,code,sourceKey),pos=productPositions(store.data,code).find(p=>p.key===sourceKey);if(qty<1){toast('Cantidad inválida');return;}if(qty>avail){toast(`Solo hay ${avail} unidades disponibles en el origen seleccionado`);return;}
++     e.preventDefault();const found=resolveProduct(codeInput.value.trim());if(!found){toast('Código no registrado');return;}const code=found.code,qty=Number(qtyInput.value),sourceKey=sourceSel.value||'AUTO',avail=availableFrom(store.data,code,sourceKey,activeSiteId()),pos=activePositions(code).find(p=>p.key===sourceKey);if(qty<1){toast('Cantidad inválida');return;}if(qty>avail){toast(`Solo hay ${avail} unidades disponibles en el origen seleccionado`);return;}
+      const already=(t.items||[]).filter(i=>i.code===code&&i.sourceKey===sourceKey).reduce((s,i)=>s+Number(i.qty||0),0);if(already+qty>avail){toast(`Ya preparaste ${already}. En ese origen quedan ${avail-already} unidades disponibles para esta salida.`);return;}
+      await store.commit(s=>{const tt=s.transfers.find(x=>x.id===t.id),it=tt.items.find(x=>x.code===code&&x.sourceKey===sourceKey);if(it)it.qty+=qty;else tt.items.push({code,qty,sourceKey,sourceLabel:pos?sourceLabel(pos):'Automático'});},`Producto ${code} (${qty} un.) agregado a ${t.id}`);renderTransfers(root);
+    };
+    document.querySelectorAll('.tr-remove').forEach(b=>b.onclick=async()=>{await store.commit(s=>s.transfers.find(x=>x.id===t.id).items.splice(Number(b.dataset.i),1),`Producto retirado de ${t.id}`);renderTransfers(root);});
+    document.querySelector('#mark-transit').onclick=async()=>{
+      const supervisedBy=document.querySelector('#tr-supervisor').value;if(!(t.items||[]).length){toast('Agrega productos antes de despachar');return;}if(!supervisedBy){toast('Selecciona quién revisó el despacho');return;}
+-     const grouped=new Map();for(const it of t.items){const k=`${it.code}@@${it.sourceKey||'AUTO'}`,prev=grouped.get(k)||{...it,qty:0};prev.qty+=Number(it.qty||0);grouped.set(k,prev);}for(const it of grouped.values()){const avail=availableFrom(store.data,it.code,it.sourceKey||'AUTO');if(it.qty>avail){toast(`Existencias insuficientes para ${it.code}. Disponible ahora: ${avail}`);return;}}
+-     const simulation=JSON.parse(JSON.stringify(store.data));for(const it of t.items){const test=deductStock(simulation,{code:it.code,qty:it.qty,sourceKey:it.sourceKey||'AUTO'});if(!test.ok){toast(`No se puede completar la salida de ${it.code}: ${test.message}`);return;}}
++     const grouped=new Map();for(const it of t.items){const k=`${it.code}@@${it.sourceKey||'AUTO'}`,prev=grouped.get(k)||{...it,qty:0};prev.qty+=Number(it.qty||0);grouped.set(k,prev);}for(const it of grouped.values()){const avail=availableFrom(store.data,it.code,it.sourceKey||'AUTO',activeSiteId());if(it.qty>avail){toast(`Existencias insuficientes para ${it.code}. Disponible ahora: ${avail}`);return;}}
++     const simulation=JSON.parse(JSON.stringify(store.data));for(const it of t.items){const test=deductStock(simulation,{code:it.code,qty:it.qty,sourceKey:it.sourceKey||'AUTO',siteId:t.sourceSiteId});if(!test.ok){toast(`No se puede completar la salida de ${it.code}: ${test.message}`);return;}}
+      const now=new Date().toISOString();
+      await store.commit(s=>{
+        const tt=s.transfers.find(x=>x.id===t.id);tt.stockMovements=[];
+-       for(const it of tt.items){const result=deductStock(s,{code:it.code,qty:it.qty,sourceKey:it.sourceKey||'AUTO'});if(!result.ok)throw new Error(result.message);it.allocations=result.allocations;tt.stockMovements.push(...result.allocations.map(a=>({code:it.code,...a})));for(const a of result.allocations){s.movements.unshift({id:`MOV-DESP-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,type:'DESPACHO_SALIDA',productCode:it.code,qty:a.qty,from:a.palletId?`${a.palletId} / ${a.locationId}`:a.locationId,to:`EN TRÁNSITO · ${tt.destinationName}`,reason:`Despacho ${tt.id} · ${a.beforeQty} → ${a.afterQty} en origen`,userId:s.session.userId,palletId:a.palletId||null,transferId:tt.id,beforeQty:a.beforeQty,afterQty:a.afterQty,at:now});}}
++       for(const it of tt.items){const result=deductStock(s,{code:it.code,qty:it.qty,sourceKey:it.sourceKey||'AUTO',siteId:tt.sourceSiteId});if(!result.ok)throw new Error(result.message);it.allocations=result.allocations;tt.stockMovements.push(...result.allocations.map(a=>({code:it.code,...a})));for(const a of result.allocations){s.movements.unshift({id:`MOV-DESP-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,siteId:tt.sourceSiteId,type:'DESPACHO_SALIDA',productCode:it.code,qty:a.qty,from:a.palletId?`${a.palletId} / ${a.locationId}`:a.locationId,to:`EN TRÁNSITO · ${tt.destinationName}`,reason:`Despacho ${tt.id} · ${a.beforeQty} → ${a.afterQty} en origen`,userId:s.session.userId,palletId:a.palletId||null,transferId:tt.id,beforeQty:a.beforeQty,afterQty:a.afterQty,at:now});}}
+        tt.status='EN_TRANSITO';tt.departedAt=now;tt.scannedBy=s.session.userId;tt.dispatchedBy=s.session.userId;tt.supervisedBy=supervisedBy;
+      },`Transferencia ${t.id} salió EN TRÁNSITO y descontó ${(t.items||[]).reduce((a,b)=>a+Number(b.qty||0),0)} unidades del inventario`);
+      toast('Salida registrada: inventario descontado y productos EN TRÁNSITO');renderTransfers(root);
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/src/modules/estructura/estructura.js /mnt/data/wms_center_work/WMS-sercoriego/src/modules/estructura/estructura.js
+--- /mnt/data/wms_center_baseline/src/modules/estructura/estructura.js	2026-08-20 01:44:00.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/src/modules/estructura/estructura.js	2026-08-21 00:10:12.109936593 +0000
+@@ -6,7 +6,7 @@
+ import { requireAdminSupercode } from '../../services/security.js';
+ 
+ function isAdmin(){const u=store.data.users.find(x=>x.id===store.data.session.userId);return u?.role==='ADMINISTRADOR';}
+-function siteId(){return new URLSearchParams(location.hash.split('?')[1]||'').get('site')||activeSiteId();}
++function siteId(){return activeSiteId();}
+ function rackCode(r){return r.rackCode||(/^R\d+$/.test(r.id)?r.id:String(r.id).split('-').pop());}
+ function racksFor(site){return store.data.racks.filter(r=>r.siteId===site);}
+ function rackNumber(r){return Number(String(rackCode(r)).replace(/\D/g,''))||0;}
+@@ -136,14 +136,13 @@
+ 
+ export function renderStructure(root){
+   const sid=siteId(),site=store.data.sites.find(s=>s.id===sid)||store.data.sites[0],format=store.data.settings?.locationCodeFormat||FORMATO_UBICACION_PREDETERMINADO;
+-  root.innerHTML=shell('Estructura',`<div class="page-intro"><div><span class="eyebrow">ESTRUCTURA POR CENTRO</span><h2>${esc(site?.name||sid)}</h2><p>Cada bodega o tienda organiza sus propias ubicaciones. Nada de otro centro se borra al editar esta estructura.</p></div><label class="inline-site-select">Centro<select id="structure-site">${store.data.sites.map(s=>`<option value="${esc(s.id)}" ${s.id===sid?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label></div><section class="panel"><div class="panel-head"><div><h3>Códigos físicos</h3><small>Ejemplo con posición A/B: <b id="location-preview"></b></small></div></div><div class="form-grid"><label>Formato<input id="location-format" value="${esc(format)}"><small>Variables: {SEDE}, {RACK}, {MODULO}, {NIVEL}, opcional {POSICION}</small></label></div><div class="dialog-actions"><button id="save-location-format" class="primary">Guardar formato</button></div></section><section class="panel"><div class="panel-head"><div><h3>Racks · ${esc(site?.name||sid)}</h3><small>Cada rack puede tener una distribución distinta de posiciones por nivel.</small></div><button id="new-rack" class="primary">+ Nuevo rack</button></div><div class="structure-table"><div class="structure-row head"><div>Rack</div><div>Módulos</div><div>Niveles</div><div>Ubic.</div><div>Estado</div><div></div></div>${rackRows(sid)}</div></section><div id="rack-map-detail"></div><dialog id="rack-dialog"><form id="rack-form"><div class="dialog-head"><h3>Configurar rack</h3><button type="button" id="close-rack" class="ghost">×</button></div><input type="hidden" id="rack-id"><label>Nombre<input id="rack-name" required></label><div class="form-grid"><label>Módulos<input id="rack-modules" type="number" min="1" max="100" required></label><label>Niveles<input id="rack-levels" type="number" min="1" max="20" required></label></div><label>Uso / descripción<input id="rack-usage"></label><label>Estado<select id="rack-status"><option>ACTIVO</option><option>EN_CONSTRUCCION</option><option>INACTIVO</option></select></label><div class="rack-layout-editor"><b>Distribución por nivel</b><small>Define las posiciones de cada nivel. “Única” crea una sola ubicación; también puedes usar A, B, C, D, etc.</small><div id="rack-level-layout"></div></div><div class="warning-box">Las ubicaciones con stock o pallets nunca se eliminan automáticamente. Al cambiar la distribución, las ubicaciones vacías que ya no correspondan quedan inactivas.</div><div id="rack-feedback" class="rack-feedback"></div><div class="dialog-actions rack-dialog-actions"><button type="button" id="delete-rack" class="danger-action" hidden>Eliminar rack</button><span class="dialog-actions-spacer"></span><button type="button" id="cancel-rack" class="ghost">Cancelar</button><button type="submit" class="primary">Guardar y generar</button></div></form></dialog><dialog id="module-dialog"><form id="module-form"><div class="dialog-head"><div><h3 id="module-dialog-title">Editar módulo</h3><small>Esta configuración reemplaza la distribución general solo para este módulo.</small></div><button type="button" id="close-module-dialog" class="ghost">×</button></div><input type="hidden" id="module-number"><div class="rack-layout-editor"><b>Posiciones por nivel</b><div id="module-level-layout"></div></div><div class="warning-box">Si una posición que quieres quitar contiene stock o un pallet, el sistema no permitirá guardarlo y te indicará cuál debes vaciar primero.</div><div id="module-feedback" class="rack-feedback"></div><div class="dialog-actions"><button type="button" id="reset-module-layout" class="ghost">Usar distribución general</button><button type="button" id="cancel-module-dialog" class="ghost">Cancelar</button><button type="submit" class="primary">Guardar módulo</button></div></form></dialog>`,'estructura');
++  root.innerHTML=shell('Estructura',`<div class="page-intro"><div><span class="eyebrow">ESTRUCTURA POR CENTRO</span><h2>${esc(site?.name||sid)}</h2><p>Cada bodega o tienda organiza sus propias ubicaciones. Esta pantalla solo permite ver y modificar el centro activo.</p></div><div class="inline-site-select"><small>Centro activo</small><b>${esc(site?.name||sid)}</b></div></div><section class="panel"><div class="panel-head"><div><h3>Códigos físicos</h3><small>Ejemplo con posición A/B: <b id="location-preview"></b></small></div></div><div class="form-grid"><label>Formato<input id="location-format" value="${esc(format)}"><small>Variables: {SEDE}, {RACK}, {MODULO}, {NIVEL}, opcional {POSICION}</small></label></div><div class="dialog-actions"><button id="save-location-format" class="primary">Guardar formato</button></div></section><section class="panel"><div class="panel-head"><div><h3>Racks · ${esc(site?.name||sid)}</h3><small>Cada rack puede tener una distribución distinta de posiciones por nivel.</small></div><button id="new-rack" class="primary">+ Nuevo rack</button></div><div class="structure-table"><div class="structure-row head"><div>Rack</div><div>Módulos</div><div>Niveles</div><div>Ubic.</div><div>Estado</div><div></div></div>${rackRows(sid)}</div></section><div id="rack-map-detail"></div><dialog id="rack-dialog"><form id="rack-form"><div class="dialog-head"><h3>Configurar rack</h3><button type="button" id="close-rack" class="ghost">×</button></div><input type="hidden" id="rack-id"><label>Nombre<input id="rack-name" required></label><div class="form-grid"><label>Módulos<input id="rack-modules" type="number" min="1" max="100" required></label><label>Niveles<input id="rack-levels" type="number" min="1" max="20" required></label></div><label>Uso / descripción<input id="rack-usage"></label><label>Estado<select id="rack-status"><option>ACTIVO</option><option>EN_CONSTRUCCION</option><option>INACTIVO</option></select></label><div class="rack-layout-editor"><b>Distribución por nivel</b><small>Define las posiciones de cada nivel. “Única” crea una sola ubicación; también puedes usar A, B, C, D, etc.</small><div id="rack-level-layout"></div></div><div class="warning-box">Las ubicaciones con stock o pallets nunca se eliminan automáticamente. Al cambiar la distribución, las ubicaciones vacías que ya no correspondan quedan inactivas.</div><div id="rack-feedback" class="rack-feedback"></div><div class="dialog-actions rack-dialog-actions"><button type="button" id="delete-rack" class="danger-action" hidden>Eliminar rack</button><span class="dialog-actions-spacer"></span><button type="button" id="cancel-rack" class="ghost">Cancelar</button><button type="submit" class="primary">Guardar y generar</button></div></form></dialog><dialog id="module-dialog"><form id="module-form"><div class="dialog-head"><div><h3 id="module-dialog-title">Editar módulo</h3><small>Esta configuración reemplaza la distribución general solo para este módulo.</small></div><button type="button" id="close-module-dialog" class="ghost">×</button></div><input type="hidden" id="module-number"><div class="rack-layout-editor"><b>Posiciones por nivel</b><div id="module-level-layout"></div></div><div class="warning-box">Si una posición que quieres quitar contiene stock o un pallet, el sistema no permitirá guardarlo y te indicará cuál debes vaciar primero.</div><div id="module-feedback" class="rack-feedback"></div><div class="dialog-actions"><button type="button" id="reset-module-layout" class="ghost">Usar distribución general</button><button type="button" id="cancel-module-dialog" class="ghost">Cancelar</button><button type="submit" class="primary">Guardar módulo</button></div></form></dialog>`,'estructura');
+   wireShell();
+ 
+   const fmt=document.querySelector('#location-format'),preview=document.querySelector('#location-preview');
+   const paint=()=>preview.textContent=demoCode(sid);
+   paint();
+   fmt.oninput=paint;
+-  document.querySelector('#structure-site').onchange=e=>location.hash=`#/estructura?site=${encodeURIComponent(e.target.value)}`;
+   document.querySelector('#save-location-format').onclick=async()=>{
+     const value=fmt.value.trim();
+     if(!value.includes('{RACK}')||!value.includes('{MODULO}')||!value.includes('{NIVEL}')){toast('El formato debe incluir RACK, MODULO y NIVEL');return;}
+@@ -152,7 +151,7 @@
+   };
+ 
+   document.querySelectorAll('.view-rack-map').forEach(b=>b.onclick=()=>{
+-    const r=store.data.racks.find(x=>x.id===b.dataset.id),box=document.querySelector('#rack-map-detail');
++    const r=store.data.racks.find(x=>x.id===b.dataset.id&&x.siteId===sid),box=document.querySelector('#rack-map-detail');
+     if(!r||!box)return;
+     box.innerHTML=rackMapHtml(r);
+     document.querySelector('#close-rack-map').onclick=()=>box.innerHTML='';
+@@ -215,13 +214,13 @@
+     dlg.showModal();
+   };
+   document.querySelector('#new-rack').onclick=()=>open();
+-  document.querySelectorAll('.edit-rack').forEach(b=>b.onclick=()=>open(store.data.racks.find(r=>r.id===b.dataset.id)));
++  document.querySelectorAll('.edit-rack').forEach(b=>b.onclick=()=>open(store.data.racks.find(r=>r.id===b.dataset.id&&r.siteId===sid)));
+   document.querySelector('#rack-levels').onchange=e=>renderLevelEditor(editingRack,Number(e.target.value));
+   document.querySelector('#close-rack').onclick=()=>dlg.close();
+   document.querySelector('#cancel-rack').onclick=()=>dlg.close();
+   document.querySelector('#delete-rack').onclick=async()=>{
+     if(!editingRack?.id||!isAdmin())return;
+-    const r=store.data.racks.find(x=>x.id===editingRack.id);
++    const r=store.data.racks.find(x=>x.id===editingRack.id&&x.siteId===sid);
+     if(!r)return;
+     const locs=(store.data.locations||[]).filter(l=>l.rackId===r.id);
+     const blocked=locs.filter(l=>(store.data.inventory||[]).some(i=>i.locationId===l.id&&Number(i.qty)>0)||(store.data.pallets||[]).some(p=>p.locationId===l.id&&p.status!=='CERRADO'));
+@@ -247,17 +246,17 @@
+   document.querySelector('#rack-form').onsubmit=async e=>{
+     e.preventDefault();
+     const old=document.querySelector('#rack-id').value,
+-      n=old?rackNumber(store.data.racks.find(r=>r.id===old)):nextRack(sid),
++      n=old?rackNumber(store.data.racks.find(r=>r.id===old&&r.siteId===sid)):nextRack(sid),
+       id=old||makeRackId(sid,n),rc=`R${n}`,
+       modules=Number(document.querySelector('#rack-modules').value),
+       levels=Number(document.querySelector('#rack-levels').value),
+       layout=layoutFromDialog(levels);
+     if(!layout){showRackFeedback('Revisa la distribución: usa “Única” sola o posiciones separadas por coma, por ejemplo A, B, C.');return;}
+-    const probe={...(store.data.racks.find(r=>r.id===id)||{}),id,siteId:sid,rackCode:rc,modules,levels,levelPositions:layout};
++    const probe={...(store.data.racks.find(r=>r.id===id&&r.siteId===sid)||{}),id,siteId:sid,rackCode:rc,modules,levels,levelPositions:layout};
+     const occupied=obsoleteOccupiedLocations(probe);
+     if(occupied.length){showRackFeedback(`No se puede guardar: ${occupied[0].id} contiene stock o un pallet. Muévelo primero desde Mover/Reubicar y vuelve a intentarlo.`);return;}
+     await store.commit(d=>{
+-      let r=d.racks.find(x=>x.id===id);
++      let r=d.racks.find(x=>x.id===id&&x.siteId===sid);
+       if(!r){r={id,siteId:sid,rackCode:rc,sectorId:null};d.racks.push(r);}
+       Object.assign(r,{name:document.querySelector('#rack-name').value.trim()||rc,modules,levels,status:document.querySelector('#rack-status').value,usage:document.querySelector('#rack-usage').value.trim(),levelPositions:layout});
+       r.moduleLevelPositions=r.moduleLevelPositions||{};
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/src/modules/historial/historial.js /mnt/data/wms_center_work/WMS-sercoriego/src/modules/historial/historial.js
+--- /mnt/data/wms_center_baseline/src/modules/historial/historial.js	2026-08-18 01:09:40.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/src/modules/historial/historial.js	2026-08-21 00:16:25.636443142 +0000
+@@ -1,6 +1,7 @@
+ import { store } from '../../services/store.js';
+ import { shell,wireShell } from '../../layout/layout.js';
+ import { esc,empty,badge } from '../../components/ui.js';
++import { activeSiteId, inventorySiteId } from '../../services/stock.js';
+ 
+ function mapaUsuarios(){return Object.fromEntries(store.data.users.map(u=>[u.id,u.name]));}
+ function usuario(id,users){return users[id]||id||'No registrado';}
+@@ -13,14 +14,14 @@
+ function textoItems(items=[]){return items.map(x=>{const p=store.data.products.find(p=>p.code===x.code);return `${x.code} ${nombreProducto(x.code)} ${p?.description||''} ${x.qty}`;}).join(' ');}
+ 
+ function eventosOperativos(){
+-  const d=store.data,users=mapaUsuarios(),eventos=[];
+-  d.receipts.filter(r=>r.status!=='RECIBIENDO').forEach(r=>eventos.push({
++  const d=store.data,users=mapaUsuarios(),eventos=[],site=activeSiteId();
++  d.receipts.filter(r=>r.siteId===site&&r.status!=='RECIBIENDO').forEach(r=>eventos.push({
+     tipo:'RECEPCIÓN',fecha:r.closedAt||r.arrivedAt,id:r.id,titulo:`Mercadería recibida · ${r.origin}`,
+     items:r.items||[],productCodes:(r.items||[]).map(x=>x.code),
+     searchable:[r.id,r.palletId,r.origin,r.status,r.tempLocationId,r.broughtBy,usuario(r.receivedBy,users),usuario(r.supervisedBy,users),r.note,textoItems(r.items)].join(' '),
+     detalle:`${productos(r.items)}<div class="responsables"><span><b>Recibió:</b> ${esc(usuario(r.receivedBy,users))}</span><span><b>Supervisó:</b> ${esc(usuario(r.supervisedBy,users))}</span><span><b>Trajo:</b> ${esc(r.broughtBy||'No registrado')}</span></div><small>Palet ${esc(r.palletId)} · Ubicación temporal ${esc(r.tempLocationId||'—')} · Llegada ${fecha(r.arrivedAt)} · Cierre ${fecha(r.closedAt)}</small>`
+   }));
+-  d.transfers.filter(t=>t.status==='EN_TRANSITO'||t.departedAt).forEach(t=>eventos.push({
++  d.transfers.filter(t=>(t.sourceSiteId===site||t.destinationSiteId===site)&&(t.status==='EN_TRANSITO'||t.departedAt)).forEach(t=>eventos.push({
+     tipo:'DESPACHO',fecha:t.departedAt||t.createdAt,id:t.id,titulo:`Productos enviados a ${t.destinationName}`,
+     items:t.items||[],productCodes:(t.items||[]).map(x=>x.code),
+     searchable:[t.id,t.destinationName,t.status,t.driver,usuario(t.dispatchedBy||t.scannedBy,users),usuario(t.supervisedBy,users),textoItems(t.items)].join(' '),
+@@ -30,8 +31,12 @@
+ }
+ 
+ function movimientosNormalizados(){
+-  const users=mapaUsuarios();
+-  return store.data.movements.map(m=>({
++  const users=mapaUsuarios(),site=activeSiteId();
++  return store.data.movements.filter(m=>{
++    if(m.siteId)return m.siteId===site;
++    const loc=store.data.locations.find(l=>l.id===m.to)||store.data.locations.find(l=>l.id===m.from);
++    return (loc?.siteId||'REC')===site;
++  }).map(m=>({
+     ...m,
+     searchable:[m.productCode,nombreProducto(m.productCode),m.qty,m.delta,m.beforeQty,m.afterQty,m.from,m.to,m.reason,usuario(m.userId,users),m.id].join(' ')
+   }));
+@@ -65,7 +70,7 @@
+   const inv=d.inventory.filter(i=>i.productCode===canonical&&Number(i.qty)>0);
+   const total=inv.reduce((s,i)=>s+Number(i.qty||0),0);
+   return `<section class="panel trace-card"><div class="panel-head"><div><span class="eyebrow">FICHA DE TRAZABILIDAD</span><h3>${esc(canonical)} · ${esc(product.name)}</h3><small>${esc(product.description||'Descripción no registrada')} · ${esc(product.type||product.family||'Sin clasificar')} · Total localizado actual: ${total} · Códigos válidos: ${esc(productAliases(product).join(', '))}</small></div>${badge(`${timeline.length} eventos`,'neutral')}</div>
+-  <div class="trace-locations"><b>Ubicación actual</b>${inv.length?inv.map(i=>`<span>${esc(i.locationId)}${i.palletId?` · ${esc(i.palletId)}`:''} <strong>${i.qty}</strong></span>`).join(''):'<span>Sin ubicación registrada</span>'}</div>
++  <div class="trace-locations"><b>Ubicación actual</b>${inv.length?inv.map(i=>{const sid=inventorySiteId(i,d);const s=d.sites.find(x=>x.id===sid);return `<span>${esc(s?.name||sid)} · ${esc(i.locationId)}${i.palletId?` · ${esc(i.palletId)}`:''} <strong>${i.qty}</strong></span>`;}).join(''):'<span>Sin ubicación registrada</span>'}</div>
+   <div class="trace-timeline">${timeline.length?timeline.map(x=>`<article class="trace-event"><div><span class="trace-type">${esc(x.tipo)}</span><b>${esc(x.detalle)}</b><small>${fecha(x.fecha)} · ${esc(x.horas)}</small></div><strong>${x.cantidad} un.</strong><p>${esc(x.meta)}</p><p>${esc(x.responsables)}</p></article>`).join(''):empty('Sin eventos para este producto','Todavía no hay recepciones, despachos ni movimientos registrados para este código.')}</div></section>`;
+ }
+ 
+@@ -95,7 +100,7 @@
+ }
+ 
+ export function renderHistory(root){
+- root.innerHTML=shell('Historial',`<div class="page-intro"><div><span class="eyebrow">TRAZABILIDAD</span><h2>Busca cualquier movimiento de la bodega</h2><p>Busca por código, descripción, recepción, palet, usuario, origen, destino, conductor o cualquier palabra registrada.</p></div></div>
++ root.innerHTML=shell('Historial',`<div class="page-intro"><div><span class="eyebrow">TRAZABILIDAD</span><h2>Historial del centro activo</h2><p>Las operaciones listadas corresponden al centro activo. La búsqueda exacta de un producto conserva visibilidad de sus ubicaciones en otros centros.</p></div></div>
+  <section class="panel history-search-panel"><label>Buscar absolutamente en todo el historial<div class="history-search"><span>⌕</span><input id="historial-search" placeholder="Ej.: 448660, PAL-0101, Importación, responsable, REC-PU-01…" autocomplete="off"><button id="clear-history" class="ghost small" type="button">Limpiar</button></div></label><div class="history-search-meta"><small id="historial-result-count">Mostrando actividad reciente</small><span>Si escribes un código exacto, verás su ficha completa de trazabilidad.</span></div></section>
+  <div id="product-trace"></div>
+  <section class="panel"><div class="panel-head"><div><h3>Entradas y salidas</h3><small>Historial cronológico de productos</small></div><select id="filtro-eventos" class="select-compacto"><option value="TODOS">Todas las operaciones</option><option value="RECEPCIÓN">Solo recepciones</option><option value="DESPACHO">Solo despachos</option></select></div><div id="eventos-operativos"></div></section>
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/src/modules/importar/importar.js /mnt/data/wms_center_work/WMS-sercoriego/src/modules/importar/importar.js
+--- /mnt/data/wms_center_baseline/src/modules/importar/importar.js	2026-08-20 01:43:48.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/src/modules/importar/importar.js	2026-08-21 00:10:27.179846944 +0000
+@@ -117,30 +117,32 @@
+ }
+ 
+ function ensureLocation(data,label){
+-  const clean=locationKey(label);
+-  let pallet=data.pallets.find(p=>String(p.id).toUpperCase()===clean);
+-  let loc=pallet?data.locations.find(l=>l.id===pallet.locationId):data.locations.find(l=>String(l.label||'').toUpperCase()===clean||String(l.id||'').toUpperCase()===clean);
++  const clean=locationKey(label),siteId=activeSiteId(data),safe=clean.replace(/[^A-Z0-9]/g,'')||String(Date.now()),physicalPalletId=siteId==='REC'?clean:`${siteId}-${clean}`;
++  let pallet=data.pallets.find(p=>p.siteId===siteId&&(String(p.id).toUpperCase()===physicalPalletId.toUpperCase()||String(p.label||'').toUpperCase()===clean));
++  let loc=pallet?data.locations.find(l=>l.id===pallet.locationId&&l.siteId===siteId):data.locations.find(l=>l.siteId===siteId&&(String(l.label||'').toUpperCase()===clean||String(l.id||'').toUpperCase()===clean));
+   if(!loc){
+-    const id=`IMP${clean.replace(/[^A-Z0-9]/g,'')||Date.now()}`;
+-    loc={id,siteId:activeSiteId(data),rackId:null,module:null,level:null,label:clean,scanCode:clean,status:'OCUPADA',access:'DIRECTO',kind:'IMPORTADA',active:true,capacity:null,notes:'Ubicación creada por importación Excel.'};
++    const id=siteId==='REC'?`IMP${safe}`:`${siteId}-IMP${safe}`;
++    loc={id,siteId,rackId:null,module:null,level:null,label:clean,scanCode:clean,status:'OCUPADA',access:'DIRECTO',kind:'IMPORTADA',active:true,capacity:null,notes:'Ubicación creada por importación Excel.'};
+     data.locations.push(loc);
+   }
+   if(!pallet){
+-    pallet={id:clean,siteId:activeSiteId(data),status:'UBICADO',locationId:loc.id,origin:'Importación Excel',createdAt:new Date().toISOString()};
++    pallet={id:physicalPalletId,label:clean,siteId,status:'UBICADO',locationId:loc.id,origin:'Importación Excel',createdAt:new Date().toISOString()};
+     data.pallets.push(pallet);
+   }
+-  return {locationId:loc.id,palletId:pallet.id};
++  return {siteId,locationId:loc.id,palletId:pallet.id};
+ }
+ 
+ async function applyImport(mode){
+   if(!preview||preview.errors.length||!preview.valid.length)return;
+   const rows=preview.valid;
+   await store.commit(data=>{
++    const siteId=activeSiteId(data);
+     if(mode==='replace'){
+-      data.products=[];
+-      data.inventory=[];
+-      data.pallets=[];
+-      data.locations=data.locations.filter(l=>l.kind!=='IMPORTADA'&&l.kind!=='PALET_EXISTENTE');
++      // Reemplaza solo la operación física del centro activo. El catálogo de
++      // productos es maestro/global y los demás centros permanecen intactos.
++      data.inventory=data.inventory.filter(i=>i.siteId!==siteId);
++      data.pallets=data.pallets.filter(p=>p.siteId!==siteId);
++      data.locations=data.locations.filter(l=>l.siteId!==siteId||!['IMPORTADA','PALET_EXISTENTE'].includes(l.kind));
+     }
+     const productMap=new Map(data.products.map(p=>[String(p.code),p]));
+     const touchedPairs=new Set();
+@@ -154,10 +156,10 @@
+       }
+       const pos=ensureLocation(data,row.location);
+       const pair=`${row.code}::${pos.palletId}`; touchedPairs.add(pair);
+-      let inv=data.inventory.find(i=>String(i.productCode)===row.code&&String(i.palletId||'')===String(pos.palletId));
++      let inv=data.inventory.find(i=>i.siteId===siteId&&String(i.productCode)===row.code&&String(i.palletId||'')===String(pos.palletId));
+       if(!inv){
+-        inv={id:`INVIMP${row.code}${String(pos.palletId).replace(/[^A-Z0-9]/gi,'')}`,productCode:row.code,locationId:pos.locationId,qty:row.qty,palletId:pos.palletId}; data.inventory.push(inv);
+-      }else{ inv.locationId=pos.locationId; inv.qty=row.qty; inv.palletId=pos.palletId; }
++        inv={id:`INVIMP-${siteId}-${row.code}-${String(pos.palletId).replace(/[^A-Z0-9]/gi,'')}`,siteId,productCode:row.code,locationId:pos.locationId,qty:row.qty,palletId:pos.palletId}; data.inventory.push(inv);
++      }else{ inv.siteId=siteId; inv.locationId=pos.locationId; inv.qty=row.qty; inv.palletId=pos.palletId; }
+     }
+   },`Importación Excel: ${rows.length} registros`);
+   toast(`Importación completada: ${preview.stats.products} productos`);
+@@ -170,7 +172,7 @@
+   <section class="panel import-guide"><div class="panel-head"><div><span class="eyebrow">PASO 1</span><h3>Descarga la plantilla oficial</h3></div><a class="primary" href="./assets/templates/Plantilla_Carga_Inventario_SercoRiego.xlsx" download>Descargar Excel</a></div><p>Columnas obligatorias: <b>CODIGO, DESCRIPCION, CANTIDAD y UBICACION</b>. TIPO, CATEGORIA, SUBCATEGORIA y ROTACION son opcionales. No existe columna Foto.</p><div class="import-columns"><span><b>CODIGO</b> Solo números</span><span><b>DESCRIPCION</b> Nombre completo</span><span><b>CANTIDAD</b> Entero ≥ 0</span><span><b>UBICACION</b> Ej. BT1</span></div></section>
+   <section class="panel"><div><span class="eyebrow">PASO 2</span><h3>Selecciona tu Excel</h3><p>El sistema valida el archivo antes de cargarlo. No modifica nada hasta que confirmes.</p></div><div class="import-drop"><input id="excel-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"><small>Formato permitido: .xlsx</small></div></section>
+   <section class="panel"><div class="panel-head"><div><span class="eyebrow">PASO 3</span><h3>Revisión previa</h3></div></div><div id="import-preview" class="import-empty">Selecciona un archivo Excel para ver aquí el resultado de la validación.</div></section>
+-  <section class="panel import-actions-panel"><div><h3>Modo de importación</h3><p><b>Actualizar</b> conserva lo existente y reemplaza la cantidad del mismo código en la misma ubicación. <b>Reemplazar</b> usa el Excel como nuevo catálogo e inventario.</p></div><label>Acción<select id="import-mode"><option value="merge">Actualizar / agregar al inventario actual</option><option value="replace">Reemplazar catálogo e inventario con este Excel</option></select></label><button id="confirm-import" class="primary" disabled>Confirmar importación</button></section>`,'importar');
++  <section class="panel import-actions-panel"><div><h3>Modo de importación</h3><p><b>Actualizar</b> conserva lo existente y reemplaza la cantidad del mismo código en la misma ubicación. <b>Reemplazar</b> sustituye únicamente el inventario físico del centro activo; el catálogo maestro y las demás sedes se conservan.</p></div><label>Acción<select id="import-mode"><option value="merge">Actualizar / agregar al inventario actual</option><option value="replace">Reemplazar catálogo e inventario con este Excel</option></select></label><button id="confirm-import" class="primary" disabled>Confirmar importación</button></section>`,'importar');
+   wireShell();
+   document.querySelector('#excel-file')?.addEventListener('change',async e=>{
+     const file=e.target.files?.[0]; if(!file)return;
+@@ -180,7 +182,7 @@
+   });
+   document.querySelector('#confirm-import')?.addEventListener('click',()=>{
+     const mode=document.querySelector('#import-mode')?.value||'merge';
+-    if(mode==='replace'&&!confirm('Esto reemplazará el catálogo y el inventario actual con el contenido del Excel. ¿Continuar?'))return;
++    if(mode==='replace'&&!confirm('Esto reemplazará el inventario físico del centro activo con el contenido del Excel. Los demás centros no se modificarán. ¿Continuar?'))return;
+     applyImport(mode);
+   });
+ }
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/src/modules/inicio/inicio.js /mnt/data/wms_center_work/WMS-sercoriego/src/modules/inicio/inicio.js
+--- /mnt/data/wms_center_baseline/src/modules/inicio/inicio.js	2026-08-16 22:17:15.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/src/modules/inicio/inicio.js	2026-08-21 00:10:00.974824341 +0000
+@@ -1,17 +1,19 @@
+ import { store } from '../../services/store.js';
+ import { shell,wireShell } from '../../layout/layout.js';
+-import { metric,badge,esc } from '../../components/ui.js';
++import { metric,badge,esc,empty } from '../../components/ui.js';
++import { activeSiteId } from '../../services/stock.js';
+ 
+ export function renderDashboard(root){
+- const d=store.data; const activeLoc=d.locations.filter(x=>x.active); const occupied=activeLoc.filter(x=>x.status!=='LIBRE').length; const temp=d.locations.filter(x=>x.kind==='POR_UBICAR'&&x.active).length; const inTransit=d.transfers.filter(t=>t.status==='EN_TRANSITO').length;
+- const r69=d.racks.filter(r=>['R6','R7','R8','R9'].includes(r.id));
++ const d=store.data,siteId=activeSiteId(d),site=d.sites.find(s=>s.id===siteId),racks=d.racks.filter(r=>r.siteId===siteId),activeLoc=d.locations.filter(x=>x.siteId===siteId&&x.active),occupied=activeLoc.filter(x=>x.status!=='LIBRE').length,temp=activeLoc.filter(x=>x.kind==='POR_UBICAR').length,inTransit=d.transfers.filter(t=>t.sourceSiteId===siteId&&t.status==='EN_TRANSITO').length;
++ const quick=activeLoc.filter(l=>l.kind==='PICKING_RACK').length;
++ const focus=racks.slice(0,4);
+  const recent=d.audit.slice(0,5).map(a=>`<div class="activity"><span>◷</span><div><b>${esc(a.message)}</b><small>${new Date(a.at).toLocaleString('es-CL')}</small></div></div>`).join('');
+  const content=`
+- <div class="hero"><div><span class="eyebrow">OPERACIÓN ACTUAL</span><h2>Ubicar rápido. Mover con trazabilidad.</h2><p>Recoleta está activa. La arquitectura queda preparada para sumar la bodega de la tienda y transferencias entre sedes.</p></div><a class="primary" href="#/buscar">Buscar producto</a></div>
+- <div class="metrics-grid">${metric('Racks activos','9','R1–R5: 6×3 · R6–R9: 6×6')}${metric('Ubicaciones configuradas',activeLoc.length,`${occupied} ocupadas/parciales`)}${metric('Ubicación rápida R6–R9',d.planning.configuredPickingSlots,'144 posiciones configuradas')}${metric('En tránsito',inTransit,`${temp} zonas temporales PU disponibles`)}</div>
+- <div class="two-col"><section class="panel"><div class="panel-head"><div><span class="eyebrow">FOCO DE ORGANIZACIÓN</span><h3>Racks 6–9</h3></div>${badge('CONFIGURADOS','ok')}</div>
+- <p>Estos racks concentran la nueva zona de ubicación rápida. Cada uno parte con 6 módulos × 6 niveles = 36 posiciones, una caja por posición. La estructura sigue siendo editable.</p>
+- <div class="rack-mini-grid">${r69.map(r=>`<a href="#/estructura" class="rack-mini"><b>${r.name}</b><span>${r.status.replace('_',' ')}</span><small>${r.usage}</small></a>`).join('')}</div></section>
++ <div class="hero"><div><span class="eyebrow">OPERACIÓN ACTUAL · CENTRO ACTIVO</span><h2>Ubicar rápido. Mover con trazabilidad.</h2><p>${esc(site?.name||siteId)} está activo. Racks, palets, ubicaciones y operación física se administran de forma independiente para este centro.</p></div><a class="primary" href="#/buscar">Buscar producto</a></div>
++ <div class="metrics-grid">${metric('Racks activos',racks.filter(r=>r.status==='ACTIVO').length,`${racks.length} configurados en ${site?.name||siteId}`)}${metric('Ubicaciones configuradas',activeLoc.length,`${occupied} ocupadas/parciales`)}${metric('Ubicación rápida',quick,`${quick} posiciones rápidas configuradas`)}${metric('En tránsito',inTransit,`${temp} zonas temporales PU disponibles`)}</div>
++ <div class="two-col"><section class="panel"><div class="panel-head"><div><span class="eyebrow">ESTRUCTURA DEL CENTRO</span><h3>${esc(site?.name||siteId)}</h3></div>${racks.length?badge('CONFIGURADO','ok'):badge('SIN RACKS','warn')}</div>
++ <p>Esta estructura pertenece únicamente al centro activo. Cambiar de centro carga una distribución física independiente.</p>
++ <div class="rack-mini-grid">${focus.length?focus.map(r=>`<a href="#/estructura" class="rack-mini"><b>${esc(r.name)}</b><span>${esc(String(r.status||'ACTIVO').replace('_',' '))}</span><small>${esc(r.usage||'Sin descripción')}</small></a>`).join(''):empty('Centro sin estructura','Crea los racks de este centro desde Estructura.')}</div></section>
+  <section class="panel"><div class="panel-head"><div><span class="eyebrow">ÚLTIMA ACTIVIDAD</span><h3>Trazabilidad</h3></div><a href="#/historial">Ver todo</a></div>${recent}</section></div>
+  <section class="panel"><div class="panel-head"><div><span class="eyebrow">FLUJO OPERACIONAL</span><h3>Recepción sin frenar la descarga</h3></div></div><div class="flow"><div><b>1</b><span>Recibir</span></div><i>→</i><div><b>2</b><span>Palet temporal</span></div><i>→</i><div><b>3</b><span>POR UBICAR</span></div><i>→</i><div><b>4</b><span>Ubicar / consolidar</span></div><i>→</i><div><b>5</b><span>Encontrar siempre</span></div></div></section>`;
+  root.innerHTML=shell('Inicio',content,'dashboard'); wireShell();
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/src/modules/movil/movil.js /mnt/data/wms_center_work/WMS-sercoriego/src/modules/movil/movil.js
+--- /mnt/data/wms_center_baseline/src/modules/movil/movil.js	2026-08-20 01:43:36.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/src/modules/movil/movil.js	2026-08-21 00:13:21.388062504 +0000
+@@ -1,10 +1,11 @@
+ import { instalarPWA, estadoPWA } from '../../services/pwa.js';
+ import { store } from '../../services/store.js';
+-import { activeSiteId } from '../../services/stock.js';
++import { activeSiteId,inventorySiteId } from '../../services/stock.js';
+ import { esc, badge, empty } from '../../components/ui.js';
+ import { crearEscaner } from '../../services/escaner.js';
+ import { openProductEditor } from '../../services/product-editor.js';
+ import { resolveProduct,productAliases } from '../../services/product-codes.js';
++import { activeCompanyId,siteCompanyId } from '../../services/company.js';
+ 
+ const rutas={inicio:'movil',buscar:'movil?seccion=buscar',recibir:'movil?seccion=recibir',despachar:'movil?seccion=despachar',mas:'movil?seccion=mas'};
+ function consulta(){return new URLSearchParams(location.hash.split('?')[1]||'');}
+@@ -15,6 +16,7 @@
+ function normalizar(v=''){return String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
+ function inventarioProducto(code){return store.data.inventory.filter(i=>i.productCode===code&&i.qty>0);}
+ function opcionesUsuarios(){return store.data.users.filter(u=>u.active).map(u=>`<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('');}
++function opcionesDestinos(){const active=activeSiteId(),company=activeCompanyId();return store.data.sites.filter(s=>s.active!==false&&s.id!==active&&siteCompanyId(s)===company).map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');}
+ function operadorActual(){return store.data.users.find(u=>u.id===store.data.session.userId);}
+ function resultados(q){
+   const raw=normalizar(q); if(!raw)return '';
+@@ -28,45 +30,46 @@
+   if(!lista.length)return empty('Sin resultados','Prueba con otra palabra, descripción o código.');
+   return lista.map(p=>{
+     const inv=inventarioProducto(p.code),total=inv.reduce((a,b)=>a+b.qty,0);
+-    return `<article class="movil-producto"><button class="movil-producto-resumen desplegar" data-id="detalle-${esc(p.code)}"><div class="movil-producto-datos"><span class="sku">CÓDIGO ${esc(p.code)}</span><b>${esc(p.name)}</b><small><b>Descripción:</b> ${esc(p.description||'No registrada')}</small></div><div class="movil-cantidad"><small>Cantidad</small>${badge(`${total} un.`,total?'ok':'warn')}<span class="chevron">⌄</span></div></button><div id="detalle-${esc(p.code)}" class="movil-detalle oculto"><div class="movil-detalle-resumen"><span><b>Descripción</b><small>${esc(p.description||'No registrada')}</small></span><span><b>Cantidad total</b><small>${total} unidades</small></span></div>${inv.length?inv.map(i=>`<div class="movil-ubicacion"><span><b>${esc(i.locationId)}</b><small>${i.palletId?`Palet ${esc(i.palletId)}`:'Ubicación directa'}</small></span><strong>${i.qty} un.</strong></div>`).join(''):'<p class="muted">Aún sin ubicación registrada.</p>'}<div class="movil-acciones"><a class="secondary" href="#/movimientos?code=${encodeURIComponent(p.code)}">Mover</a><a class="ghost" href="#/transferencias?code=${encodeURIComponent(p.code)}">Despachar</a><button class="ghost movil-edit-product" data-code="${esc(p.code)}" type="button">Editar / Inventario</button></div></div></article>`;
++    return `<article class="movil-producto"><button class="movil-producto-resumen desplegar" data-id="detalle-${esc(p.code)}"><div class="movil-producto-datos"><span class="sku">CÓDIGO ${esc(p.code)}</span><b>${esc(p.name)}</b><small><b>Descripción:</b> ${esc(p.description||'No registrada')}</small></div><div class="movil-cantidad"><small>Cantidad</small>${badge(`${total} un.`,total?'ok':'warn')}<span class="chevron">⌄</span></div></button><div id="detalle-${esc(p.code)}" class="movil-detalle oculto"><div class="movil-detalle-resumen"><span><b>Descripción</b><small>${esc(p.description||'No registrada')}</small></span><span><b>Cantidad total</b><small>${total} unidades</small></span></div>${inv.length?inv.map(i=>`<div class="movil-ubicacion"><span><b>${esc(i.locationId)}</b><small>${esc(store.data.sites.find(s=>s.id===inventorySiteId(i))?.name||inventorySiteId(i))} · ${i.palletId?`Palet ${esc(i.palletId)}`:'Ubicación directa'}</small></span><strong>${i.qty} un.</strong></div>`).join(''):'<p class="muted">Aún sin ubicación registrada.</p>'}<div class="movil-acciones"><a class="secondary" href="#/movimientos?code=${encodeURIComponent(p.code)}">Mover</a><a class="ghost" href="#/transferencias?code=${encodeURIComponent(p.code)}">Despachar</a><button class="ghost movil-edit-product" data-code="${esc(p.code)}" type="button">Editar / Inventario</button></div></div></article>`;
+   }).join('');
+ }
+ 
+ function envoltorio(titulo,contenido,activo='inicio'){
++  const siteId=activeSiteId(),site=store.data.sites.find(s=>s.id===siteId);
+   const nav=[['inicio','⌂','Inicio'],['buscar','⌕','Buscar'],['recibir','⇩','Recibir'],['despachar','⇄','Despachar'],['mas','⋯','Más']];
+-  const op=operadorActual(); return `<div class="movil-app"><header class="movil-cabecera"><div><small>REC · Bodega Recoleta · ${esc(op?.name||'Sin operador')}</small><h1>${esc(titulo)}</h1></div><a href="#/dashboard" class="movil-admin" title="Abrir panel administrativo"><span>⚙</span><small>Admin</small></a></header><main class="movil-contenido">${contenido}</main><nav class="movil-nav">${nav.map(([id,ico,txt])=>`<a href="#/${rutas[id]}" class="${activo===id?'activo':''}"><span>${ico}</span><small>${txt}</small></a>`).join('')}</nav><div id="toast" class="toast"></div></div>`;
++  const op=operadorActual(); return `<div class="movil-app"><header class="movil-cabecera"><div><small>${esc(site?.code||siteId)} · ${esc(site?.name||siteId)} · ${esc(op?.name||'Sin operador')}</small><h1>${esc(titulo)}</h1></div><a href="#/dashboard" class="movil-admin" title="Abrir panel administrativo"><span>⚙</span><small>Admin</small></a></header><main class="movil-contenido">${contenido}</main><nav class="movil-nav">${nav.map(([id,ico,txt])=>`<a href="#/${rutas[id]}" class="${activo===id?'activo':''}"><span>${ico}</span><small>${txt}</small></a>`).join('')}</nav><div id="toast" class="toast"></div></div>`;
+ }
+ function aviso(msg){const el=document.querySelector('#toast');if(!el)return;el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2400);}
+ function cablearDesplegables(){document.querySelectorAll('.desplegar').forEach(b=>b.onclick=()=>document.querySelector(`#${CSS.escape(b.dataset.id)}`)?.classList.toggle('oculto'));}
+ 
+ function inicio(){
+- const d=store.data;const porUbicar=d.receipts.filter(r=>r.status==='POR_UBICAR').length;const transito=d.transfers.filter(t=>t.status==='EN_TRANSITO').length;
+- return envoltorio('Operación móvil',`<section class="movil-bienvenida"><span class="eyebrow">OPERACIÓN RÁPIDA</span><h2>¿Qué necesitas hacer?</h2><p>Acciones principales al alcance de una mano.</p></section><div class="movil-atajos"><button data-ir="buscar"><span>⌕</span><b>Buscar</b><small>Código o descripción</small></button><button data-ir="recibir"><span>⇩</span><b>Recibir</b><small>Escanear mercadería</small></button><button data-ir="despachar"><span>⇄</span><b>Despachar</b><small>Preparar una salida</small></button><a href="#/palets"><span>▣</span><b>Organizar palet</b><small>Ubicar lo recibido</small></a><a href="#/movimientos"><span>↔</span><b>Mover</b><small>Reubicar producto</small></a></div><section class="movil-resumen"><button class="desplegar" data-id="estado-operacion"><span><b>Estado de operación</b><small>Información resumida</small></span><span class="chevron">⌄</span></button><div id="estado-operacion" class="oculto"><div class="mini-metricas"><div><b>${porUbicar}</b><small>Recepciones por ubicar</small></div><div><b>${transito}</b><small>Salidas en tránsito</small></div><div><b>${d.locations.filter(l=>l.active).length}</b><small>Ubicaciones activas</small></div></div></div></section>`, 'inicio');
++ const d=store.data,site=activeSiteId(d);const porUbicar=d.receipts.filter(r=>r.siteId===site&&r.status==='POR_UBICAR').length;const transito=d.transfers.filter(t=>t.sourceSiteId===site&&t.status==='EN_TRANSITO').length;
++ return envoltorio('Operación móvil',`<section class="movil-bienvenida"><span class="eyebrow">OPERACIÓN RÁPIDA</span><h2>¿Qué necesitas hacer?</h2><p>Acciones principales al alcance de una mano.</p></section><div class="movil-atajos"><button data-ir="buscar"><span>⌕</span><b>Buscar</b><small>Código o descripción</small></button><button data-ir="recibir"><span>⇩</span><b>Recibir</b><small>Escanear mercadería</small></button><button data-ir="despachar"><span>⇄</span><b>Despachar</b><small>Preparar una salida</small></button><a href="#/palets"><span>▣</span><b>Organizar palet</b><small>Ubicar lo recibido</small></a><a href="#/movimientos"><span>↔</span><b>Mover</b><small>Reubicar producto</small></a></div><section class="movil-resumen"><button class="desplegar" data-id="estado-operacion"><span><b>Estado de operación</b><small>Información resumida</small></span><span class="chevron">⌄</span></button><div id="estado-operacion" class="oculto"><div class="mini-metricas"><div><b>${porUbicar}</b><small>Recepciones por ubicar</small></div><div><b>${transito}</b><small>Salidas en tránsito</small></div><div><b>${d.locations.filter(l=>l.siteId===site&&l.active).length}</b><small>Ubicaciones activas</small></div></div></div></section>`, 'inicio');
+ }
+ 
+ function buscador(){
+  return envoltorio('Buscar producto',`<section class="movil-buscar"><div class="movil-input-grande"><span>⌕</span><input id="movil-q" autofocus autocomplete="off" placeholder="Código o descripción…"><button id="camara-buscar" type="button" aria-label="Escanear con cámara">▣</button></div><p class="ayuda">Escribe “codo”, “Orbit”, parte del código o usa la cámara.</p><div id="movil-resultados"></div></section>${modalCamara()}`,'buscar');
+ }
+ 
+-function recepcionActiva(){return store.data.receipts.find(r=>r.status==='RECIBIENDO');}
+-function opcionesTemporales(){return store.data.locations.filter(l=>l.active&&l.kind==='POR_UBICAR').map(l=>`<option value="${esc(l.id)}">${esc(l.id)}</option>`).join('');}
++function recepcionActiva(){const site=activeSiteId();return store.data.receipts.find(r=>r.siteId===site&&r.status==='RECIBIENDO');}
++function opcionesTemporales(){const site=activeSiteId();return store.data.locations.filter(l=>l.siteId===site&&l.active&&l.kind==='POR_UBICAR').map(l=>`<option value="${esc(l.id)}">${esc(l.id)}</option>`).join('');}
+ function recibir(){
+  const r=recepcionActiva();
+  const cuerpo=r?`<section class="movil-flujo"><div class="movil-estado"><div><span class="eyebrow">RECEPCIÓN ABIERTA</span><h2>${esc(r.id)}</h2><small>${esc(r.palletId)} · ${esc(r.origin)}</small></div>${badge('RECIBIENDO','warn')}</div><form id="movil-rec-form" class="movil-form-escaneo"><label>Código<div class="entrada-con-camara"><input id="movil-rec-code" required inputmode="numeric" placeholder="Escanea o escribe"><button id="camara-recibir" type="button">▣</button></div></label><label>Cantidad<input id="movil-rec-qty" type="number" min="1" value="1" required></label><button class="primary" type="submit">Agregar</button></form><button class="fila-desplegable desplegar" data-id="lista-recepcion"><span><b>Productos agregados</b><small>${(r.items||[]).length} líneas</small></span><span>⌄</span></button><div id="lista-recepcion" class="oculto lista-compacta">${(r.items||[]).length?r.items.map((x,i)=>`<div><span><b>${esc(x.code)}</b><small>${esc(nombre(x.code))}</small></span><strong>${x.qty}</strong><button class="ghost quitar-rec" data-i="${i}">×</button></div>`).join(''):empty('Sin productos','Escanea el primer código.')}</div><div class="movil-cerrar"><label>Ubicación temporal<select id="movil-rec-temp"><option value="">Seleccionar…</option>${opcionesTemporales()}</select></label><button class="fila-desplegable desplegar" data-id="responsable-recepcion" type="button"><span><b>Responsables</b><small>Quién recibe y quién revisa</small></span><span>⌄</span></button><div id="responsable-recepcion" class="oculto panel-responsables"><small>Recibe automáticamente: <b>${esc(store.data.users.find(u=>u.id===r.receivedBy)?.name||r.receivedBy)}</b></small><label>Supervisado / revisado por<select id="movil-rec-supervisor"><option value="">Seleccionar…</option>${opcionesUsuarios()}</select></label></div><button id="movil-cerrar-rec" class="primary">Cerrar → POR UBICAR</button></div></section>`:`<section class="movil-bienvenida"><span class="eyebrow">RECEPCIÓN RÁPIDA</span><h2>Recibe ahora. Ordena después.</h2><p>Crea un palet temporal y comienza a escanear sin decidir todavía la posición final.</p><button id="movil-nueva-rec" class="primary ancho">+ Nueva recepción</button></section><div id="form-nueva-rec" class="panel-movil oculto"><label>Origen<select id="movil-origen"><option>Importación</option><option>Proveedor</option><option>Tienda / devolución</option><option>Cliente / devolución</option><option>Otro</option></select></label><label>Quién trae<input id="movil-trae" placeholder="Nombre"></label><button id="movil-crear-rec" class="primary ancho">Comenzar recepción</button></div>`;
+  return envoltorio('Recepción',cuerpo+modalCamara(),'recibir');
+ }
+ 
+-function transferenciaActiva(){return store.data.transfers.find(t=>['PREPARANDO','LISTO'].includes(t.status));}
+-function disponible(c){return store.data.inventory.filter(i=>i.productCode===c&&i.qty>0).reduce((a,b)=>a+b.qty,0);}
++function transferenciaActiva(){const site=activeSiteId();return store.data.transfers.find(t=>t.sourceSiteId===site&&['PREPARANDO','LISTO'].includes(t.status));}
++function disponible(c){const site=activeSiteId();return store.data.inventory.filter(i=>i.productCode===c&&i.qty>0&&inventorySiteId(i)===site).reduce((a,b)=>a+b.qty,0);}
+ function despachar(){
+  const t=transferenciaActiva();
+- const cuerpo=t?`<section class="movil-flujo"><div class="movil-estado"><div><span class="eyebrow">SALIDA ABIERTA</span><h2>${esc(t.id)}</h2><small>${esc(t.destinationName)} · ${esc(t.driver||'Sin conductor')}</small></div>${badge('PREPARANDO','warn')}</div><form id="movil-tr-form" class="movil-form-escaneo"><label>Código<div class="entrada-con-camara"><input id="movil-tr-code" required placeholder="Escanea o escribe"><button id="camara-despachar" type="button">▣</button></div></label><label>Cantidad<input id="movil-tr-qty" type="number" min="1" value="1"></label><button class="primary">Agregar</button></form><button class="fila-desplegable desplegar" data-id="lista-salida"><span><b>Productos preparados</b><small>${(t.items||[]).length} líneas</small></span><span>⌄</span></button><div id="lista-salida" class="oculto lista-compacta">${(t.items||[]).length?t.items.map((x,i)=>`<div><span><b>${esc(x.code)}</b><small>${esc(nombre(x.code))}</small></span><strong>${x.qty}</strong><button class="ghost quitar-tr" data-i="${i}">×</button></div>`).join(''):empty('Salida vacía','Escanea los productos que se llevará el conductor.')}</div><div class="movil-cerrar"><button class="fila-desplegable desplegar" data-id="responsable-despacho" type="button"><span><b>Responsables</b><small>Quién despacha y quién revisa</small></span><span>⌄</span></button><div id="responsable-despacho" class="oculto panel-responsables"><small>Despacha automáticamente: <b>${esc(store.data.users.find(u=>u.id===store.data.session.userId)?.name||store.data.session.userId)}</b></small><label>Supervisado / revisado por<select id="movil-tr-supervisor"><option value="">Seleccionar…</option>${opcionesUsuarios()}</select></label></div><button id="movil-en-transito" class="primary ancho espacio-superior">Confirmar salida → EN TRÁNSITO</button></div></section>`:`<section class="movil-bienvenida"><span class="eyebrow">DESPACHO CONTROLADO</span><h2>Escanea lo que realmente sale.</h2><p>El conductor quedará asociado a los productos que se lleva.</p><button id="movil-nueva-tr" class="primary ancho">+ Nueva salida</button></section><div id="form-nueva-tr" class="panel-movil oculto"><label>Destino<select id="movil-destino"><option value="TIENDA">Bodega tienda de ventas</option><option value="OTRO">Otro / pendiente</option></select></label><label>Conductor / quien retira<input id="movil-conductor" placeholder="Nombre"></label><button id="movil-crear-tr" class="primary ancho">Comenzar preparación</button></div>`;
++ const cuerpo=t?`<section class="movil-flujo"><div class="movil-estado"><div><span class="eyebrow">SALIDA ABIERTA</span><h2>${esc(t.id)}</h2><small>${esc(t.destinationName)} · ${esc(t.driver||'Sin conductor')}</small></div>${badge('PREPARANDO','warn')}</div><form id="movil-tr-form" class="movil-form-escaneo"><label>Código<div class="entrada-con-camara"><input id="movil-tr-code" required placeholder="Escanea o escribe"><button id="camara-despachar" type="button">▣</button></div></label><label>Cantidad<input id="movil-tr-qty" type="number" min="1" value="1"></label><button class="primary">Agregar</button></form><button class="fila-desplegable desplegar" data-id="lista-salida"><span><b>Productos preparados</b><small>${(t.items||[]).length} líneas</small></span><span>⌄</span></button><div id="lista-salida" class="oculto lista-compacta">${(t.items||[]).length?t.items.map((x,i)=>`<div><span><b>${esc(x.code)}</b><small>${esc(nombre(x.code))}</small></span><strong>${x.qty}</strong><button class="ghost quitar-tr" data-i="${i}">×</button></div>`).join(''):empty('Salida vacía','Escanea los productos que se llevará el conductor.')}</div><div class="movil-cerrar"><button class="fila-desplegable desplegar" data-id="responsable-despacho" type="button"><span><b>Responsables</b><small>Quién despacha y quién revisa</small></span><span>⌄</span></button><div id="responsable-despacho" class="oculto panel-responsables"><small>Despacha automáticamente: <b>${esc(store.data.users.find(u=>u.id===store.data.session.userId)?.name||store.data.session.userId)}</b></small><label>Supervisado / revisado por<select id="movil-tr-supervisor"><option value="">Seleccionar…</option>${opcionesUsuarios()}</select></label></div><button id="movil-en-transito" class="primary ancho espacio-superior">Confirmar salida → EN TRÁNSITO</button></div></section>`:`<section class="movil-bienvenida"><span class="eyebrow">DESPACHO CONTROLADO</span><h2>Escanea lo que realmente sale.</h2><p>El conductor quedará asociado a los productos que se lleva.</p><button id="movil-nueva-tr" class="primary ancho">+ Nueva salida</button></section><div id="form-nueva-tr" class="panel-movil oculto"><label>Destino<select id="movil-destino"><option value="">Seleccionar…</option>${opcionesDestinos()}</select></label><label>Conductor / quien retira<input id="movil-conductor" placeholder="Nombre"></label><button id="movil-crear-tr" class="primary ancho">Comenzar preparación</button></div>`;
+  return envoltorio('Despacho',cuerpo+modalCamara(),'despachar');
+ }
+ 
+ function mas(){
+- const d=store.data;
+- return envoltorio('Más opciones',`<div class="movil-lista-menu"><button id="movil-instalar-pwa" class="movil-menu-button" type="button"><span>▣</span><div><b>Instalar aplicación</b><small>Agregar SercoRiego WMS al dispositivo</small></div><i>›</i></button><a href="#/palets"><span>▣</span><div><b>Organizar palets</b><small>Buscar, escanear y ubicar productos</small></div><i>›</i></a><a href="#/racks"><span>▦</span><div><b>Racks</b><small>Consultar estructura</small></div><i>›</i></a><a href="#/productos"><span>◫</span><div><b>Productos</b><small>Catálogo registrado</small></div><i>›</i></a><a href="#/historial"><span>◷</span><div><b>Historial</b><small>Trazabilidad completa</small></div><i>›</i></a><a href="#/usuarios"><span>♙</span><div><b>Operador / usuarios</b><small>Cambiar responsable o administrar personas</small></div><i>›</i></a><a href="#/dashboard"><span>⚙</span><div><b>Panel administrativo</b><small>Configuración y control completo</small></div><i>›</i></a></div><section class="panel-movil"><small>Ubicaciones activas: <b>${d.locations.filter(l=>l.active).length}</b></small><small>Versión demostración · Desarrollado por Vexhora Group · CEO Ing. Carlin Arenas</small></section>`,'mas');
++ const d=store.data,site=activeSiteId(d);
++ return envoltorio('Más opciones',`<div class="movil-lista-menu"><button id="movil-instalar-pwa" class="movil-menu-button" type="button"><span>▣</span><div><b>Instalar aplicación</b><small>Agregar SercoRiego WMS al dispositivo</small></div><i>›</i></button><a href="#/palets"><span>▣</span><div><b>Organizar palets</b><small>Buscar, escanear y ubicar productos</small></div><i>›</i></a><a href="#/racks"><span>▦</span><div><b>Racks</b><small>Consultar estructura</small></div><i>›</i></a><a href="#/productos"><span>◫</span><div><b>Productos</b><small>Catálogo registrado</small></div><i>›</i></a><a href="#/historial"><span>◷</span><div><b>Historial</b><small>Trazabilidad completa</small></div><i>›</i></a><a href="#/usuarios"><span>♙</span><div><b>Operador / usuarios</b><small>Cambiar responsable o administrar personas</small></div><i>›</i></a><a href="#/dashboard"><span>⚙</span><div><b>Panel administrativo</b><small>Configuración y control completo</small></div><i>›</i></a></div><section class="panel-movil"><small>Ubicaciones activas: <b>${d.locations.filter(l=>l.siteId===site&&l.active).length}</b></small><small>Versión demostración · Desarrollado por Vexhora Group · CEO Ing. Carlin Arenas</small></section>`,'mas');
+ }
+ 
+ function modalCamara(){return `<dialog id="dialogo-camara" class="dialogo-camara"><div class="camara-cabecera"><div><b>Escanear código</b><small>Apunta al código de barras</small></div><button id="cerrar-camara" class="ghost">×</button></div><video id="video-camara" autoplay playsinline muted></video><div id="estado-camara" class="estado-camara">Solicitando cámara…</div></dialog>`;}
+@@ -81,9 +84,9 @@
+ function cablearInicio(){document.querySelectorAll('[data-ir]').forEach(b=>b.onclick=()=>ir(b.dataset.ir));cablearDesplegables();}
+ function cablearBuscar(){const q=document.querySelector('#movil-q'),out=document.querySelector('#movil-resultados');const pintar=()=>{out.innerHTML=resultados(q.value);cablearDesplegables();document.querySelectorAll('.movil-edit-product').forEach(b=>b.onclick=()=>openProductEditor(b.dataset.code,{onSaved:(newCode)=>{if(q.value.trim()===b.dataset.code)q.value=newCode;pintar();}}));};q.oninput=pintar;document.querySelector('#camara-buscar').onclick=()=>abrirCamara('movil-q');}
+ function cablearRecibir(root){cablearDesplegables();const r=recepcionActiva();if(!r){document.querySelector('#movil-nueva-rec').onclick=()=>document.querySelector('#form-nueva-rec').classList.toggle('oculto');document.querySelector('#movil-crear-rec').onclick=async()=>{const idx=store.data.receipts.length+1,id=`REC-${String(idx).padStart(6,'0')}`,pid=`PAL-${String(100+idx).padStart(4,'0')}`,now=new Date().toISOString(),origin=document.querySelector('#movil-origen').value,broughtBy=document.querySelector('#movil-trae').value.trim();await store.commit(s=>{s.receipts.unshift({id,siteId:activeSiteId(s),palletId:pid,status:'RECIBIENDO',origin,broughtBy,note:'',arrivedAt:now,receivedBy:s.session.userId,supervisedBy:null,tempLocationId:null,items:[]});s.pallets.push({id:pid,siteId:activeSiteId(s),status:'RECIBIENDO',locationId:null,origin,createdAt:now});},`Recepción ${id} iniciada desde móvil`);renderMovil(root);};return;}
+- const sel=document.querySelector('#movil-rec-temp');if(r.tempLocationId)sel.value=r.tempLocationId;document.querySelector('#camara-recibir').onclick=()=>abrirCamara('movil-rec-code');document.querySelector('#movil-rec-form').onsubmit=async e=>{e.preventDefault();const raw=document.querySelector('#movil-rec-code').value.trim(),qty=Number(document.querySelector('#movil-rec-qty').value),p=resolveProduct(raw);if(!p){aviso('Código no asociado a ningún producto');return;}if(qty<1)return;const code=p.code;await store.commit(s=>{const rr=s.receipts.find(x=>x.id===r.id),it=rr.items.find(x=>x.code===code);if(it)it.qty+=qty;else rr.items.push({code,qty,scannedCode:raw});},`Producto ${code} agregado a ${r.id} desde móvil`);renderMovil(root);};document.querySelectorAll('.quitar-rec').forEach(b=>b.onclick=async()=>{await store.commit(s=>s.receipts.find(x=>x.id===r.id).items.splice(Number(b.dataset.i),1),`Producto retirado de ${r.id}`);renderMovil(root);});document.querySelector('#movil-cerrar-rec').onclick=async()=>{const temp=sel.value,supervisedBy=document.querySelector('#movil-rec-supervisor')?.value||'';if(!(r.items||[]).length){aviso('Agrega al menos un producto');return;}if(!temp){aviso('Selecciona ubicación temporal');return;}if(!supervisedBy){aviso('Selecciona quién revisó la recepción');return;}const now=new Date().toISOString();await store.commit(s=>{const rr=s.receipts.find(x=>x.id===r.id);rr.status='POR_UBICAR';rr.closedAt=now;rr.tempLocationId=temp;rr.supervisedBy=supervisedBy;const pal=s.pallets.find(x=>x.id===rr.palletId);pal.status='POR_UBICAR';pal.locationId=temp;for(const it of rr.items){let inv=s.inventory.find(i=>i.productCode===it.code&&i.locationId===temp&&i.palletId===rr.palletId);if(inv)inv.qty+=it.qty;else s.inventory.push({id:`INV-${Date.now()}-${it.code}`,productCode:it.code,locationId:temp,qty:it.qty,palletId:rr.palletId});}const loc=s.locations.find(l=>l.id===temp);if(loc)loc.status='OCUPADA';},`Recepción ${r.id} cerrada desde móvil en ${temp}`);renderMovil(root);};}
+-function cablearDespacho(root){cablearDesplegables();const t=transferenciaActiva();if(!t){document.querySelector('#movil-nueva-tr').onclick=()=>document.querySelector('#form-nueva-tr').classList.toggle('oculto');document.querySelector('#movil-crear-tr').onclick=async()=>{const idx=store.data.transfers.length+1,id=`TRF-${String(idx).padStart(6,'0')}`,dest=document.querySelector('#movil-destino').value,driver=document.querySelector('#movil-conductor').value.trim(),destinationName=dest==='TIENDA'?'Bodega tienda de ventas':'Otro destino',now=new Date().toISOString();await store.commit(s=>s.transfers.unshift({id,sourceSiteId:activeSiteId(s),destinationSiteId:dest,destinationName,driver,status:'PREPARANDO',createdAt:now,items:[],supervisedBy:null,dispatchedBy:null}),`Salida ${id} creada desde móvil`);renderMovil(root);};return;}
+- document.querySelector('#camara-despachar').onclick=()=>abrirCamara('movil-tr-code');document.querySelector('#movil-tr-form').onsubmit=async e=>{e.preventDefault();const raw=document.querySelector('#movil-tr-code').value.trim(),p=resolveProduct(raw);if(!p){aviso('Código no registrado');return;}const code=p.code,qty=Number(document.querySelector('#movil-tr-qty').value),avail=disponible(code);if(qty>avail){aviso(`Solo hay ${avail} unidades localizadas`);return;}await store.commit(s=>{const tt=s.transfers.find(x=>x.id===t.id),it=tt.items.find(x=>x.code===code);if(it)it.qty+=qty;else tt.items.push({code,qty});},`Producto ${code} agregado a ${t.id} desde móvil`);renderMovil(root);};document.querySelectorAll('.quitar-tr').forEach(b=>b.onclick=async()=>{await store.commit(s=>s.transfers.find(x=>x.id===t.id).items.splice(Number(b.dataset.i),1),`Producto retirado de ${t.id}`);renderMovil(root);});document.querySelector('#movil-en-transito').onclick=async()=>{const supervisedBy=document.querySelector('#movil-tr-supervisor')?.value||'';if(!(t.items||[]).length){aviso('Agrega productos antes de despachar');return;}if(!supervisedBy){aviso('Selecciona quién revisó el despacho');return;}for(const it of t.items){if(it.qty>disponible(it.code)){aviso(`Existencias insuficientes para ${it.code}`);return;}}const now=new Date().toISOString();await store.commit(s=>{const tt=s.transfers.find(x=>x.id===t.id);for(const it of tt.items){let need=it.qty;for(const inv of s.inventory.filter(i=>i.productCode===it.code&&i.qty>0)){const take=Math.min(inv.qty,need);inv.qty-=take;need-=take;if(!need)break;}s.inventory=s.inventory.filter(i=>i.qty>0);}tt.status='EN_TRANSITO';tt.departedAt=now;tt.scannedBy=s.session.userId;tt.dispatchedBy=s.session.userId;tt.supervisedBy=supervisedBy;},`Transferencia ${t.id} salió EN TRÁNSITO desde móvil`);renderMovil(root);};}
++ const sel=document.querySelector('#movil-rec-temp');if(r.tempLocationId)sel.value=r.tempLocationId;document.querySelector('#camara-recibir').onclick=()=>abrirCamara('movil-rec-code');document.querySelector('#movil-rec-form').onsubmit=async e=>{e.preventDefault();const raw=document.querySelector('#movil-rec-code').value.trim(),qty=Number(document.querySelector('#movil-rec-qty').value),p=resolveProduct(raw);if(!p){aviso('Código no asociado a ningún producto');return;}if(qty<1)return;const code=p.code;await store.commit(s=>{const rr=s.receipts.find(x=>x.id===r.id),it=rr.items.find(x=>x.code===code);if(it)it.qty+=qty;else rr.items.push({code,qty,scannedCode:raw});},`Producto ${code} agregado a ${r.id} desde móvil`);renderMovil(root);};document.querySelectorAll('.quitar-rec').forEach(b=>b.onclick=async()=>{await store.commit(s=>s.receipts.find(x=>x.id===r.id).items.splice(Number(b.dataset.i),1),`Producto retirado de ${r.id}`);renderMovil(root);});document.querySelector('#movil-cerrar-rec').onclick=async()=>{const temp=sel.value,supervisedBy=document.querySelector('#movil-rec-supervisor')?.value||'';if(!(r.items||[]).length){aviso('Agrega al menos un producto');return;}if(!temp){aviso('Selecciona ubicación temporal');return;}if(!supervisedBy){aviso('Selecciona quién revisó la recepción');return;}const now=new Date().toISOString();await store.commit(s=>{const rr=s.receipts.find(x=>x.id===r.id);rr.status='POR_UBICAR';rr.closedAt=now;rr.tempLocationId=temp;rr.supervisedBy=supervisedBy;const pal=s.pallets.find(x=>x.id===rr.palletId);pal.status='POR_UBICAR';pal.locationId=temp;for(const it of rr.items){let inv=s.inventory.find(i=>i.productCode===it.code&&i.locationId===temp&&i.palletId===rr.palletId);if(inv){inv.qty+=it.qty;inv.siteId=rr.siteId;}else s.inventory.push({id:`INV-${Date.now()}-${it.code}`,siteId:rr.siteId,productCode:it.code,locationId:temp,qty:it.qty,palletId:rr.palletId});}const loc=s.locations.find(l=>l.id===temp);if(loc)loc.status='OCUPADA';},`Recepción ${r.id} cerrada desde móvil en ${temp}`);renderMovil(root);};}
++function cablearDespacho(root){cablearDesplegables();const t=transferenciaActiva();if(!t){document.querySelector('#movil-nueva-tr').onclick=()=>document.querySelector('#form-nueva-tr').classList.toggle('oculto');document.querySelector('#movil-crear-tr').onclick=async()=>{const idx=store.data.transfers.length+1,id=`TRF-${String(idx).padStart(6,'0')}`,dest=document.querySelector('#movil-destino').value,driver=document.querySelector('#movil-conductor').value.trim(),destinationName=store.data.sites.find(x=>x.id===dest)?.name||dest,now=new Date().toISOString();if(!dest){aviso('Selecciona un centro de destino');return;}await store.commit(s=>s.transfers.unshift({id,sourceSiteId:activeSiteId(s),destinationSiteId:dest,destinationName,driver,status:'PREPARANDO',createdAt:now,items:[],supervisedBy:null,dispatchedBy:null}),`Salida ${id} creada desde móvil`);renderMovil(root);};return;}
++ document.querySelector('#camara-despachar').onclick=()=>abrirCamara('movil-tr-code');document.querySelector('#movil-tr-form').onsubmit=async e=>{e.preventDefault();const raw=document.querySelector('#movil-tr-code').value.trim(),p=resolveProduct(raw);if(!p){aviso('Código no registrado');return;}const code=p.code,qty=Number(document.querySelector('#movil-tr-qty').value),avail=disponible(code);if(qty>avail){aviso(`Solo hay ${avail} unidades localizadas`);return;}await store.commit(s=>{const tt=s.transfers.find(x=>x.id===t.id),it=tt.items.find(x=>x.code===code);if(it)it.qty+=qty;else tt.items.push({code,qty});},`Producto ${code} agregado a ${t.id} desde móvil`);renderMovil(root);};document.querySelectorAll('.quitar-tr').forEach(b=>b.onclick=async()=>{await store.commit(s=>s.transfers.find(x=>x.id===t.id).items.splice(Number(b.dataset.i),1),`Producto retirado de ${t.id}`);renderMovil(root);});document.querySelector('#movil-en-transito').onclick=async()=>{const supervisedBy=document.querySelector('#movil-tr-supervisor')?.value||'';if(!(t.items||[]).length){aviso('Agrega productos antes de despachar');return;}if(!supervisedBy){aviso('Selecciona quién revisó el despacho');return;}for(const it of t.items){if(it.qty>disponible(it.code)){aviso(`Existencias insuficientes para ${it.code}`);return;}}const now=new Date().toISOString();await store.commit(s=>{const tt=s.transfers.find(x=>x.id===t.id);for(const it of tt.items){let need=it.qty;for(const inv of s.inventory.filter(i=>i.productCode===it.code&&i.qty>0&&inventorySiteId(i,s)===tt.sourceSiteId)){const take=Math.min(inv.qty,need);inv.qty-=take;need-=take;if(!need)break;}s.inventory=s.inventory.filter(i=>i.qty>0);}tt.status='EN_TRANSITO';tt.departedAt=now;tt.scannedBy=s.session.userId;tt.dispatchedBy=s.session.userId;tt.supervisedBy=supervisedBy;},`Transferencia ${t.id} salió EN TRÁNSITO desde móvil`);renderMovil(root);};}
+ 
+ export function renderMovil(root){
+  const sec=seccion();
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/src/modules/movimientos/movimientos.js /mnt/data/wms_center_work/WMS-sercoriego/src/modules/movimientos/movimientos.js
+--- /mnt/data/wms_center_baseline/src/modules/movimientos/movimientos.js	2026-08-19 02:13:04.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/src/modules/movimientos/movimientos.js	2026-08-21 00:11:46.268395377 +0000
+@@ -71,7 +71,7 @@
+   if(qty<1||qty>source.qty){toast(`Disponible en el origen seleccionado: ${source.qty}`);return;}
+   const at=new Date().toISOString();
+   try{
+-    await store.commit(d=>{const result=deductStock(d,{code,qty,sourceKey});if(!result.ok)throw new Error(result.message);addStock(d,{code,qty,locationId:to,palletId:null});d.movements.unshift({id:`MOV-${Date.now()}`,type:'MOVIMIENTO',productCode:code,qty,from:source.palletId?`${source.palletId} / ${source.locationId}`:source.locationId,to,sourcePalletId:source.palletId||null,reason,userId:d.session.userId,siteId:active,at,allocations:result.allocations});},`Movimiento ${code}: ${source.palletId?`Palet ${source.palletId} / `:''}${source.locationId} → ${to} (${qty} un.)`);
++    await store.commit(d=>{const result=deductStock(d,{code,qty,sourceKey,siteId:active});if(!result.ok)throw new Error(result.message);addStock(d,{code,qty,locationId:to,palletId:null});d.movements.unshift({id:`MOV-${Date.now()}`,type:'MOVIMIENTO',productCode:code,qty,from:source.palletId?`${source.palletId} / ${source.locationId}`:source.locationId,to,sourcePalletId:source.palletId||null,reason,userId:d.session.userId,siteId:active,at,allocations:result.allocations});},`Movimiento ${code}: ${source.palletId?`Palet ${source.palletId} / `:''}${source.locationId} → ${to} (${qty} un.)`);
+     renderMovements(root);await notice('Movimiento realizado',`${qty} unidad(es) de ${code} se descontaron del origen y se sumaron al destino dentro de ${store.data.sites.find(s=>s.id===active)?.name||active}.`,'success');
+   }catch(ex){await notice('Movimiento no realizado',ex.message||'No se pudo guardar el movimiento.','error');}
+  };
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/src/modules/palets/palets.js /mnt/data/wms_center_work/WMS-sercoriego/src/modules/palets/palets.js
+--- /mnt/data/wms_center_baseline/src/modules/palets/palets.js	2026-08-19 02:13:04.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/src/modules/palets/palets.js	2026-08-21 00:09:37.601577914 +0000
+@@ -6,20 +6,22 @@
+ import { deductStock, addStock } from '../../services/inventory-ops.js';
+ import { resolveProduct,productAliases } from '../../services/product-codes.js';
+ import { openProductEditor } from '../../services/product-editor.js';
++import { activeSiteId,inventorySiteId } from '../../services/stock.js';
+ 
+ function params(){ return new URLSearchParams(location.hash.split('?')[1]||''); }
+ function producto(code){ return resolveProduct(code); }
+ function normalizar(v=''){ return String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); }
+-function contenidoPalet(id){ return store.data.inventory.filter(i=>i.palletId===id && i.qty>0); }
++function contenidoPalet(id){ const site=activeSiteId(); return store.data.inventory.filter(i=>i.palletId===id && i.qty>0 && inventorySiteId(i)===site); }
+ function totalUnidades(id){ return contenidoPalet(id).reduce((a,b)=>a+b.qty,0); }
+ function totalSku(id){ return new Set(contenidoPalet(id).map(i=>i.productCode)).size; }
+ function usuario(id){ return store.data.users.find(u=>u.id===id)?.name || id || 'No registrado'; }
+-function recepcionPalet(id){ return store.data.receipts.find(r=>r.palletId===id); }
+-function ocupado(locationId){ return store.data.inventory.some(i=>i.locationId===locationId && i.qty>0); }
++function recepcionPalet(id){ const site=activeSiteId(); return store.data.receipts.find(r=>r.siteId===site&&r.palletId===id); }
++function ocupado(locationId){ const site=activeSiteId(); return store.data.inventory.some(i=>i.locationId===locationId && i.qty>0 && inventorySiteId(i)===site); }
+ 
+ function existentes(code, palletId){
+   const map=new Map();
+-  store.data.inventory.filter(i=>i.productCode===code && i.qty>0 && i.palletId!==palletId).forEach(i=>{
++  const site=activeSiteId();
++  store.data.inventory.filter(i=>i.productCode===code && i.qty>0 && i.palletId!==palletId && inventorySiteId(i)===site).forEach(i=>{
+     const key=`${i.locationId}@@${i.palletId||''}`;
+     const prev=map.get(key)||{locationId:i.locationId,palletId:i.palletId||null,qty:0};
+     prev.qty+=i.qty; map.set(key,prev);
+@@ -27,7 +29,8 @@
+   return [...map.values()];
+ }
+ function libresRapidas(limit=10){
+-  return store.data.locations.filter(l=>l.active && l.kind==='PICKING_RACK' && !ocupado(l.id) && l.status!=='BLOQUEADA' && l.status!=='INHABILITADA')
++  const site=activeSiteId();
++  return store.data.locations.filter(l=>l.siteId===site && l.active && l.kind==='PICKING_RACK' && !ocupado(l.id) && l.status!=='BLOQUEADA' && l.status!=='INHABILITADA')
+     .sort((a,b)=>a.id.localeCompare(b.id,undefined,{numeric:true})).slice(0,limit);
+ }
+ function recomendaciones(code,palletId){ return {ya:existentes(code,palletId),rapidas:libresRapidas(8)}; }
+@@ -36,7 +39,7 @@
+   const {ya,rapidas}=recomendaciones(code,palletId), vistos=new Set(), out=[];
+   ya.forEach(x=>{const key=`${x.locationId}@@${x.palletId||''}`;if(!vistos.has(key)){vistos.add(key);out.push(`<option value="${esc(key)}">Reponer existente · ${x.palletId?`Palet ${esc(x.palletId)} · `:''}${esc(x.locationId)} · ${x.qty} un.</option>`);}});
+   rapidas.forEach(l=>{const key=`${l.id}@@`;if(!vistos.has(key)){vistos.add(key);out.push(`<option value="${esc(key)}">Posición rápida libre · ${esc(vistaCodigoUbicacion(l,store.data))}</option>`);}});
+-  store.data.locations.filter(l=>l.active && l.kind==='RACK' && !ocupado(l.id)).slice(0,12).forEach(l=>{const key=`${l.id}@@`;if(!vistos.has(key)){vistos.add(key);out.push(`<option value="${esc(key)}">Posición libre · ${esc(vistaCodigoUbicacion(l,store.data))}</option>`);}});
++  store.data.locations.filter(l=>l.siteId===activeSiteId() && l.active && l.kind==='RACK' && !ocupado(l.id)).slice(0,12).forEach(l=>{const key=`${l.id}@@`;if(!vistos.has(key)){vistos.add(key);out.push(`<option value="${esc(key)}">Posición libre · ${esc(vistaCodigoUbicacion(l,store.data))}</option>`);}});
+   return out.join('');
+ }
+ 
+@@ -97,10 +100,11 @@
+ function resolverDestino(code,palletId,codigoManual,selectValue){
+   if(codigoManual){
+     const location=buscarUbicacionPorCodigo(codigoManual,store.data); if(!location)return {error:'El código de ubicación no existe'};
+-    const same=store.data.inventory.find(i=>i.locationId===location.id&&i.productCode===code&&i.qty>0&&i.palletId!==palletId);
++    if(location.siteId!==activeSiteId())return {error:'La ubicación escaneada pertenece a otro centro. Cambia primero el centro activo.'};
++    const same=store.data.inventory.find(i=>i.locationId===location.id&&i.productCode===code&&i.qty>0&&i.palletId!==palletId&&inventorySiteId(i)===activeSiteId());
+     return {to:location.id,destPallet:same?.palletId||null,location};
+   }
+-  if(selectValue){const [to,destPalletRaw='']=selectValue.split('@@');return {to,destPallet:destPalletRaw||null,location:store.data.locations.find(l=>l.id===to)};}
++  if(selectValue){const [to,destPalletRaw='']=selectValue.split('@@'),site=activeSiteId();return {to,destPallet:destPalletRaw||null,location:store.data.locations.find(l=>l.id===to&&l.siteId===site)};}
+   return {error:'Escanea, escribe o selecciona una ubicación'};
+ }
+ 
+@@ -108,13 +112,13 @@
+   if(dest.error)return dest.error;const location=dest.location;
+   if(!location||!location.active)return 'La ubicación no está disponible';
+   if(['BLOQUEADA','INHABILITADA'].includes(location.status))return 'La ubicación está bloqueada o inhabilitada';
+-  const otros=store.data.inventory.filter(i=>i.locationId===location.id&&i.qty>0&&i.productCode!==code&&i.palletId!==palletId);
++  const otros=store.data.inventory.filter(i=>i.locationId===location.id&&i.qty>0&&i.productCode!==code&&i.palletId!==palletId&&inventorySiteId(i)===activeSiteId());
+   if(location.kind==='PICKING_RACK'&&otros.length)return `Posición ocupada por ${otros[0].productCode}. Elige otra ubicación.`;
+   return '';
+ }
+ 
+ async function moverDesdePalet({palletId,code,qty,codigoManual='',selectValue=''}){
+-  const palletBefore=store.data.pallets.find(x=>x.id===palletId), sourceRows=store.data.inventory.filter(i=>i.palletId===palletId&&i.productCode===code&&i.qty>0), available=sourceRows.reduce((a,b)=>a+b.qty,0);
++  const site=activeSiteId(),palletBefore=store.data.pallets.find(x=>x.id===palletId&&x.siteId===site), sourceRows=store.data.inventory.filter(i=>i.palletId===palletId&&i.productCode===code&&i.qty>0&&inventorySiteId(i)===site), available=sourceRows.reduce((a,b)=>a+b.qty,0);
+   if(!code||!available)return {ok:false,message:'Ese producto no está disponible en el palet'};
+   if(qty<1||qty>available)return {ok:false,message:`Disponible en el palet: ${available}`};
+   const dest=resolverDestino(code,palletId,codigoManual,selectValue), error=validarDestino(code,palletId,dest);if(error)return {ok:false,message:error};
+@@ -123,7 +127,7 @@
+     const result=deductStock(d,{code,qty,sourceKey:`${sourceRows[0].locationId}@@${palletId}`});
+     if(!result.ok)throw new Error(result.message);
+     const added=addStock(d,{code,qty,locationId:to,palletId:destPallet});
+-    d.movements.unshift({id:`MOV-${Date.now()}`,type:'MOVIMIENTO_DESDE_PALET',productCode:code,qty,from:`${palletId} / ${palletBefore?.locationId||'POR UBICAR'}`,to:destPallet?`${destPallet} / ${to}`:to,reason:destPallet?'Consolidación / reposición desde palet':'Ubicación desde palet por doble escaneo',userId:d.session.userId,palletId,at:now,method:codigoManual?'ESCANEO_O_CODIGO':'SELECCION_MANUAL',beforeQty:available,afterQty:available-qty,destinationBeforeQty:added.beforeQty,destinationAfterQty:added.afterQty,allocations:result.allocations});
++    d.movements.unshift({id:`MOV-${Date.now()}`,siteId:activeSiteId(d),type:'MOVIMIENTO_DESDE_PALET',productCode:code,qty,from:`${palletId} / ${palletBefore?.locationId||'POR UBICAR'}`,to:destPallet?`${destPallet} / ${to}`:to,reason:destPallet?'Consolidación / reposición desde palet':'Ubicación desde palet por doble escaneo',userId:d.session.userId,palletId,at:now,method:codigoManual?'ESCANEO_O_CODIGO':'SELECCION_MANUAL',beforeQty:available,afterQty:available-qty,destinationBeforeQty:added.beforeQty,destinationAfterQty:added.afterQty,allocations:result.allocations});
+     const pal=d.pallets.find(x=>x.id===palletId), remains=d.inventory.some(i=>i.palletId===palletId&&i.qty>0);if(pal)pal.status=remains?'POR_UBICAR':'VACÍO';
+   },`${code}: ${qty} un. descontadas de ${palletId} y sumadas a ${to}`);
+   return {ok:true,message:`${code} ubicado en ${destPallet?`${destPallet} / `:''}${vistaCodigoUbicacion(location,store.data)}`,to};
+@@ -142,7 +146,7 @@
+   document.querySelectorAll('.place-from-pallet').forEach(form=>{
+     const code=form.dataset.code,input=form.elements.locationCode,select=form.elements.to,validation=form.querySelector('.location-validation');
+     form.querySelector('.scan-location-btn').onclick=()=>abrirCamaraEn(input.id||(input.id=`loc-${code}`),'Escanear ubicación','Apunta a la etiqueta del rack / posición');
+-    input.oninput=()=>{const loc=buscarUbicacionPorCodigo(input.value,store.data);validation.textContent=!input.value?'Puedes escanear la etiqueta física de la posición.':loc?`✓ Ubicación válida: ${vistaCodigoUbicacion(loc,store.data)}`:'Código aún no reconocido';validation.classList.toggle('valid',!!loc);};
++    input.oninput=()=>{const loc=buscarUbicacionPorCodigo(input.value,store.data),valid=loc&&loc.siteId===activeSiteId();validation.textContent=!input.value?'Puedes escanear la etiqueta física de la posición.':valid?`✓ Ubicación válida: ${vistaCodigoUbicacion(loc,store.data)}`:loc?'La ubicación pertenece a otro centro':'Código aún no reconocido';validation.classList.toggle('valid',!!valid);};
+     select.onchange=()=>{if(select.value)input.value='';};
+     form.onsubmit=async e=>{e.preventDefault();const result=await moverDesdePalet({palletId,code,qty:Number(form.elements.qty.value),codigoManual:input.value.trim(),selectValue:select.value});if(!result.ok){toast(result.message);return;}toast(result.message);renderPallets(document.querySelector('#app'));};
+   });
+@@ -152,13 +156,13 @@
+   const pInput=document.querySelector('#quick-product'),lInput=document.querySelector('#quick-location'),qty=document.querySelector('#quick-qty'),pStatus=document.querySelector('#quick-product-status'),lStatus=document.querySelector('#quick-location-status'),recs=document.querySelector('#quick-recommendations'),last=document.querySelector('#quick-last');
+   document.querySelector('#quick-scan-product').onclick=()=>abrirCamaraEn('quick-product','1 · Escanear producto','Apunta al código de barras de la caja');document.querySelector('#quick-scan-location').onclick=()=>abrirCamaraEn('quick-location','2 · Escanear ubicación','Apunta a la etiqueta física de la posición');
+   const refreshProduct=()=>{const code=pInput.value.trim(),row=contenidoPalet(palletId).filter(i=>i.productCode===code).reduce((a,b)=>a+b.qty,0),prod=producto(code);pStatus.textContent=!code?`Escanea o escribe un producto de ${palletId}.`:row?`✓ ${prod?.name||`Producto ${code}`} · ${row} un. disponibles`:'Ese código no está en este palet';pStatus.classList.toggle('valid',!!row);recs.innerHTML='';if(row){qty.max=row;qty.value='1';const {ya,rapidas}=recomendaciones(code,palletId);const opciones=[...ya.slice(0,2).map(x=>({code:x.locationId,label:`Reponer ${x.locationId} · ${x.qty} un.`})),...rapidas.slice(0,3).map(x=>({code:vistaCodigoUbicacion(x,store.data),label:`Libre ${vistaCodigoUbicacion(x,store.data)}`}))];if(opciones.length)recs.innerHTML=`<small>Atajos recomendados</small><div>${opciones.map(o=>`<button type="button" data-loc="${esc(o.code)}">${esc(o.label)}</button>`).join('')}</div>`;recs.querySelectorAll('button').forEach(b=>b.onclick=()=>{lInput.value=b.dataset.loc;lInput.dispatchEvent(new Event('input',{bubbles:true}));});}};
+-  const refreshLocation=()=>{const loc=buscarUbicacionPorCodigo(lInput.value,store.data);lStatus.textContent=!lInput.value?'Escanea la etiqueta de la posición o escribe su código.':loc?`✓ ${vistaCodigoUbicacion(loc,store.data)} · ${loc.status.replaceAll('_',' ')}`:'Ubicación no reconocida';lStatus.classList.toggle('valid',!!loc);};
++  const refreshLocation=()=>{const loc=buscarUbicacionPorCodigo(lInput.value,store.data),valid=loc&&loc.siteId===activeSiteId();lStatus.textContent=!lInput.value?'Escanea la etiqueta de la posición o escribe su código.':valid?`✓ ${vistaCodigoUbicacion(loc,store.data)} · ${loc.status.replaceAll('_',' ')}`:loc?'La ubicación pertenece a otro centro':'Ubicación no reconocida';lStatus.classList.toggle('valid',!!valid);};
+   pInput.oninput=refreshProduct;lInput.oninput=refreshLocation;
+   document.querySelector('#quick-confirm').onclick=async()=>{const code=pInput.value.trim(),result=await moverDesdePalet({palletId,code,qty:Number(qty.value||1),codigoManual:lInput.value.trim()});if(!result.ok){toast(result.message);return;}last.classList.remove('oculto');last.innerHTML=`<b>✓ ${esc(result.message)}</b><small>Movimiento guardado en historial. Continúa con la siguiente caja.</small>`;toast(result.message);pInput.value='';lInput.value='';qty.value='1';pStatus.textContent=`Escanea o escribe un producto de ${palletId}.`;pStatus.classList.remove('valid');lStatus.textContent='Escanea la etiqueta de la posición o escribe su código.';lStatus.classList.remove('valid');recs.innerHTML='';pInput.focus();};
+ }
+ 
+ export function renderPallets(root){
+-  const d=store.data, selected=params().get('id'), p=d.pallets.find(x=>x.id===selected), pending=d.pallets.filter(x=>x.status==='POR_UBICAR'||x.status==='RECIBIENDO');
+-  const body=`<div class="page-intro"><div><span class="eyebrow">UNIDAD LOGÍSTICA</span><h2>Palets con identidad propia</h2><p>Abre un palet, escanea el producto y luego escanea la etiqueta de la ubicación. También puedes escribir el código o elegir una posición manualmente.</p></div><div class="pallet-summary"><b>${pending.length}</b><small>palets por organizar</small></div></div>${p?detallePalet(p):`<div class="rack-grid pallet-grid">${d.pallets.length?d.pallets.map(card).join(''):empty('Sin palets','Los palets aparecerán cuando registres una recepción.')}</div>`}`;
++  const d=store.data,siteId=activeSiteId(d),site=d.sites.find(s=>s.id===siteId),pallets=d.pallets.filter(x=>x.siteId===siteId),selected=params().get('id'),p=pallets.find(x=>x.id===selected),pending=pallets.filter(x=>x.status==='POR_UBICAR'||x.status==='RECIBIENDO');
++  const body=`<div class="page-intro"><div><span class="eyebrow">UNIDAD LOGÍSTICA · CENTRO ACTIVO</span><h2>Palets · ${esc(site?.name||siteId)}</h2><p>Solo se muestran y administran los palets del centro activo. Los palets de otras bodegas no aparecen en esta vista.</p></div><div class="pallet-summary"><b>${pending.length}</b><small>palets por organizar</small></div></div>${p?detallePalet(p):`<div class="rack-grid pallet-grid">${pallets.length?pallets.map(card).join(''):empty('Sin palets en este centro','Los palets aparecerán aquí cuando registres una recepción en este centro.')}</div>`}`;
+   root.innerHTML=shell('Palets',body,'palets');wireShell();if(p)wireDetail(p.id);else document.querySelectorAll('.pallet-card-click').forEach(b=>b.onclick=()=>location.hash=`#/palets?id=${encodeURIComponent(b.dataset.pallet)}`);
+ }
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/src/modules/racks/racks.js /mnt/data/wms_center_work/WMS-sercoriego/src/modules/racks/racks.js
+--- /mnt/data/wms_center_baseline/src/modules/racks/racks.js	2026-08-19 03:05:02.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/src/modules/racks/racks.js	2026-08-21 00:09:11.476408531 +0000
+@@ -2,10 +2,12 @@
+ import { shell,wireShell } from '../../layout/layout.js';
+ import { badge,esc,empty } from '../../components/ui.js';
+ import { enlazarBotonEscaner } from '../../services/camara-ui.js';
++import { activeSiteId } from '../../services/stock.js';
+ 
+ function producto(code){return store.data.products.find(p=>String(p.code)===String(code));}
+ function contenidoRack(rackId){
+- const locIds=new Set(store.data.locations.filter(l=>l.rackId===rackId&&l.active).map(l=>l.id));
++ const site=activeSiteId(),rack=store.data.racks.find(r=>r.id===rackId&&r.siteId===site);if(!rack)return [];
++ const locIds=new Set(store.data.locations.filter(l=>l.siteId===site&&l.rackId===rackId&&l.active).map(l=>l.id));
+  return store.data.inventory.filter(i=>i.qty>0&&locIds.has(i.locationId));
+ }
+ 
+@@ -32,10 +34,10 @@
+  return `<div class="rack-content-map"><div class="rack-content-map-head"><div><span class="eyebrow">MAPA DE DISTRIBUCIÓN</span><h4>${esc(r.name)}</h4><small>Vista física del rack · Nivel 1 abajo</small></div></div><div class="rack-ab-grid">${mods.map(m=>`<div class="rack-module-map"><div class="rack-module-head"><b>Módulo ${m}</b></div>${levels.map(n=>{const positions=levelPositions(r,n,m);return `<div class="rack-level-map"><span>Nivel ${n}</span><div class="rack-position-list">${positions.map(pos=>{const id=positionId(r,m,n,pos),loc=store.data.locations.find(l=>l.id===id),inv=store.data.inventory.filter(i=>i.locationId===id&&i.qty>0),pal=(store.data.pallets||[]).find(p=>p.locationId===id&&p.status!=='CERRADO'),qty=inv.reduce((a,b)=>a+Number(b.qty||0),0),label=pos||loc?.position||'Única';return `<div class="position-chip ${!pos?'single':''} ${(pal||qty>0)?'occupied':''}" title="${esc(id)}"><b>${esc(label)}</b><small>${pal?esc(pal.id):(qty>0?`${qty} un.`:(pos?'Libre':esc(id)))}</small></div>`;}).join('')}</div></div>`;}).join('')}</div>`).join('')}</div></div>`;
+ }
+ function pintarDetalle(rackId){
+- const d=store.data,r=d.racks.find(x=>x.id===rackId),box=document.querySelector('#rack-detail'); if(!r||!box)return;
++ const d=store.data,siteId=activeSiteId(d),r=d.racks.find(x=>x.id===rackId&&x.siteId===siteId),box=document.querySelector('#rack-detail'); if(!r||!box)return;
+  const q=(document.querySelector('#rack-filter')?.value||'').trim().toLowerCase();
+  const inv=contenidoRack(rackId).filter(i=>{const p=producto(i.productCode);return !q||`${i.productCode} ${p?.name||''} ${p?.description||''} ${i.locationId} ${i.palletId||''}`.toLowerCase().includes(q);});
+- const locs=d.locations.filter(l=>l.rackId===rackId&&l.active),total=contenidoRack(rackId).reduce((a,b)=>a+b.qty,0);
++ const locs=d.locations.filter(l=>l.siteId===siteId&&l.rackId===rackId&&l.active),total=contenidoRack(rackId).reduce((a,b)=>a+b.qty,0);
+  box.innerHTML=`<section class="panel rack-detail-panel"><div class="panel-head"><div><span class="eyebrow">CONTENIDO DEL RACK</span><h3>${esc(r.name)} · ${inv.length} registro${inv.length===1?'':'s'}</h3><small>${locs.length} ubicaciones configuradas · ${total} unidades localizadas</small></div><button id="close-rack-detail" class="ghost">Cerrar</button></div>
+  <div class="rack-detail-tools"><label>Filtrar contenido<div class="entrada-con-camara"><input id="rack-filter" value="${esc(q)}" placeholder="Código, descripción, ubicación o palet"><button id="camara-rack-filter" class="scan-button" type="button" title="Escanear código con cámara">▣</button></div></label><a href="#/estructura" class="secondary">Configurar estructura</a></div>
+  ${rackDistributionHtml(r)}
+@@ -46,8 +48,8 @@
+  box.scrollIntoView({behavior:'smooth',block:'start'});
+ }
+ export function renderRacks(root){
+- const d=store.data;
+- const cards=d.racks.map(r=>{const locs=d.locations.filter(l=>l.rackId===r.id&&l.active); const inv=contenidoRack(r.id),occ=new Set(inv.map(i=>i.locationId)).size; const units=inv.reduce((a,b)=>a+b.qty,0); const tone=r.status==='ACTIVO'?'ok':'warn'; return `<button class="rack-card rack-card-click" data-rack="${esc(r.id)}" type="button"><div class="rack-visual"><span>${esc(r.id)}</span><div>${r.modules?`${r.modules} módulos × ${r.levels} niveles`:'Estructura pendiente'}</div></div><div class="rack-card-body"><div class="panel-head"><h3>${esc(r.name)}</h3>${badge(r.status.replace('_',' '),tone)}</div><p>${esc(r.usage)}</p><div class="rack-stats"><span><b>${locs.length}</b> ubicaciones</span><span><b>${occ}</b> ocupadas</span><span><b>${units}</b> unidades</span></div><small>${esc(r.notes)}</small><span class="secondary">Ver contenido y filtrar</span></div></button>`}).join('');
+- root.innerHTML=shell('Racks',`<div class="page-intro"><div><span class="eyebrow">MAPA LÓGICO</span><h2>9 racks en Recoleta</h2><p>R1–R5 están modelados con 6 módulos × 3 niveles. R6–R9 están modelados con 6 módulos × 6 niveles. Haz clic en cualquier ficha para consultar su contenido y filtrarlo.</p></div></div><div class="rack-grid">${cards}</div><div id="rack-detail"></div>`,'racks'); wireShell();
++ const d=store.data,siteId=activeSiteId(d),site=d.sites.find(s=>s.id===siteId),racks=d.racks.filter(r=>r.siteId===siteId);
++ const cards=racks.map(r=>{const locs=d.locations.filter(l=>l.siteId===siteId&&l.rackId===r.id&&l.active); const inv=contenidoRack(r.id),occ=new Set(inv.map(i=>i.locationId)).size; const units=inv.reduce((a,b)=>a+b.qty,0); const tone=r.status==='ACTIVO'?'ok':'warn'; return `<button class="rack-card rack-card-click" data-rack="${esc(r.id)}" type="button"><div class="rack-visual"><span>${esc(r.rackCode||r.name||r.id)}</span><div>${r.modules?`${r.modules} módulos × ${r.levels} niveles`:'Estructura pendiente'}</div></div><div class="rack-card-body"><div class="panel-head"><h3>${esc(r.name)}</h3>${badge(r.status.replace('_',' '),tone)}</div><p>${esc(r.usage||'Sin descripción')}</p><div class="rack-stats"><span><b>${locs.length}</b> ubicaciones</span><span><b>${occ}</b> ocupadas</span><span><b>${units}</b> unidades</span></div><small>${esc(r.notes||'')}</small><span class="secondary">Ver contenido y filtrar</span></div></button>`}).join('');
++ root.innerHTML=shell('Racks',`<div class="page-intro"><div><span class="eyebrow">MAPA LÓGICO · CENTRO ACTIVO</span><h2>${esc(site?.name||siteId)}</h2><p>Solo se muestran los racks y ubicaciones físicas del centro activo. Para administrar otra bodega, cambia primero el centro activo.</p></div></div><div class="rack-grid">${cards||empty('Sin racks configurados',`Este centro todavía no tiene racks. Créalo desde Estructura para ${esc(site?.name||siteId)}.`)}</div><div id="rack-detail"></div>`,'racks'); wireShell();
+  document.querySelectorAll('.rack-card-click').forEach(c=>c.onclick=()=>pintarDetalle(c.dataset.rack));
+ }
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/src/modules/recepciones/recepciones.js /mnt/data/wms_center_work/WMS-sercoriego/src/modules/recepciones/recepciones.js
+--- /mnt/data/wms_center_baseline/src/modules/recepciones/recepciones.js	2026-08-20 01:43:14.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/src/modules/recepciones/recepciones.js	2026-08-21 00:09:47.999148378 +0000
+@@ -5,10 +5,10 @@
+ import { activeSiteId } from '../../services/stock.js';
+ import { resolveProduct } from '../../services/product-codes.js';
+ 
+-function activeReceipt(){return store.data.receipts.find(r=>r.status==='RECIBIENDO');}
++function activeReceipt(){const site=activeSiteId();return store.data.receipts.find(r=>r.siteId===site&&r.status==='RECIBIENDO');}
+ function productName(code){return resolveProduct(code)?.name||'Producto no catalogado';}
+ function userName(id){return store.data.users.find(u=>u.id===id)?.name||id||'No registrado';}
+-function tempOpts(){return store.data.locations.filter(l=>l.active&&l.kind==='POR_UBICAR').map(l=>`<option value="${esc(l.id)}">${esc(l.id)} · ${esc(l.status)}</option>`).join('');}
++function tempOpts(){const site=activeSiteId();return store.data.locations.filter(l=>l.siteId===site&&l.active&&l.kind==='POR_UBICAR').map(l=>`<option value="${esc(l.id)}">${esc(l.id)} · ${esc(l.status)}</option>`).join('');}
+ function userOpts(selected=''){return store.data.users.filter(u=>u.active).map(u=>`<option value="${esc(u.id)}" ${u.id===selected?'selected':''}>${esc(u.name)}</option>`).join('');}
+ function fecha(v){return v?new Date(v).toLocaleString('es-CL'):'—';}
+ 
+@@ -28,15 +28,15 @@
+ }
+ 
+ export function renderReceipts(root){
+- const d=store.data,r=activeReceipt(),closed=d.receipts.filter(x=>x.status!=='RECIBIENDO').slice(0,20);
+- root.innerHTML=shell('Recepción',`<div class="page-intro"><div><span class="eyebrow">RECEPCIÓN RÁPIDA</span><h2>Recibe ahora. Ordena después.</h2><p>Importación, proveedor, devolución o tienda: escanea, asigna a un palet temporal y deja todo localizable en POR UBICAR.</p></div>${r?'':`<button id="open-new-receipt" class="primary">+ Nueva recepción</button>`}</div>
++ const d=store.data,siteId=activeSiteId(d),site=d.sites.find(s=>s.id===siteId),r=activeReceipt(),closed=d.receipts.filter(x=>x.siteId===siteId&&x.status!=='RECIBIENDO').slice(0,20);
++ root.innerHTML=shell('Recepción',`<div class="page-intro"><div><span class="eyebrow">RECEPCIÓN RÁPIDA · CENTRO ACTIVO</span><h2>${esc(site?.name||siteId)}</h2><p>Importación, proveedor, devolución o tienda: escanea, asigna a un palet temporal y deja todo localizable en POR UBICAR.</p></div>${r?'':`<button id="open-new-receipt" class="primary">+ Nueva recepción</button>`}</div>
+  ${r?receiptPanel(r):`<section class="panel">${empty('Sin recepción abierta','Inicia una recepción para probar el flujo rápido.')}</section>`}
+  <section class="panel"><div class="panel-head"><div><h3>Recepciones recientes</h3><small>Haz clic en una recepción para ver absolutamente todo lo registrado</small></div></div>${closed.length?closed.map(x=>`<button class="history-row receipt-clickable" data-receipt="${esc(x.id)}" type="button"><div class="hist-icon">⇩</div><div><b>${esc(x.id)} · ${esc(x.palletId)}</b><small>${esc(x.status)} · ${esc(x.origin)} · ${esc(x.tempLocationId||'')}</small><small>Recibió: ${esc(userName(x.receivedBy))} · Supervisó: ${esc(userName(x.supervisedBy))}</small></div><time>${fecha(x.closedAt||x.arrivedAt)}</time><span class="receipt-chevron">›</span></button>`).join(''):empty('Sin recepciones cerradas','Las recepciones cerradas aparecerán aquí.')}</section>
+  <dialog id="receipt-detail-dialog"><div class="receipt-dialog-inner"><div class="dialog-head"><div><span class="eyebrow">DETALLE DE RECEPCIÓN</span><h3 id="receipt-detail-title">Recepción</h3></div><button id="close-receipt-detail" class="ghost">×</button></div><div id="receipt-detail-content"></div></div></dialog>
+  <dialog id="new-receipt-dialog"><form id="new-receipt-form"><div class="dialog-head"><h3>Nueva recepción</h3><button type="button" id="cancel-new-receipt-x" class="ghost">×</button></div><label>Origen<select id="new-origin"><option>Importación</option><option>Proveedor</option><option>Tienda / devolución</option><option>Cliente / devolución</option><option>Otro</option></select></label><label>Quién trae<input id="new-brought" placeholder="Nombre conductor / transportista"></label><label>Observación<input id="new-note" placeholder="Opcional"></label><div class="dialog-actions"><button type="button" id="cancel-new-receipt" class="ghost">Cancelar</button><button id="create-receipt" class="primary" type="submit">Crear y comenzar</button></div></form></dialog>`,'recepciones');
+  wireShell();
+  const detailDlg=document.querySelector('#receipt-detail-dialog');
+- document.querySelectorAll('.receipt-clickable').forEach(btn=>btn.onclick=()=>{const x=d.receipts.find(a=>a.id===btn.dataset.receipt);if(!x)return;document.querySelector('#receipt-detail-title').textContent=`${x.id} · ${x.palletId}`;document.querySelector('#receipt-detail-content').innerHTML=receiptDetail(x);detailDlg.showModal();});
++ document.querySelectorAll('.receipt-clickable').forEach(btn=>btn.onclick=()=>{const x=d.receipts.find(a=>a.id===btn.dataset.receipt&&a.siteId===siteId);if(!x)return;document.querySelector('#receipt-detail-title').textContent=`${x.id} · ${x.palletId}`;document.querySelector('#receipt-detail-content').innerHTML=receiptDetail(x);detailDlg.showModal();});
+  document.querySelector('#close-receipt-detail').onclick=()=>detailDlg.close();
+  if(!r){
+    const dlg=document.querySelector('#new-receipt-dialog');
+@@ -57,6 +57,6 @@
+    const sel=document.querySelector('#rec-temp'); if(r.tempLocationId)sel.value=r.tempLocationId;
+    document.querySelector('#receive-item').onsubmit=async(e)=>{e.preventDefault();const raw=document.querySelector('#rec-code').value.trim(),qty=Number(document.querySelector('#rec-qty').value),p=resolveProduct(raw);if(!p){toast('Código no asociado a ningún producto');return;}if(qty<1)return;const code=p.code;await store.commit(s=>{const rr=s.receipts.find(x=>x.id===r.id),it=rr.items.find(x=>x.code===code);if(it)it.qty+=qty;else rr.items.push({code,qty,scannedCode:raw});},`Producto ${code} agregado a ${r.id}`);toast('Producto agregado');renderReceipts(root);};
+    document.querySelectorAll('.rec-remove').forEach(b=>b.onclick=async()=>{await store.commit(s=>s.receipts.find(x=>x.id===r.id).items.splice(Number(b.dataset.i),1),`Producto retirado de ${r.id}`);renderReceipts(root);});
+-   document.querySelector('#close-receipt').onclick=async()=>{const temp=document.querySelector('#rec-temp').value,supervisedBy=document.querySelector('#rec-supervisor').value;if(!(r.items||[]).length){toast('Agrega al menos un producto');return;}if(!temp){toast('Selecciona ubicación temporal');return;}if(!supervisedBy){toast('Selecciona quién revisó la recepción');return;}const now=new Date().toISOString();await store.commit(s=>{const rr=s.receipts.find(x=>x.id===r.id);rr.status='POR_UBICAR';rr.closedAt=now;rr.tempLocationId=temp;rr.supervisedBy=supervisedBy;const pal=s.pallets.find(x=>x.id===rr.palletId);pal.status='POR_UBICAR';pal.locationId=temp;for(const it of rr.items){let inv=s.inventory.find(i=>i.productCode===it.code&&i.locationId===temp&&i.palletId===rr.palletId);if(inv)inv.qty+=it.qty;else s.inventory.push({id:`INV-${Date.now()}-${it.code}`,productCode:it.code,locationId:temp,qty:it.qty,palletId:rr.palletId});}const loc=s.locations.find(l=>l.id===temp);if(loc)loc.status='OCUPADA';},`Recepción ${r.id} cerrada en ${temp}`);toast('Recepción cerrada y localizada');renderReceipts(root);};
++   document.querySelector('#close-receipt').onclick=async()=>{const temp=document.querySelector('#rec-temp').value,supervisedBy=document.querySelector('#rec-supervisor').value;if(!(r.items||[]).length){toast('Agrega al menos un producto');return;}if(!temp){toast('Selecciona ubicación temporal');return;}if(!supervisedBy){toast('Selecciona quién revisó la recepción');return;}const now=new Date().toISOString();await store.commit(s=>{const rr=s.receipts.find(x=>x.id===r.id);rr.status='POR_UBICAR';rr.closedAt=now;rr.tempLocationId=temp;rr.supervisedBy=supervisedBy;const pal=s.pallets.find(x=>x.id===rr.palletId);pal.status='POR_UBICAR';pal.locationId=temp;for(const it of rr.items){let inv=s.inventory.find(i=>i.productCode===it.code&&i.locationId===temp&&i.palletId===rr.palletId);if(inv){inv.qty+=it.qty;inv.siteId=rr.siteId;}else s.inventory.push({id:`INV-${Date.now()}-${it.code}`,siteId:rr.siteId,productCode:it.code,locationId:temp,qty:it.qty,palletId:rr.palletId});}const loc=s.locations.find(l=>l.id===temp);if(loc)loc.status='OCUPADA';},`Recepción ${r.id} cerrada en ${temp}`);toast('Recepción cerrada y localizada');renderReceipts(root);};
+  }
+ }
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/src/services/auth.js /mnt/data/wms_center_work/WMS-sercoriego/src/services/auth.js
+--- /mnt/data/wms_center_baseline/src/services/auth.js	2026-08-20 22:30:17.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/src/services/auth.js	2026-08-21 00:14:23.589402806 +0000
+@@ -8,7 +8,7 @@
+     const {auth:useAuth=true,...fetchOptions}=options;
+     const headers={'Content-Type':'application/json',...(fetchOptions.headers||{})};
+     const token=useAuth?this.token():'';
+-    if(token)headers.Authorization=`Bearer ${token}`;
++    if(token){headers.Authorization=`Bearer ${token}`;const site=localStorage.getItem('serco_wms_active_site');if(site)headers['X-WMS-Site']=site;}
+     const res=await fetch(`${APP_CONFIG.apiBaseUrl}${path}`,{...fetchOptions,headers});
+     const data=res.status===204?null:await res.json().catch(()=>({}));
+     if(!res.ok)throw Object.assign(new Error(data?.error||`API ${res.status}`),{status:res.status,code:data?.code});
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/src/services/inventory-ops.js /mnt/data/wms_center_work/WMS-sercoriego/src/services/inventory-ops.js
+--- /mnt/data/wms_center_baseline/src/services/inventory-ops.js	2026-08-16 22:17:15.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/src/services/inventory-ops.js	2026-08-21 00:14:00.813313893 +0000
+@@ -18,52 +18,54 @@
+   if(!p.palletId) return 1;
+   return 2;
+ }
+-function rowsFor(data,code,sourceKey='AUTO'){
+-  let rows=(data.inventory||[]).filter(i=>String(i.productCode)===String(code)&&n(i.qty)>0);
++function inventorySite(data,inv){return inv.siteId||(data.locations||[]).find(l=>l.id===inv.locationId)?.siteId||(data.pallets||[]).find(p=>p.id===inv.palletId)?.siteId||'REC';}
++function rowsFor(data,code,sourceKey='AUTO',siteId=null){
++  let rows=(data.inventory||[]).filter(i=>String(i.productCode)===String(code)&&n(i.qty)>0&&(!siteId||inventorySite(data,i)===siteId));
+   if(sourceKey && sourceKey!=='AUTO') rows=rows.filter(i=>positionKey(i)===sourceKey);
+   else rows=rows.sort((a,b)=>priority(data,a)-priority(data,b)||String(a.locationId).localeCompare(String(b.locationId),undefined,{numeric:true}));
+   return rows;
+ }
+-export function availableFrom(data,code,sourceKey='AUTO'){
+-  return rowsFor(data,code,sourceKey).reduce((s,i)=>s+n(i.qty),0);
++export function availableFrom(data,code,sourceKey='AUTO',siteId=null){
++  return rowsFor(data,code,sourceKey,siteId).reduce((s,i)=>s+n(i.qty),0);
+ }
+ 
+-export function refreshInventoryStatuses(data){
+-  const occupied=new Set((data.inventory||[]).filter(i=>n(i.qty)>0).map(i=>i.locationId));
+-  (data.locations||[]).forEach(l=>{
++export function refreshInventoryStatuses(data,siteId=null){
++  const occupied=new Set((data.inventory||[]).filter(i=>n(i.qty)>0&&(!siteId||inventorySite(data,i)===siteId)).map(i=>i.locationId));
++  (data.locations||[]).filter(l=>!siteId||l.siteId===siteId).forEach(l=>{
+     if(['BLOQUEADA','INHABILITADA','RESERVADA'].includes(l.status))return;
+     l.status=occupied.has(l.id)?(l.kind==='PICKING_RACK'?'OCUPADA':'PARCIAL'):'LIBRE';
+   });
+-  (data.pallets||[]).forEach(p=>{
++  (data.pallets||[]).filter(p=>!siteId||p.siteId===siteId).forEach(p=>{
+     const has=(data.inventory||[]).some(i=>i.palletId===p.id&&n(i.qty)>0);
+     if(!has && p.status!=='RECIBIENDO')p.status='VACÍO';
+     else if(has && p.status==='VACÍO')p.status='POR_UBICAR';
+   });
+ }
+ 
+-export function deductStock(data,{code,qty,sourceKey='AUTO'}){
++export function deductStock(data,{code,qty,sourceKey='AUTO',siteId=null}){
+   qty=n(qty); if(qty<=0)return {ok:false,message:'Cantidad inválida',allocations:[]};
+-  const available=availableFrom(data,code,sourceKey);
++  const available=availableFrom(data,code,sourceKey,siteId);
+   if(available<qty)return {ok:false,message:`Existencia insuficiente. Disponible: ${available}`,allocations:[]};
+   let need=qty; const allocations=[];
+-  for(const inv of rowsFor(data,code,sourceKey)){
++  for(const inv of rowsFor(data,code,sourceKey,siteId)){
+     if(need<=0)break;
+     const before=n(inv.qty),take=Math.min(before,need); if(!take)continue;
+     inv.qty=before-take; need-=take;
+     allocations.push({inventoryId:inv.id,locationId:inv.locationId,palletId:inv.palletId||null,qty:take,beforeQty:before,afterQty:inv.qty});
+   }
+   data.inventory=(data.inventory||[]).filter(i=>n(i.qty)>0);
+-  refreshInventoryStatuses(data);
++  refreshInventoryStatuses(data,siteId);
+   return {ok:true,allocations,qty};
+ }
+ 
+ export function addStock(data,{code,qty,locationId,palletId=null}){
+   qty=n(qty); if(qty<=0)return {ok:false,message:'Cantidad inválida'};
++  const siteId=(data.locations||[]).find(l=>l.id===locationId)?.siteId||(data.pallets||[]).find(p=>p.id===palletId)?.siteId||null;
+   let target=(data.inventory||[]).find(i=>String(i.productCode)===String(code)&&i.locationId===locationId&&(i.palletId||null)===(palletId||null));
+   const before=target?n(target.qty):0;
+-  if(target)target.qty=before+qty;
+-  else{target={id:`INV-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,productCode:String(code),locationId,qty,palletId:palletId||null};data.inventory.push(target);}
+-  refreshInventoryStatuses(data);
++  if(target){target.qty=before+qty;if(siteId)target.siteId=siteId;}
++  else{target={id:`INV-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,productCode:String(code),locationId,qty,palletId:palletId||null,siteId};data.inventory.push(target);}
++  refreshInventoryStatuses(data,siteId);
+   return {ok:true,beforeQty:before,afterQty:before+qty,inventoryId:target.id};
+ }
+ 
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/src/services/product-editor.js /mnt/data/wms_center_work/WMS-sercoriego/src/services/product-editor.js
+--- /mnt/data/wms_center_baseline/src/services/product-editor.js	2026-08-19 02:12:49.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/src/services/product-editor.js	2026-08-21 00:10:39.295850711 +0000
+@@ -64,7 +64,7 @@
+   const siteRows=stockSitesOrdered(p.code),siteBox=document.querySelector('#pe-site-stock');
+   siteBox.innerHTML=siteRows.map(x=>`<div class="product-site-stock-row ${x.active?'active':''}"><div><span>${x.active?'CENTRO ACTIVO':'OTRA SEDE'}</span><b>${esc(x.name)}</b></div><strong>${x.qty} un.</strong></div>`).join('')||'<div class="empty-inline"><b>Sin centros disponibles</b></div>';
+   const out=document.querySelector('#pe-inventory-list');
+-  out.innerHTML=inv.length?inv.map((i,index)=>{const sid=inventorySiteId(i),site=store.data.sites.find(s=>s.id===sid);return `<div class="inventory-edit-row ${sid===active?'active-site-row':''}" data-inv-id="${esc(i.id)}"><div><b>${esc(locationLabel(i))}</b><small>${esc(site?.name||sid)}${sid===active?' · CENTRO ACTIVO':''} · ${i.palletId?'Existencia dentro de palet':'Ubicación directa'}</small></div><label>Sistema<input class="pe-system-qty" type="number" value="${Number(i.qty)||0}" disabled></label><label>Conteo físico<input class="pe-physical-qty" data-index="${index}" type="number" min="0" step="1" value="${Number(i.qty)||0}" inputmode="numeric"></label><span class="qty-diff neutral">Sin diferencia</span></div>`;}).join(''):`<div class="empty-inline"><b>Sin existencias localizadas</b><small>Este producto todavía no tiene cantidades registradas por ubicación.</small></div>`;
++  out.innerHTML=inv.length?inv.map((i,index)=>{const sid=inventorySiteId(i),site=store.data.sites.find(s=>s.id===sid),editable=sid===active;return `<div class="inventory-edit-row ${editable?'active-site-row':'other-site-row'}" data-inv-id="${esc(i.id)}"><div><b>${esc(locationLabel(i))}</b><small>${esc(site?.name||sid)}${editable?' · CENTRO ACTIVO':' · SOLO CONSULTA'} · ${i.palletId?'Existencia dentro de palet':'Ubicación directa'}</small></div><label>Sistema<input class="pe-system-qty" type="number" value="${Number(i.qty)||0}" disabled></label><label>${editable?'Conteo físico':'Otra sede'}<input class="pe-physical-qty ${editable?'':'other-site-qty'}" data-index="${index}" type="number" min="0" step="1" value="${Number(i.qty)||0}" inputmode="numeric" ${editable?'':'disabled'}></label><span class="qty-diff neutral">${editable?'Sin diferencia':'Solo consulta'}</span></div>`;}).join(''):`<div class="empty-inline"><b>Sin existencias localizadas</b><small>Este producto todavía no tiene cantidades registradas por ubicación.</small></div>`;
+   out.querySelectorAll('.pe-physical-qty').forEach(inp=>inp.addEventListener('input',()=>{
+     const row=inp.closest('.inventory-edit-row'),sys=Number(row.querySelector('.pe-system-qty').value||0),phy=Number(inp.value||0),diff=phy-sys,tag=row.querySelector('.qty-diff');
+     tag.textContent=diff===0?'Sin diferencia':`${diff>0?'+':''}${diff} un.`;tag.className=`qty-diff ${diff===0?'neutral':diff>0?'positive':'negative'}`;
+@@ -84,7 +84,7 @@
+   fill(code);
+   const perm=document.querySelector('#product-editor-permission');
+   perm.innerHTML=allowed?'':`<div class="warning-box"><b>Modo consulta.</b> El operador actual (${esc(currentUser()?.name||'sin usuario')}) no tiene permiso para corregir productos o inventario. Selecciona un Encargado o Administrador en Usuarios.</div>`;
+-  document.querySelectorAll('#product-editor-form input:not([type="hidden"]),#product-editor-form textarea,#product-editor-form select').forEach(el=>{if(el.classList.contains('pe-system-qty'))el.disabled=true;else el.disabled=!allowed;});
++  document.querySelectorAll('#product-editor-form input:not([type="hidden"]),#product-editor-form textarea,#product-editor-form select').forEach(el=>{if(el.classList.contains('pe-system-qty')||el.classList.contains('other-site-qty'))el.disabled=true;else el.disabled=!allowed;});
+   document.querySelector('#save-product-editor').disabled=!allowed;
+   document.querySelector('#copy-system-qty').disabled=!allowed;
+   document.querySelector('#pe-add-code').disabled=!allowed;
+@@ -93,7 +93,7 @@
+   document.querySelector('#pe-add-code').onclick=async()=>{if(!allowed)return;const code=normalizeProductCode(document.querySelector('#pe-alt-code').value);if(!code){toast('Escribe el código a asociar');return;}if(codeInUse(code,p.id)){toast('Ese código ya pertenece a otro producto');return;}try{await store.commit(st=>addProductCode(st,p.id,code,document.querySelector('#pe-code-type').value,document.querySelector('#pe-code-label').value),`Código ${code} asociado a ${p.code}`);close();openProductEditor(p.code,{onSaved});toast('Código asociado');}catch(err){toast(err.message);}};
+   document.querySelectorAll('.save-alt-code').forEach(b=>b.onclick=async()=>{if(!allowed)return;const row=b.closest('.editable-alt-code'),x=(store.data.product_codes||[]).find(c=>c.id===b.dataset.id);if(!x)return;const next=normalizeProductCode(row.querySelector('.alt-code-value').value),type=row.querySelector('.alt-code-type').value,label=row.querySelector('.alt-code-label').value.trim();if(!next){toast('El código no puede quedar vacío');return;}if(codeInUse(next,p.id)&&next!==normalizeProductCode(x.code)){toast('Ese código ya pertenece a otro producto');return;}await store.commit(st=>{const c=(st.product_codes||[]).find(v=>v.id===b.dataset.id);if(c){c.code=next;c.type=type;c.label=label;c.active=true;}},`Código asociado ${x.code} → ${next} actualizado en ${p.code}`);close();openProductEditor(p.code,{onSaved});toast('Código asociado actualizado');});
+   document.querySelectorAll('.remove-alt-code').forEach(b=>b.onclick=async()=>{if(!allowed)return;if(!confirm('¿Quitar este código alternativo del producto?'))return;await store.commit(st=>{const x=(st.product_codes||[]).find(c=>c.id===b.dataset.id);if(x)x.active=false;},`Código alternativo retirado de ${p.code}`);close();openProductEditor(p.code,{onSaved});toast('Código retirado');});
+-  document.querySelector('#copy-system-qty').onclick=()=>{document.querySelectorAll('.inventory-edit-row').forEach(row=>{const sys=row.querySelector('.pe-system-qty').value,phy=row.querySelector('.pe-physical-qty');phy.value=sys;phy.dispatchEvent(new Event('input',{bubbles:true}));});};
++  document.querySelector('#copy-system-qty').onclick=()=>{document.querySelectorAll('.inventory-edit-row.active-site-row').forEach(row=>{const sys=row.querySelector('.pe-system-qty').value,phy=row.querySelector('.pe-physical-qty');phy.value=sys;phy.dispatchEvent(new Event('input',{bubbles:true}));});};
+   document.querySelector('#product-editor-form').onsubmit=async e=>{
+     e.preventDefault(); if(!allowed)return;
+     const oldCode=document.querySelector('#pe-original-code').value.trim();
+@@ -108,7 +108,7 @@
+     if(!newCode||!name||!reason){toast('Completa código, nombre y motivo');return;}
+     if(newCode!==oldCode&&codeInUse(newCode,p.id)){toast('Ese código ya existe o está asociado a otro producto');return;}
+     const qtyChanges=[];
+-    document.querySelectorAll('.inventory-edit-row').forEach(row=>{const id=row.dataset.invId,inv=store.data.inventory.find(i=>i.id===id);if(!inv)return;const before=Number(inv.qty||0),after=Number(row.querySelector('.pe-physical-qty').value||0);if(Number.isFinite(after)&&after>=0&&after!==before)qtyChanges.push({id,before,after,locationId:inv.locationId,palletId:inv.palletId||null});});
++    document.querySelectorAll('.inventory-edit-row.active-site-row').forEach(row=>{const id=row.dataset.invId,inv=store.data.inventory.find(i=>i.id===id);if(!inv||inventorySiteId(inv)!==activeSiteId())return;const before=Number(inv.qty||0),after=Number(row.querySelector('.pe-physical-qty').value||0);if(Number.isFinite(after)&&after>=0&&after!==before)qtyChanges.push({id,before,after,locationId:inv.locationId,palletId:inv.palletId||null});});
+     const masterChanged=(()=>{const pp=product(oldCode);return newCode!==oldCode||name!==(pp.name||'')||description!==(pp.description||'')||type!==(pp.type||pp.family||'')||category!==(pp.category||'')||subcategory!==(pp.subcategory||'')||rotation!==(pp.rotation||'MEDIA');})();
+     if(!masterChanged&&!qtyChanges.length){toast('No hay cambios para guardar');return;}
+     const at=new Date().toISOString();
+@@ -116,7 +116,7 @@
+       const pp=s.products.find(x=>x.code===oldCode); if(!pp)return;
+       if(newCode!==oldCode){pp.previousCodes=Array.from(new Set([...(pp.previousCodes||[]),oldCode]));replaceCodeEverywhere(s,oldCode,newCode);}
+       pp.code=newCode;pp.name=name;pp.description=description;pp.type=type;pp.category=category;pp.subcategory=subcategory;pp.rotation=rotation;pp.updatedAt=at;
+-      qtyChanges.forEach(ch=>{const inv=s.inventory.find(i=>i.id===ch.id);if(!inv)return;inv.qty=ch.after;s.movements.unshift({id:`MOV-AJ-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,type:'AJUSTE_INVENTARIO',productCode:newCode,qty:Math.abs(ch.after-ch.before),delta:ch.after-ch.before,beforeQty:ch.before,afterQty:ch.after,from:ch.locationId,to:ch.locationId,palletId:ch.palletId,reason:`${reason} · Conteo ${ch.before} → ${ch.after} (${deltaText(ch.after-ch.before)})`,userId:s.session.userId,at});});
++      qtyChanges.forEach(ch=>{const inv=s.inventory.find(i=>i.id===ch.id);if(!inv)return;inv.qty=ch.after;s.movements.unshift({id:`MOV-AJ-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,siteId:activeSiteId(s),type:'AJUSTE_INVENTARIO',productCode:newCode,qty:Math.abs(ch.after-ch.before),delta:ch.after-ch.before,beforeQty:ch.before,afterQty:ch.after,from:ch.locationId,to:ch.locationId,palletId:ch.palletId,reason:`${reason} · Conteo ${ch.before} → ${ch.after} (${deltaText(ch.after-ch.before)})`,userId:s.session.userId,at});});
+       s.inventory=s.inventory.filter(i=>Number(i.qty)>0);
+       qtyChanges.forEach(ch=>{const loc=s.locations.find(l=>l.id===ch.locationId);if(loc&&!['BLOQUEADA','RESERVADA','INHABILITADA'].includes(loc.status)){loc.status=s.inventory.some(i=>i.locationId===ch.locationId&&Number(i.qty)>0)?'OCUPADA':'LIBRE';}});
+       if(masterChanged)s.audit.unshift({id:`AUD-PROD-${Date.now()}`,type:'PRODUCT_CORRECTION',message:`Producto ${oldCode}${newCode!==oldCode?` → ${newCode}`:''} corregido. Motivo: ${reason}`,userId:s.session.userId,at});
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/src/services/state-upgrade.js /mnt/data/wms_center_work/WMS-sercoriego/src/services/state-upgrade.js
+--- /mnt/data/wms_center_baseline/src/services/state-upgrade.js	2026-08-20 01:42:46.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/src/services/state-upgrade.js	2026-08-21 00:08:56.489585430 +0000
+@@ -41,6 +41,20 @@
+      }
+    }
+  }
+- if((data.meta?.version||0)<14){data.meta=data.meta||{};data.meta.version=14;changed=true;}
++ // V15 · aislamiento físico por centro. Todos los objetos operativos legados
++ // quedan vinculados explícitamente a su centro; los datos históricos actuales
++ // pertenecen a Bodega Recoleta cuando no existe una referencia previa.
++ const fallbackSite=(data.sites||[]).find(s=>s.id==='REC')?.id||(data.sites||[])[0]?.id||'REC';
++ const siteFromLocation=id=>(data.locations||[]).find(l=>l.id===id)?.siteId;
++ const siteFromPallet=id=>(data.pallets||[]).find(p=>p.id===id)?.siteId;
++ for(const r of data.racks||[]){if(!r.siteId){r.siteId=fallbackSite;changed=true;}}
++ for(const l of data.locations||[]){if(!l.siteId){l.siteId=(data.racks||[]).find(r=>r.id===l.rackId)?.siteId||fallbackSite;changed=true;}}
++ for(const p of data.pallets||[]){if(!p.siteId){p.siteId=siteFromLocation(p.locationId)||fallbackSite;changed=true;}}
++ for(const r of data.receipts||[]){if(!r.siteId){r.siteId=siteFromPallet(r.palletId)||fallbackSite;changed=true;}}
++ for(const i of data.inventory||[]){const sid=i.siteId||siteFromLocation(i.locationId)||siteFromPallet(i.palletId)||fallbackSite;if(i.siteId!==sid){i.siteId=sid;changed=true;}}
++ for(const m of data.movements||[]){if(!m.siteId){m.siteId=siteFromLocation(m.to)||siteFromLocation(m.from)||siteFromPallet(m.palletId)||siteFromPallet(m.sourcePalletId)||fallbackSite;changed=true;}}
++ for(const t of data.transfers||[]){if(!t.sourceSiteId){t.sourceSiteId=fallbackSite;changed=true;}}
++ for(const o of data.orders||[]){if(!o.sourceSiteId){o.sourceSiteId=fallbackSite;changed=true;}}
++ if((data.meta?.version||0)<15){data.meta=data.meta||{};data.meta.version=15;changed=true;}
+  return changed;
+ }
+diff -ruN '--exclude=.git' '--exclude=node_modules' /mnt/data/wms_center_baseline/sw.js /mnt/data/wms_center_work/WMS-sercoriego/sw.js
+--- /mnt/data/wms_center_baseline/sw.js	2026-08-20 22:53:30.000000000 +0000
++++ /mnt/data/wms_center_work/WMS-sercoriego/sw.js	2026-08-21 00:13:21.388203738 +0000
+@@ -1,4 +1,4 @@
+-const APP_VERSION = '2026.08.20-pwa-v1';
++const APP_VERSION = '2026.08.20-centros-v1';
+ const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
+ const CACHE_PREFIX = 'sercoriego-lite-wms-';
+ 

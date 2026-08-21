@@ -6,7 +6,7 @@ import { FORMATO_UBICACION_PREDETERMINADO,recalcularCodigosEscaneables,vistaCodi
 import { requireAdminSupercode } from '../../services/security.js';
 
 function isAdmin(){const u=store.data.users.find(x=>x.id===store.data.session.userId);return u?.role==='ADMINISTRADOR';}
-function siteId(){return new URLSearchParams(location.hash.split('?')[1]||'').get('site')||activeSiteId();}
+function siteId(){return activeSiteId();}
 function rackCode(r){return r.rackCode||(/^R\d+$/.test(r.id)?r.id:String(r.id).split('-').pop());}
 function racksFor(site){return store.data.racks.filter(r=>r.siteId===site);}
 function rackNumber(r){return Number(String(rackCode(r)).replace(/\D/g,''))||0;}
@@ -136,14 +136,13 @@ function showRackFeedback(message,type='error',target='#rack-feedback'){
 
 export function renderStructure(root){
   const sid=siteId(),site=store.data.sites.find(s=>s.id===sid)||store.data.sites[0],format=store.data.settings?.locationCodeFormat||FORMATO_UBICACION_PREDETERMINADO;
-  root.innerHTML=shell('Estructura',`<div class="page-intro"><div><span class="eyebrow">ESTRUCTURA POR CENTRO</span><h2>${esc(site?.name||sid)}</h2><p>Cada bodega o tienda organiza sus propias ubicaciones. Nada de otro centro se borra al editar esta estructura.</p></div><label class="inline-site-select">Centro<select id="structure-site">${store.data.sites.map(s=>`<option value="${esc(s.id)}" ${s.id===sid?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label></div><section class="panel"><div class="panel-head"><div><h3>Códigos físicos</h3><small>Ejemplo con posición A/B: <b id="location-preview"></b></small></div></div><div class="form-grid"><label>Formato<input id="location-format" value="${esc(format)}"><small>Variables: {SEDE}, {RACK}, {MODULO}, {NIVEL}, opcional {POSICION}</small></label></div><div class="dialog-actions"><button id="save-location-format" class="primary">Guardar formato</button></div></section><section class="panel"><div class="panel-head"><div><h3>Racks · ${esc(site?.name||sid)}</h3><small>Cada rack puede tener una distribución distinta de posiciones por nivel.</small></div><button id="new-rack" class="primary">+ Nuevo rack</button></div><div class="structure-table"><div class="structure-row head"><div>Rack</div><div>Módulos</div><div>Niveles</div><div>Ubic.</div><div>Estado</div><div></div></div>${rackRows(sid)}</div></section><div id="rack-map-detail"></div><dialog id="rack-dialog"><form id="rack-form"><div class="dialog-head"><h3>Configurar rack</h3><button type="button" id="close-rack" class="ghost">×</button></div><input type="hidden" id="rack-id"><label>Nombre<input id="rack-name" required></label><div class="form-grid"><label>Módulos<input id="rack-modules" type="number" min="1" max="100" required></label><label>Niveles<input id="rack-levels" type="number" min="1" max="20" required></label></div><label>Uso / descripción<input id="rack-usage"></label><label>Estado<select id="rack-status"><option>ACTIVO</option><option>EN_CONSTRUCCION</option><option>INACTIVO</option></select></label><div class="rack-layout-editor"><b>Distribución por nivel</b><small>Define las posiciones de cada nivel. “Única” crea una sola ubicación; también puedes usar A, B, C, D, etc.</small><div id="rack-level-layout"></div></div><div class="warning-box">Las ubicaciones con stock o pallets nunca se eliminan automáticamente. Al cambiar la distribución, las ubicaciones vacías que ya no correspondan quedan inactivas.</div><div id="rack-feedback" class="rack-feedback"></div><div class="dialog-actions rack-dialog-actions"><button type="button" id="delete-rack" class="danger-action" hidden>Eliminar rack</button><span class="dialog-actions-spacer"></span><button type="button" id="cancel-rack" class="ghost">Cancelar</button><button type="submit" class="primary">Guardar y generar</button></div></form></dialog><dialog id="module-dialog"><form id="module-form"><div class="dialog-head"><div><h3 id="module-dialog-title">Editar módulo</h3><small>Esta configuración reemplaza la distribución general solo para este módulo.</small></div><button type="button" id="close-module-dialog" class="ghost">×</button></div><input type="hidden" id="module-number"><div class="rack-layout-editor"><b>Posiciones por nivel</b><div id="module-level-layout"></div></div><div class="warning-box">Si una posición que quieres quitar contiene stock o un pallet, el sistema no permitirá guardarlo y te indicará cuál debes vaciar primero.</div><div id="module-feedback" class="rack-feedback"></div><div class="dialog-actions"><button type="button" id="reset-module-layout" class="ghost">Usar distribución general</button><button type="button" id="cancel-module-dialog" class="ghost">Cancelar</button><button type="submit" class="primary">Guardar módulo</button></div></form></dialog>`,'estructura');
+  root.innerHTML=shell('Estructura',`<div class="page-intro"><div><span class="eyebrow">ESTRUCTURA POR CENTRO</span><h2>${esc(site?.name||sid)}</h2><p>Cada bodega o tienda organiza sus propias ubicaciones. Esta pantalla solo permite ver y modificar el centro activo.</p></div><div class="inline-site-select"><small>Centro activo</small><b>${esc(site?.name||sid)}</b></div></div><section class="panel"><div class="panel-head"><div><h3>Códigos físicos</h3><small>Ejemplo con posición A/B: <b id="location-preview"></b></small></div></div><div class="form-grid"><label>Formato<input id="location-format" value="${esc(format)}"><small>Variables: {SEDE}, {RACK}, {MODULO}, {NIVEL}, opcional {POSICION}</small></label></div><div class="dialog-actions"><button id="save-location-format" class="primary">Guardar formato</button></div></section><section class="panel"><div class="panel-head"><div><h3>Racks · ${esc(site?.name||sid)}</h3><small>Cada rack puede tener una distribución distinta de posiciones por nivel.</small></div><button id="new-rack" class="primary">+ Nuevo rack</button></div><div class="structure-table"><div class="structure-row head"><div>Rack</div><div>Módulos</div><div>Niveles</div><div>Ubic.</div><div>Estado</div><div></div></div>${rackRows(sid)}</div></section><div id="rack-map-detail"></div><dialog id="rack-dialog"><form id="rack-form"><div class="dialog-head"><h3>Configurar rack</h3><button type="button" id="close-rack" class="ghost">×</button></div><input type="hidden" id="rack-id"><label>Nombre<input id="rack-name" required></label><div class="form-grid"><label>Módulos<input id="rack-modules" type="number" min="1" max="100" required></label><label>Niveles<input id="rack-levels" type="number" min="1" max="20" required></label></div><label>Uso / descripción<input id="rack-usage"></label><label>Estado<select id="rack-status"><option>ACTIVO</option><option>EN_CONSTRUCCION</option><option>INACTIVO</option></select></label><div class="rack-layout-editor"><b>Distribución por nivel</b><small>Define las posiciones de cada nivel. “Única” crea una sola ubicación; también puedes usar A, B, C, D, etc.</small><div id="rack-level-layout"></div></div><div class="warning-box">Las ubicaciones con stock o pallets nunca se eliminan automáticamente. Al cambiar la distribución, las ubicaciones vacías que ya no correspondan quedan inactivas.</div><div id="rack-feedback" class="rack-feedback"></div><div class="dialog-actions rack-dialog-actions"><button type="button" id="delete-rack" class="danger-action" hidden>Eliminar rack</button><span class="dialog-actions-spacer"></span><button type="button" id="cancel-rack" class="ghost">Cancelar</button><button type="submit" class="primary">Guardar y generar</button></div></form></dialog><dialog id="module-dialog"><form id="module-form"><div class="dialog-head"><div><h3 id="module-dialog-title">Editar módulo</h3><small>Esta configuración reemplaza la distribución general solo para este módulo.</small></div><button type="button" id="close-module-dialog" class="ghost">×</button></div><input type="hidden" id="module-number"><div class="rack-layout-editor"><b>Posiciones por nivel</b><div id="module-level-layout"></div></div><div class="warning-box">Si una posición que quieres quitar contiene stock o un pallet, el sistema no permitirá guardarlo y te indicará cuál debes vaciar primero.</div><div id="module-feedback" class="rack-feedback"></div><div class="dialog-actions"><button type="button" id="reset-module-layout" class="ghost">Usar distribución general</button><button type="button" id="cancel-module-dialog" class="ghost">Cancelar</button><button type="submit" class="primary">Guardar módulo</button></div></form></dialog>`,'estructura');
   wireShell();
 
   const fmt=document.querySelector('#location-format'),preview=document.querySelector('#location-preview');
   const paint=()=>preview.textContent=demoCode(sid);
   paint();
   fmt.oninput=paint;
-  document.querySelector('#structure-site').onchange=e=>location.hash=`#/estructura?site=${encodeURIComponent(e.target.value)}`;
   document.querySelector('#save-location-format').onclick=async()=>{
     const value=fmt.value.trim();
     if(!value.includes('{RACK}')||!value.includes('{MODULO}')||!value.includes('{NIVEL}')){toast('El formato debe incluir RACK, MODULO y NIVEL');return;}
@@ -152,7 +151,7 @@ export function renderStructure(root){
   };
 
   document.querySelectorAll('.view-rack-map').forEach(b=>b.onclick=()=>{
-    const r=store.data.racks.find(x=>x.id===b.dataset.id),box=document.querySelector('#rack-map-detail');
+    const r=store.data.racks.find(x=>x.id===b.dataset.id&&x.siteId===sid),box=document.querySelector('#rack-map-detail');
     if(!r||!box)return;
     box.innerHTML=rackMapHtml(r);
     document.querySelector('#close-rack-map').onclick=()=>box.innerHTML='';
@@ -215,13 +214,13 @@ export function renderStructure(root){
     dlg.showModal();
   };
   document.querySelector('#new-rack').onclick=()=>open();
-  document.querySelectorAll('.edit-rack').forEach(b=>b.onclick=()=>open(store.data.racks.find(r=>r.id===b.dataset.id)));
+  document.querySelectorAll('.edit-rack').forEach(b=>b.onclick=()=>open(store.data.racks.find(r=>r.id===b.dataset.id&&r.siteId===sid)));
   document.querySelector('#rack-levels').onchange=e=>renderLevelEditor(editingRack,Number(e.target.value));
   document.querySelector('#close-rack').onclick=()=>dlg.close();
   document.querySelector('#cancel-rack').onclick=()=>dlg.close();
   document.querySelector('#delete-rack').onclick=async()=>{
     if(!editingRack?.id||!isAdmin())return;
-    const r=store.data.racks.find(x=>x.id===editingRack.id);
+    const r=store.data.racks.find(x=>x.id===editingRack.id&&x.siteId===sid);
     if(!r)return;
     const locs=(store.data.locations||[]).filter(l=>l.rackId===r.id);
     const blocked=locs.filter(l=>(store.data.inventory||[]).some(i=>i.locationId===l.id&&Number(i.qty)>0)||(store.data.pallets||[]).some(p=>p.locationId===l.id&&p.status!=='CERRADO'));
@@ -247,17 +246,17 @@ export function renderStructure(root){
   document.querySelector('#rack-form').onsubmit=async e=>{
     e.preventDefault();
     const old=document.querySelector('#rack-id').value,
-      n=old?rackNumber(store.data.racks.find(r=>r.id===old)):nextRack(sid),
+      n=old?rackNumber(store.data.racks.find(r=>r.id===old&&r.siteId===sid)):nextRack(sid),
       id=old||makeRackId(sid,n),rc=`R${n}`,
       modules=Number(document.querySelector('#rack-modules').value),
       levels=Number(document.querySelector('#rack-levels').value),
       layout=layoutFromDialog(levels);
     if(!layout){showRackFeedback('Revisa la distribución: usa “Única” sola o posiciones separadas por coma, por ejemplo A, B, C.');return;}
-    const probe={...(store.data.racks.find(r=>r.id===id)||{}),id,siteId:sid,rackCode:rc,modules,levels,levelPositions:layout};
+    const probe={...(store.data.racks.find(r=>r.id===id&&r.siteId===sid)||{}),id,siteId:sid,rackCode:rc,modules,levels,levelPositions:layout};
     const occupied=obsoleteOccupiedLocations(probe);
     if(occupied.length){showRackFeedback(`No se puede guardar: ${occupied[0].id} contiene stock o un pallet. Muévelo primero desde Mover/Reubicar y vuelve a intentarlo.`);return;}
     await store.commit(d=>{
-      let r=d.racks.find(x=>x.id===id);
+      let r=d.racks.find(x=>x.id===id&&x.siteId===sid);
       if(!r){r={id,siteId:sid,rackCode:rc,sectorId:null};d.racks.push(r);}
       Object.assign(r,{name:document.querySelector('#rack-name').value.trim()||rc,modules,levels,status:document.querySelector('#rack-status').value,usage:document.querySelector('#rack-usage').value.trim(),levelPositions:layout});
       r.moduleLevelPositions=r.moduleLevelPositions||{};

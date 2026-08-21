@@ -41,6 +41,20 @@ if(!data.session.activeSiteId){const u=(data.users||[]).find(x=>x.id===data.sess
      }
    }
  }
- if((data.meta?.version||0)<14){data.meta=data.meta||{};data.meta.version=14;changed=true;}
+ // V15 · aislamiento físico por centro. Todos los objetos operativos legados
+ // quedan vinculados explícitamente a su centro; los datos históricos actuales
+ // pertenecen a Bodega Recoleta cuando no existe una referencia previa.
+ const fallbackSite=(data.sites||[]).find(s=>s.id==='REC')?.id||(data.sites||[])[0]?.id||'REC';
+ const siteFromLocation=id=>(data.locations||[]).find(l=>l.id===id)?.siteId;
+ const siteFromPallet=id=>(data.pallets||[]).find(p=>p.id===id)?.siteId;
+ for(const r of data.racks||[]){if(!r.siteId){r.siteId=fallbackSite;changed=true;}}
+ for(const l of data.locations||[]){if(!l.siteId){l.siteId=(data.racks||[]).find(r=>r.id===l.rackId)?.siteId||fallbackSite;changed=true;}}
+ for(const p of data.pallets||[]){if(!p.siteId){p.siteId=siteFromLocation(p.locationId)||fallbackSite;changed=true;}}
+ for(const r of data.receipts||[]){if(!r.siteId){r.siteId=siteFromPallet(r.palletId)||fallbackSite;changed=true;}}
+ for(const i of data.inventory||[]){const sid=i.siteId||siteFromLocation(i.locationId)||siteFromPallet(i.palletId)||fallbackSite;if(i.siteId!==sid){i.siteId=sid;changed=true;}}
+ for(const m of data.movements||[]){if(!m.siteId){m.siteId=siteFromLocation(m.to)||siteFromLocation(m.from)||siteFromPallet(m.palletId)||siteFromPallet(m.sourcePalletId)||fallbackSite;changed=true;}}
+ for(const t of data.transfers||[]){if(!t.sourceSiteId){t.sourceSiteId=fallbackSite;changed=true;}}
+ for(const o of data.orders||[]){if(!o.sourceSiteId){o.sourceSiteId=fallbackSite;changed=true;}}
+ if((data.meta?.version||0)<15){data.meta=data.meta||{};data.meta.version=15;changed=true;}
  return changed;
 }

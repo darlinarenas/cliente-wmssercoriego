@@ -8,7 +8,7 @@ class AuthService{
     const {auth:useAuth=true,...fetchOptions}=options;
     const headers={'Content-Type':'application/json',...(fetchOptions.headers||{})};
     const token=useAuth?this.token():'';
-    if(token)headers.Authorization=`Bearer ${token}`;
+    if(token){headers.Authorization=`Bearer ${token}`;const site=localStorage.getItem('serco_wms_active_site');if(site)headers['X-WMS-Site']=site;}
     const res=await fetch(`${APP_CONFIG.apiBaseUrl}${path}`,{...fetchOptions,headers});
     const data=res.status===204?null:await res.json().catch(()=>({}));
     if(!res.ok)throw Object.assign(new Error(data?.error||`API ${res.status}`),{status:res.status,code:data?.code});

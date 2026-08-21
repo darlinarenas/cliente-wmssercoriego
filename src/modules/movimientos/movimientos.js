@@ -71,7 +71,7 @@ export function renderMovements(root){
   if(qty<1||qty>source.qty){toast(`Disponible en el origen seleccionado: ${source.qty}`);return;}
   const at=new Date().toISOString();
   try{
-    await store.commit(d=>{const result=deductStock(d,{code,qty,sourceKey});if(!result.ok)throw new Error(result.message);addStock(d,{code,qty,locationId:to,palletId:null});d.movements.unshift({id:`MOV-${Date.now()}`,type:'MOVIMIENTO',productCode:code,qty,from:source.palletId?`${source.palletId} / ${source.locationId}`:source.locationId,to,sourcePalletId:source.palletId||null,reason,userId:d.session.userId,siteId:active,at,allocations:result.allocations});},`Movimiento ${code}: ${source.palletId?`Palet ${source.palletId} / `:''}${source.locationId} → ${to} (${qty} un.)`);
+    await store.commit(d=>{const result=deductStock(d,{code,qty,sourceKey,siteId:active});if(!result.ok)throw new Error(result.message);addStock(d,{code,qty,locationId:to,palletId:null});d.movements.unshift({id:`MOV-${Date.now()}`,type:'MOVIMIENTO',productCode:code,qty,from:source.palletId?`${source.palletId} / ${source.locationId}`:source.locationId,to,sourcePalletId:source.palletId||null,reason,userId:d.session.userId,siteId:active,at,allocations:result.allocations});},`Movimiento ${code}: ${source.palletId?`Palet ${source.palletId} / `:''}${source.locationId} → ${to} (${qty} un.)`);
     renderMovements(root);await notice('Movimiento realizado',`${qty} unidad(es) de ${code} se descontaron del origen y se sumaron al destino dentro de ${store.data.sites.find(s=>s.id===active)?.name||active}.`,'success');
   }catch(ex){await notice('Movimiento no realizado',ex.message||'No se pudo guardar el movimiento.','error');}
  };

@@ -4,27 +4,28 @@ import { esc,badge,empty } from '../../components/ui.js';
 import { enlazarBotonEscaner } from '../../services/camara-ui.js';
 import { productPositions,availableFrom,deductStock } from '../../services/inventory-ops.js';
 import { resolveProduct } from '../../services/product-codes.js';
-import { activeSiteId } from '../../services/stock.js';
+import { activeSiteId,inventorySiteId } from '../../services/stock.js';
 import { activeCompanyId,siteCompanyId } from '../../services/company.js';
 
 function pname(c){return resolveProduct(c)?.name||c;}
 function pdesc(c){return resolveProduct(c)?.description||'';}
 function uname(id){return store.data.users.find(u=>u.id===id)?.name||id||'No registrado';}
 function userOpts(){return store.data.users.filter(u=>u.active).map(u=>`<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('');}
-function available(code){return availableFrom(store.data,code,'AUTO');}
-function openTransfer(){return store.data.transfers.find(t=>['PREPARANDO','LISTO'].includes(t.status));}
+function activePositions(code){const site=activeSiteId();return productPositions(store.data,code).filter(p=>inventorySiteId({locationId:p.locationId,palletId:p.palletId})===site);}
+function available(code){return availableFrom(store.data,code,'AUTO',activeSiteId());}
+function openTransfer(){const site=activeSiteId();return store.data.transfers.find(t=>t.sourceSiteId===site&&['PREPARANDO','LISTO'].includes(t.status));}
 function sourceLabel(pos){
  const loc=store.data.locations.find(l=>l.id===pos.locationId);return `${pos.palletId?`Palet ${pos.palletId} · `:''}${pos.locationId}${loc?.rackId?` · ${loc.rackId}`:''} · ${pos.qty} un.`;
 }
 function sourceOptions(code){
- const pos=productPositions(store.data,code),total=pos.reduce((a,b)=>a+b.qty,0);
+ const pos=activePositions(code),total=pos.reduce((a,b)=>a+b.qty,0);
  return `<option value="AUTO">Automático · rack primero · ${total} un. totales</option>${pos.map(p=>`<option value="${esc(p.key)}">${esc(sourceLabel(p))}</option>`).join('')}`;
 }
 function productLookup(code){
  const p=resolveProduct(code);
  if(!code)return `<div class="lookup-empty"><b>Escribe o escanea un código</b><small>Aquí verás qué producto estás agregando, cuánto stock tiene y dónde está.</small></div>`;
  if(!p)return `<div class="lookup-error"><b>Código ${esc(code)} no registrado</b><small>No se agregará al despacho hasta que exista en Productos.</small></div>`;
- const pos=productPositions(store.data,code),total=pos.reduce((a,b)=>a+b.qty,0);
+ const pos=activePositions(code),total=pos.reduce((a,b)=>a+b.qty,0);
  return `<div class="dispatch-product-card"><div><span class="sku">Código ${esc(p.code)}</span><h3>${esc(p.name)}</h3><small>${esc(p.description||'Sin descripción')}</small></div><div class="stock-total"><small>Disponible ahora</small><b>${total}</b><span>unidades</span></div></div><div class="stock-location-chips">${pos.length?pos.map(x=>`<span><b>${esc(x.palletId?`Palet ${x.palletId}`:x.locationId)}</b> ${x.qty} un.</span>`).join(''):empty('Sin stock disponible','El producto existe, pero no tiene unidades localizadas.')}</div>`;
 }
 function allocationText(a){return `${a.palletId?`Palet ${a.palletId} / `:''}${a.locationId}: ${a.qty} un. (${a.beforeQty} → ${a.afterQty})`;}
@@ -38,7 +39,7 @@ export function renderTransfers(root){
  <div class="dispatch-note"><b>Importante:</b> agregar prepara la salida; el descuento matemático se ejecuta al pulsar <b>Confirmar despacho → EN TRÁNSITO</b>.</div>
  <div class="scan-list">${(t.items||[]).length?t.items.map((x,i)=>`<div class="scan-row transfer-item-row"><div><b>${esc(x.code)}</b><small>${esc(pname(x.code))}</small><small>Origen: ${esc(x.sourceKey&&x.sourceKey!=='AUTO'?(x.sourceLabel||x.sourceKey):'Automático · prioriza stock en rack')}</small></div><strong>${x.qty}</strong><button class="ghost tr-remove" data-i="${i}">×</button></div>`).join(''):empty('Salida vacía','Agrega los productos que retirará el conductor.')}</div>
  <div class="transfer-actions transfer-actions-grid"><label>Supervisado / revisado por<select id="tr-supervisor"><option value="">Seleccionar…</option>${userOpts()}</select></label><button id="mark-transit" class="primary">Confirmar despacho → EN TRÁNSITO</button></div></section>`:`<section class="panel">${empty('Sin salida en preparación','Crea una salida cuando la tienda o la bodega de ventas venga a retirar productos.')}</section>`}
- <section class="panel"><div class="panel-head"><div><h3>Transferencias / salidas recientes</h3><small>Stock descontado, destino y responsables</small></div></div>${d.transfers.length?d.transfers.slice(0,10).map(x=>`<div class="history-row"><div class="hist-icon">⇄</div><div><b>${esc(x.id)} · ${esc(x.destinationName)}</b><small>${esc(x.status)} · ${(x.items||[]).reduce((a,b)=>a+b.qty,0)} unidades</small><small>Despachó: ${esc(uname(x.dispatchedBy||x.scannedBy))} · Supervisó: ${esc(uname(x.supervisedBy))} · Conductor: ${esc(x.driver||'No registrado')}</small>${x.status==='EN_TRANSITO'?`<small>Inventario descontado al confirmar salida.</small>`:''}</div><time>${new Date(x.departedAt||x.createdAt).toLocaleString('es-CL')}</time></div>`).join(''):empty('Sin transferencias','Las salidas registradas aparecerán aquí.')}</section>
+ <section class="panel"><div class="panel-head"><div><h3>Transferencias / salidas recientes</h3><small>Stock descontado, destino y responsables</small></div></div>${d.transfers.filter(x=>x.sourceSiteId===activeSiteId(d)||x.destinationSiteId===activeSiteId(d)).length?d.transfers.filter(x=>x.sourceSiteId===activeSiteId(d)||x.destinationSiteId===activeSiteId(d)).slice(0,10).map(x=>`<div class="history-row"><div class="hist-icon">⇄</div><div><b>${esc(x.id)} · ${esc(x.destinationName)}</b><small>${esc(x.status)} · ${(x.items||[]).reduce((a,b)=>a+b.qty,0)} unidades</small><small>Despachó: ${esc(uname(x.dispatchedBy||x.scannedBy))} · Supervisó: ${esc(uname(x.supervisedBy))} · Conductor: ${esc(x.driver||'No registrado')}</small>${x.status==='EN_TRANSITO'?`<small>Inventario descontado al confirmar salida.</small>`:''}</div><time>${new Date(x.departedAt||x.createdAt).toLocaleString('es-CL')}</time></div>`).join(''):empty('Sin transferencias','Las salidas registradas aparecerán aquí.')}</section>
  <dialog id="transfer-dialog"><form method="dialog"><div class="dialog-head"><h3>Nueva salida</h3><button value="cancel" class="ghost">×</button></div><label>Destino<select id="tr-dest">${d.sites.filter(s=>s.active!==false&&s.id!==activeSiteId(d)&&siteCompanyId(s,d)===activeCompanyId(d)).map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select></label><label>Conductor / quien retira<input id="tr-driver" placeholder="Nombre"></label><div class="dialog-actions"><button value="cancel" class="ghost">Cancelar</button><button id="create-transfer" value="default" class="primary">Crear salida</button></div></form></dialog>`,'transferencias');
  wireShell();
  if(!t){
@@ -47,22 +48,22 @@ export function renderTransfers(root){
  }else{
    enlazarBotonEscaner('camara-tr-code','tr-code',{titulo:'Escanear producto para despacho',ayuda:'Apunta al código de barras del producto'});
    const codeInput=document.querySelector('#tr-code'),sourceSel=document.querySelector('#tr-source'),preview=document.querySelector('#tr-product-preview'),qtyInput=document.querySelector('#tr-qty');
-   const refreshLookup=()=>{const raw=codeInput.value.trim(),p=resolveProduct(raw),code=p?.code||raw;preview.innerHTML=productLookup(raw);sourceSel.innerHTML=p?sourceOptions(code):'<option value="AUTO">Automático</option>';const avail=p?availableFrom(store.data,code,sourceSel.value):0;qtyInput.max=avail||'';};
-   codeInput.addEventListener('input',refreshLookup);codeInput.addEventListener('change',refreshLookup);sourceSel.addEventListener('change',()=>{const p=resolveProduct(codeInput.value.trim()),code=p?.code||'',avail=p?availableFrom(store.data,code,sourceSel.value):0;qtyInput.max=avail||'';});refreshLookup();
+   const refreshLookup=()=>{const raw=codeInput.value.trim(),p=resolveProduct(raw),code=p?.code||raw;preview.innerHTML=productLookup(raw);sourceSel.innerHTML=p?sourceOptions(code):'<option value="AUTO">Automático</option>';const avail=p?availableFrom(store.data,code,sourceSel.value,activeSiteId()):0;qtyInput.max=avail||'';};
+   codeInput.addEventListener('input',refreshLookup);codeInput.addEventListener('change',refreshLookup);sourceSel.addEventListener('change',()=>{const p=resolveProduct(codeInput.value.trim()),code=p?.code||'',avail=p?availableFrom(store.data,code,sourceSel.value,activeSiteId()):0;qtyInput.max=avail||'';});refreshLookup();
    document.querySelector('#add-transfer-item').onsubmit=async(e)=>{
-     e.preventDefault();const found=resolveProduct(codeInput.value.trim());if(!found){toast('Código no registrado');return;}const code=found.code,qty=Number(qtyInput.value),sourceKey=sourceSel.value||'AUTO',avail=availableFrom(store.data,code,sourceKey),pos=productPositions(store.data,code).find(p=>p.key===sourceKey);if(qty<1){toast('Cantidad inválida');return;}if(qty>avail){toast(`Solo hay ${avail} unidades disponibles en el origen seleccionado`);return;}
+     e.preventDefault();const found=resolveProduct(codeInput.value.trim());if(!found){toast('Código no registrado');return;}const code=found.code,qty=Number(qtyInput.value),sourceKey=sourceSel.value||'AUTO',avail=availableFrom(store.data,code,sourceKey,activeSiteId()),pos=activePositions(code).find(p=>p.key===sourceKey);if(qty<1){toast('Cantidad inválida');return;}if(qty>avail){toast(`Solo hay ${avail} unidades disponibles en el origen seleccionado`);return;}
      const already=(t.items||[]).filter(i=>i.code===code&&i.sourceKey===sourceKey).reduce((s,i)=>s+Number(i.qty||0),0);if(already+qty>avail){toast(`Ya preparaste ${already}. En ese origen quedan ${avail-already} unidades disponibles para esta salida.`);return;}
      await store.commit(s=>{const tt=s.transfers.find(x=>x.id===t.id),it=tt.items.find(x=>x.code===code&&x.sourceKey===sourceKey);if(it)it.qty+=qty;else tt.items.push({code,qty,sourceKey,sourceLabel:pos?sourceLabel(pos):'Automático'});},`Producto ${code} (${qty} un.) agregado a ${t.id}`);renderTransfers(root);
    };
    document.querySelectorAll('.tr-remove').forEach(b=>b.onclick=async()=>{await store.commit(s=>s.transfers.find(x=>x.id===t.id).items.splice(Number(b.dataset.i),1),`Producto retirado de ${t.id}`);renderTransfers(root);});
    document.querySelector('#mark-transit').onclick=async()=>{
      const supervisedBy=document.querySelector('#tr-supervisor').value;if(!(t.items||[]).length){toast('Agrega productos antes de despachar');return;}if(!supervisedBy){toast('Selecciona quién revisó el despacho');return;}
-     const grouped=new Map();for(const it of t.items){const k=`${it.code}@@${it.sourceKey||'AUTO'}`,prev=grouped.get(k)||{...it,qty:0};prev.qty+=Number(it.qty||0);grouped.set(k,prev);}for(const it of grouped.values()){const avail=availableFrom(store.data,it.code,it.sourceKey||'AUTO');if(it.qty>avail){toast(`Existencias insuficientes para ${it.code}. Disponible ahora: ${avail}`);return;}}
-     const simulation=JSON.parse(JSON.stringify(store.data));for(const it of t.items){const test=deductStock(simulation,{code:it.code,qty:it.qty,sourceKey:it.sourceKey||'AUTO'});if(!test.ok){toast(`No se puede completar la salida de ${it.code}: ${test.message}`);return;}}
+     const grouped=new Map();for(const it of t.items){const k=`${it.code}@@${it.sourceKey||'AUTO'}`,prev=grouped.get(k)||{...it,qty:0};prev.qty+=Number(it.qty||0);grouped.set(k,prev);}for(const it of grouped.values()){const avail=availableFrom(store.data,it.code,it.sourceKey||'AUTO',activeSiteId());if(it.qty>avail){toast(`Existencias insuficientes para ${it.code}. Disponible ahora: ${avail}`);return;}}
+     const simulation=JSON.parse(JSON.stringify(store.data));for(const it of t.items){const test=deductStock(simulation,{code:it.code,qty:it.qty,sourceKey:it.sourceKey||'AUTO',siteId:t.sourceSiteId});if(!test.ok){toast(`No se puede completar la salida de ${it.code}: ${test.message}`);return;}}
      const now=new Date().toISOString();
      await store.commit(s=>{
        const tt=s.transfers.find(x=>x.id===t.id);tt.stockMovements=[];
-       for(const it of tt.items){const result=deductStock(s,{code:it.code,qty:it.qty,sourceKey:it.sourceKey||'AUTO'});if(!result.ok)throw new Error(result.message);it.allocations=result.allocations;tt.stockMovements.push(...result.allocations.map(a=>({code:it.code,...a})));for(const a of result.allocations){s.movements.unshift({id:`MOV-DESP-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,type:'DESPACHO_SALIDA',productCode:it.code,qty:a.qty,from:a.palletId?`${a.palletId} / ${a.locationId}`:a.locationId,to:`EN TRÁNSITO · ${tt.destinationName}`,reason:`Despacho ${tt.id} · ${a.beforeQty} → ${a.afterQty} en origen`,userId:s.session.userId,palletId:a.palletId||null,transferId:tt.id,beforeQty:a.beforeQty,afterQty:a.afterQty,at:now});}}
+       for(const it of tt.items){const result=deductStock(s,{code:it.code,qty:it.qty,sourceKey:it.sourceKey||'AUTO',siteId:tt.sourceSiteId});if(!result.ok)throw new Error(result.message);it.allocations=result.allocations;tt.stockMovements.push(...result.allocations.map(a=>({code:it.code,...a})));for(const a of result.allocations){s.movements.unshift({id:`MOV-DESP-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,siteId:tt.sourceSiteId,type:'DESPACHO_SALIDA',productCode:it.code,qty:a.qty,from:a.palletId?`${a.palletId} / ${a.locationId}`:a.locationId,to:`EN TRÁNSITO · ${tt.destinationName}`,reason:`Despacho ${tt.id} · ${a.beforeQty} → ${a.afterQty} en origen`,userId:s.session.userId,palletId:a.palletId||null,transferId:tt.id,beforeQty:a.beforeQty,afterQty:a.afterQty,at:now});}}
        tt.status='EN_TRANSITO';tt.departedAt=now;tt.scannedBy=s.session.userId;tt.dispatchedBy=s.session.userId;tt.supervisedBy=supervisedBy;
      },`Transferencia ${t.id} salió EN TRÁNSITO y descontó ${(t.items||[]).reduce((a,b)=>a+Number(b.qty||0),0)} unidades del inventario`);
      toast('Salida registrada: inventario descontado y productos EN TRÁNSITO');renderTransfers(root);
