@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.20-palets-zonas-v1';
+const APP_VERSION = '2026.08.20-palets-mapa-v1';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
