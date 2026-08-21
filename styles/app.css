@@ -530,3 +530,8 @@
     -webkit-overflow-scrolling:touch!important;
   }
 }
+
+/* V16 · zonas temporales por centro y traslado de palet completo */
+.receipt-page-actions{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}.temp-location-shortcut{margin-top:7px;width:max-content}.pallet-whole-move{margin:16px 0 20px;padding:16px;border:1px solid #cfe8d7;border-radius:16px;background:#f6fcf8}.pallet-whole-move h3{margin:4px 0}.pallet-whole-move p{margin:5px 0 14px}.pallet-whole-move-grid{display:grid;grid-template-columns:1.2fr 1fr auto;gap:12px;align-items:end}.pallet-whole-move-grid label{display:grid;gap:6px;font-size:12px;font-weight:800}.pallet-whole-move-grid small{color:var(--muted)}.pallet-whole-move-grid small.valid{color:#07863f;font-weight:800}
+@media(max-width:900px){.pallet-whole-move-grid{grid-template-columns:1fr 1fr}.pallet-whole-move-grid>button{grid-column:1/-1}.receipt-page-actions{width:100%;justify-content:flex-start}}
+@media(max-width:620px){.pallet-whole-move-grid{grid-template-columns:1fr}.pallet-whole-move-grid>button{grid-column:auto}.receipt-page-actions>*{flex:1}}

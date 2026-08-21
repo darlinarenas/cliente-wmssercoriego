@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.20-centros-v1';
+const APP_VERSION = '2026.08.20-palets-zonas-v1';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
@@ -53,6 +53,7 @@ const PRECACHE = [
   './src/services/stock.js',
   './src/services/ubicaciones.js',
   './src/services/inventory-ops.js',
+  './src/services/pallet-ops.js',
   './assets/sounds/scan-no-encontrado.wav',
   './assets/sounds/scan-ok.wav',
   './src/services/sonidos.js',

@@ -7,6 +7,7 @@ import { deductStock, addStock } from '../../services/inventory-ops.js';
 import { resolveProduct,productAliases } from '../../services/product-codes.js';
 import { openProductEditor } from '../../services/product-editor.js';
 import { activeSiteId,inventorySiteId } from '../../services/stock.js';
+import { canReceiveWholePallet, moveWholePallet } from '../../services/pallet-ops.js';
 
 function params(){ return new URLSearchParams(location.hash.split('?')[1]||''); }
 function producto(code){ return resolveProduct(code); }
@@ -43,6 +44,17 @@ function opcionesDestino(code,palletId){
   return out.join('');
 }
 
+
+function opcionesMoverPalet(palletId){
+  const site=activeSiteId(),pallet=store.data.pallets.find(p=>p.id===palletId&&p.siteId===site);
+  return store.data.locations.filter(l=>l.siteId===site&&l.id!==pallet?.locationId&&canReceiveWholePallet(l)&&!['BLOQUEADA','INHABILITADA'].includes(l.status))
+    .sort((a,b)=>{const pa=['POR_UBICAR','RECEPCION_TRANSFERENCIA'].includes(a.kind)?0:1,pb=['POR_UBICAR','RECEPCION_TRANSFERENCIA'].includes(b.kind)?0:1;return pa-pb||String(a.id).localeCompare(String(b.id),undefined,{numeric:true});})
+    .map(l=>`<option value="${esc(l.id)}">${['POR_UBICAR','RECEPCION_TRANSFERENCIA'].includes(l.kind)?'Zona temporal':'Posición'} · ${esc(l.label||vistaCodigoUbicacion(l,store.data))} · ${esc(l.id)}</option>`).join('');
+}
+function moverPaletCompletoPanel(p){
+  return `<section class="pallet-whole-move"><div><span class="eyebrow">TRASLADO DE PALET COMPLETO</span><h3>Mover ${esc(p.id)} con todo su contenido</h3><p>El palet conserva todos sus productos. Puedes enviarlo a una zona temporal o a otra posición del centro activo.</p></div><div class="pallet-whole-move-grid"><label>Código de destino<div class="scan-line"><input id="whole-pallet-location" placeholder="Escanea o escribe ubicación" autocomplete="off"><button id="whole-pallet-scan" class="scan-button" type="button">▣</button></div><small id="whole-pallet-location-status">Escanea la etiqueta física del destino.</small></label><label>Elegir manualmente<select id="whole-pallet-select"><option value="">Seleccionar destino…</option>${opcionesMoverPalet(p.id)}</select></label><button id="whole-pallet-confirm" class="primary" type="button">Mover palet completo</button></div></section>`;
+}
+
 function card(p){
   return `<button class="rack-card pallet-card-click" data-pallet="${esc(p.id)}" type="button"><div class="rack-card-body pallet-card-body"><div class="pallet-card-head"><h3>${esc(p.id)}</h3><span class="pallet-arrow">›</span></div><p>${esc(String(p.status||'SIN ESTADO').replaceAll('_',' '))}</p><small>${esc(p.locationId||'Sin ubicación definitiva')}</small><div class="pallet-stats"><span><b>${totalSku(p.id)}</b><small>productos</small></span><span><b>${totalUnidades(p.id)}</b><small>unidades</small></span></div></div></button>`;
 }
@@ -65,6 +77,7 @@ function detallePalet(p){
   return `<section class="panel pallet-detail-panel">
     <div class="panel-head pallet-detail-head"><div><span class="eyebrow">ORGANIZAR PALET</span><h2>${esc(p.id)}</h2><small>${esc(String(p.status||'').replaceAll('_',' '))} · ${esc(p.locationId||'Sin ubicación')}</small></div><div class="pallet-head-actions"><button id="activar-modo-rapido" class="primary" type="button">⚡ Modo ubicación rápida</button><a class="ghost" href="#/palets">Cerrar ×</a></div></div>
     <div class="pallet-meta-grid"><span><b>Origen</b><small>${esc(p.origin||rec?.origin||'No registrado')}</small></span><span><b>Recibió</b><small>${esc(usuario(rec?.receivedBy))}</small></span><span><b>Supervisó</b><small>${esc(usuario(rec?.supervisedBy))}</small></span><span><b>Contenido</b><small>${agrupado.length} productos · ${totalUnidades(p.id)} unidades</small></span></div>
+    ${moverPaletCompletoPanel(p)}
     <section id="modo-rapido-pal" class="quick-location-panel oculto">${modoRapido(p.id)}</section>
     <div class="pallet-search-box"><label>Buscar dentro de este palet<div class="pallet-search-input"><input id="pallet-q" placeholder="Código, descripción o palabra" autocomplete="off"><button id="pallet-camera" class="scan-button" type="button" title="Escanear producto">▣</button></div><small>Escribe o escanea únicamente el producto que vas a ordenar.</small></label></div>
     <div id="pallet-results">${listaContenido(agrupado,p.id,'')}</div>
@@ -135,6 +148,11 @@ async function moverDesdePalet({palletId,code,qty,codigoManual='',selectValue=''
 
 function wireDetail(palletId){
   const construirBase=()=>[...new Set(contenidoPalet(palletId).map(i=>i.productCode))].map(code=>({code,qty:contenidoPalet(palletId).filter(i=>i.productCode===code).reduce((a,b)=>a+b.qty,0)}));
+  const wholeInput=document.querySelector('#whole-pallet-location'),wholeSelect=document.querySelector('#whole-pallet-select'),wholeStatus=document.querySelector('#whole-pallet-location-status');
+  document.querySelector('#whole-pallet-scan').onclick=()=>abrirCamaraEn('whole-pallet-location','Mover palet completo','Apunta a la etiqueta de la zona o posición de destino');
+  const validateWholeDestination=()=>{const loc=buscarUbicacionPorCodigo(wholeInput.value,store.data),valid=loc&&loc.siteId===activeSiteId()&&canReceiveWholePallet(loc);wholeStatus.textContent=!wholeInput.value?'Escanea la etiqueta física del destino.':valid?`✓ Destino válido: ${vistaCodigoUbicacion(loc,store.data)}`:loc?'Esa ubicación no admite este palet o pertenece a otro centro':'Ubicación no reconocida';wholeStatus.classList.toggle('valid',!!valid);};
+  wholeInput.oninput=()=>{if(wholeInput.value)wholeSelect.value='';validateWholeDestination();};wholeSelect.onchange=()=>{if(wholeSelect.value){wholeInput.value='';wholeStatus.textContent='Destino seleccionado manualmente.';wholeStatus.classList.add('valid');}};
+  document.querySelector('#whole-pallet-confirm').onclick=async()=>{const scanned=wholeInput.value.trim(),loc=scanned?buscarUbicacionPorCodigo(scanned,store.data):store.data.locations.find(l=>l.id===wholeSelect.value),site=activeSiteId();if(!loc){toast('Escanea, escribe o selecciona un destino');return;}let result;try{await store.commit(d=>{result=moveWholePallet(d,{palletId,siteId:site,destinationLocationId:loc.id,userId:d.session.userId});if(!result.ok)throw new Error(result.message);},`Palet ${palletId} trasladado completo a ${loc.id}`);}catch(error){toast(error.message||'No fue posible mover el palet');return;}toast(result.message);renderPallets(document.querySelector('#app'));};
   const q=document.querySelector('#pallet-q'), out=document.querySelector('#pallet-results');
   const repintar=()=>{out.innerHTML=listaContenido(construirBase(),palletId,q.value);wirePlacement(palletId);};
   q.oninput=repintar;document.querySelector('#pallet-camera').onclick=()=>abrirCamaraEn('pallet-q','Escanear producto del palet','Apunta al código de barras de la caja');wirePlacement(palletId);
