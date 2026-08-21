@@ -27,11 +27,36 @@ function positionId(r,module,level,position=''){
  const base=`${r.siteId}-${rackCode(r)}-M${module}-N${level}`;
  return position?`${base}-${position}`:base;
 }
+
+function positionContents(locationId){
+ const site=activeSiteId();
+ const rows=store.data.inventory.filter(i=>i.locationId===locationId&&i.qty>0&&(!i.siteId||i.siteId===site));
+ const grouped=new Map();
+ rows.forEach(i=>{const key=String(i.productCode),prev=grouped.get(key)||{productCode:key,qty:0,pallets:new Set()};prev.qty+=Number(i.qty||0);if(i.palletId)prev.pallets.add(i.palletId);grouped.set(key,prev);});
+ return [...grouped.values()].sort((a,b)=>String(a.productCode).localeCompare(String(b.productCode),'es',{numeric:true}));
+}
+function ensurePositionDialog(){
+ let dlg=document.querySelector('#rack-position-dialog');
+ if(!dlg){document.body.insertAdjacentHTML('beforeend','<dialog id="rack-position-dialog" class="rack-position-dialog"></dialog>');dlg=document.querySelector('#rack-position-dialog');}
+ return dlg;
+}
+function openPositionDialog(locationId){
+ const site=activeSiteId(),loc=store.data.locations.find(l=>l.id===locationId&&l.siteId===site);if(!loc)return;
+ const rows=positionContents(locationId),pallets=(store.data.pallets||[]).filter(p=>p.siteId===site&&p.locationId===locationId&&p.status!=='CERRADO'),total=rows.reduce((a,b)=>a+b.qty,0),dlg=ensurePositionDialog();
+ dlg.innerHTML=`<div class="rack-position-card"><div class="dialog-head"><div><span class="eyebrow">POSICIÓN OCUPADA</span><h3>${esc(locationId)}</h3><small>${esc(loc.rackId||'Rack')} · ${rows.length} producto${rows.length===1?'':'s'} · ${total} unidades</small></div><button type="button" id="close-rack-position" class="ghost">×</button></div>
+   <div class="rack-position-summary"><span><small>Estado</small><b>OCUPADA</b></span><span><small>Palet${pallets.length===1?'':'s'}</small><b>${pallets.length?esc(pallets.map(p=>p.id).join(' · ')):'Sin palet'}</b></span><span><small>Total</small><b>${total} un.</b></span></div>
+   <div class="rack-position-scroll">${rows.length?`<table class="rack-position-table"><thead><tr><th>Código</th><th>Producto</th><th>Palet</th><th>Cantidad</th></tr></thead><tbody>${rows.map(x=>{const p=producto(x.productCode);return `<tr><td><b>${esc(x.productCode)}</b></td><td>${esc(p?.description||p?.name||`Producto ${x.productCode}`)}</td><td>${esc([...x.pallets].join(' · ')||'—')}</td><td><strong>${x.qty}</strong></td></tr>`;}).join('')}</tbody></table>`:empty('Posición ocupada sin unidades registradas',pallets.length?`Está asignado el palet ${pallets.map(p=>p.id).join(', ')}.`:'No hay detalle de inventario para esta posición.')}</div>
+   <div class="dialog-actions"><button type="button" id="close-rack-position-bottom" class="primary">Cerrar</button></div></div>`;
+ dlg.querySelector('#close-rack-position').onclick=()=>dlg.close();
+ dlg.querySelector('#close-rack-position-bottom').onclick=()=>dlg.close();
+ dlg.showModal();
+}
+
 function rackDistributionHtml(r){
  const mods=Array.from({length:Number(r.modules||0)},(_,i)=>i+1);
  const levels=Array.from({length:Number(r.levels||0)},(_,i)=>Number(r.levels)-i);
  if(!mods.length||!levels.length)return `<div class="warning-box">Este rack todavía no tiene una estructura configurada.</div>`;
- return `<div class="rack-content-map"><div class="rack-content-map-head"><div><span class="eyebrow">MAPA DE DISTRIBUCIÓN</span><h4>${esc(r.name)}</h4><small>Vista física del rack · Nivel 1 abajo</small></div></div><div class="rack-ab-grid">${mods.map(m=>`<div class="rack-module-map"><div class="rack-module-head"><b>Módulo ${m}</b></div>${levels.map(n=>{const positions=levelPositions(r,n,m);return `<div class="rack-level-map"><span>Nivel ${n}</span><div class="rack-position-list">${positions.map(pos=>{const id=positionId(r,m,n,pos),loc=store.data.locations.find(l=>l.id===id),inv=store.data.inventory.filter(i=>i.locationId===id&&i.qty>0),pal=(store.data.pallets||[]).find(p=>p.locationId===id&&p.status!=='CERRADO'),qty=inv.reduce((a,b)=>a+Number(b.qty||0),0),label=pos||loc?.position||'Única';return `<div class="position-chip ${!pos?'single':''} ${(pal||qty>0)?'occupied':''}" title="${esc(id)}"><b>${esc(label)}</b><small>${pal?esc(pal.id):(qty>0?`${qty} un.`:(pos?'Libre':esc(id)))}</small></div>`;}).join('')}</div></div>`;}).join('')}</div>`).join('')}</div></div>`;
+ return `<div class="rack-content-map"><div class="rack-content-map-head"><div><span class="eyebrow">MAPA DE DISTRIBUCIÓN</span><h4>${esc(r.name)}</h4><small>Vista física del rack · Nivel 1 abajo</small></div></div><div class="rack-ab-grid">${mods.map(m=>`<div class="rack-module-map"><div class="rack-module-head"><b>Módulo ${m}</b></div>${levels.map(n=>{const positions=levelPositions(r,n,m);return `<div class="rack-level-map"><span>Nivel ${n}</span><div class="rack-position-list">${positions.map(pos=>{const id=positionId(r,m,n,pos),loc=store.data.locations.find(l=>l.id===id),inv=store.data.inventory.filter(i=>i.locationId===id&&i.qty>0),pal=(store.data.pallets||[]).find(p=>p.locationId===id&&p.status!=='CERRADO'),qty=inv.reduce((a,b)=>a+Number(b.qty||0),0),label=pos||loc?.position||'Única';const occupied=!!(pal||qty>0),status=pal?`${pal.id} · ${qty} un.`:(qty>0?`${qty} un.`:(pos?'Libre':esc(id)));return occupied?`<button type="button" class="position-chip rack-position-detail ${!pos?'single':''} occupied" data-location="${esc(id)}" title="Ver contenido de ${esc(id)}"><b>${esc(label)}</b><small>● OCUPADO · ${esc(status)}</small></button>`:`<div class="position-chip ${!pos?'single':''}" title="${esc(id)}"><b>${esc(label)}</b><small>${esc(status)}</small></div>`;}).join('')}</div></div>`;}).join('')}</div>`).join('')}</div></div>`;
 }
 function pintarDetalle(rackId){
  const d=store.data,siteId=activeSiteId(d),r=d.racks.find(x=>x.id===rackId&&x.siteId===siteId),box=document.querySelector('#rack-detail'); if(!r||!box)return;
@@ -45,6 +70,7 @@ function pintarDetalle(rackId){
  document.querySelector('#close-rack-detail').onclick=()=>box.innerHTML='';
  document.querySelector('#rack-filter').addEventListener('input',()=>pintarDetalle(rackId));
  enlazarBotonEscaner('camara-rack-filter','rack-filter',{titulo:'Escanear producto del rack',ayuda:'Apunta al código de barras para filtrar'});
+ box.querySelectorAll('.rack-position-detail').forEach(b=>b.onclick=()=>openPositionDialog(b.dataset.location));
  box.scrollIntoView({behavior:'smooth',block:'start'});
 }
 export function renderRacks(root){
