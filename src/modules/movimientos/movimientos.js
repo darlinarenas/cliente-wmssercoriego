@@ -84,10 +84,17 @@ export function renderMovements(root){
  enlazarBotonEscaner('camara-mv-product','mv-product-search',{titulo:'Escanear producto para mover',ayuda:'Apunta al código de barras del producto',onDetectar:(valor)=>{const exact=resolveProduct(valor);if(exact){seleccionar(exact.code);}else{pintarResultados();toast(`Producto ${valor} no encontrado`);}}});
  const initialCode=new URLSearchParams(location.hash.split('?')[1]||'').get('code'); if(initialCode)seleccionar(initialCode); else refresh();
  document.querySelector('#move-form').onsubmit=async(e)=>{
-  e.preventDefault();const code=hidden.value,qty=Number(document.querySelector('#mv-qty').value),sourceKey=fromSel.value,to=document.querySelector('#mv-to').value,reason=document.querySelector('#mv-reason').value;
-  if(!code||!product(code)){toast('Busca y selecciona un producto');search.focus();return;}
-  const source=activePositions(code).find(p=>p.key===sourceKey); if(!source){toast('Selecciona un origen con existencias');return;} if(!destinoMovimientoDisponible(toLoc)){toast('Selecciona un destino válido del centro activo');return;} if(source.locationId===to&&!source.palletId){toast('Origen y destino no pueden ser iguales');return;}
-  if(qty<1||qty>source.qty){toast(`Disponible en el origen seleccionado: ${source.qty}`);return;}
+  e.preventDefault();
+  const code=hidden.value,qty=Number(document.querySelector('#mv-qty').value),sourceKey=fromSel.value,reason=document.querySelector('#mv-reason').value;
+  const scannedDestination=toCode.value.trim();
+  const toLoc=scannedDestination?buscarUbicacionPorCodigo(scannedDestination,store.data):store.data.locations.find(l=>l.id===toSel.value);
+  const to=toLoc?.id||'';
+  if(!code||!product(code)){await notice('Falta seleccionar el producto','Busca o escanea el producto que quieres mover.','warning');search.focus();return;}
+  const source=activePositions(code).find(p=>p.key===sourceKey);
+  if(!source){await notice('Falta seleccionar el origen','Selecciona el palet o ubicación real desde donde saldrá el producto.','warning');fromSel.focus();return;}
+  if(!destinoMovimientoDisponible(toLoc)){await notice('Falta un destino válido','Escanea una ubicación, elígela en el mapa o selecciónala manualmente dentro del centro activo.','warning');return;}
+  if(source.locationId===to&&!source.palletId){await notice('Origen y destino son iguales','Selecciona una ubicación distinta para completar el movimiento.','warning');return;}
+  if(qty<1||qty>source.qty){await notice('Cantidad no válida',`En el origen seleccionado hay ${source.qty} unidad(es) disponibles.`,'warning');return;}
   const at=new Date().toISOString();
   try{
     await store.commit(d=>{const result=deductStock(d,{code,qty,sourceKey,siteId:active});if(!result.ok)throw new Error(result.message);addStock(d,{code,qty,locationId:to,palletId:null});d.movements.unshift({id:`MOV-${Date.now()}`,type:'MOVIMIENTO',productCode:code,qty,from:source.palletId?`${source.palletId} / ${source.locationId}`:source.locationId,to,sourcePalletId:source.palletId||null,reason,userId:d.session.userId,siteId:active,at,allocations:result.allocations});},`Movimiento ${code}: ${source.palletId?`Palet ${source.palletId} / `:''}${source.locationId} → ${to} (${qty} un.)`);
