@@ -9,13 +9,17 @@ export function totalCompanyStock(productCode,state=store.data,companyId=activeC
   const by=stockBySite(productCode,state),siteIds=new Set((state.sites||[]).filter(s=>siteCompanyId(s,state)===companyId).map(s=>s.id));
   return Object.entries(by).reduce((sum,[siteId,qty])=>sum+(siteIds.has(siteId)?Number(qty||0):0),0);
 }
-const RESERVING_STATUSES=new Set(['ACEPTADA','ASIGNADA','EN_PICKING','PREPARADA','ESPERANDO_REPOSICION']);
+const RESERVING_STATUSES=new Set(['ACEPTADA','ASIGNADA','EN_PICKING','PREPARADA','PENDIENTE_EMISION','ESPERANDO_REPOSICION']);
 export function reservedBySite(productCode,state=store.data,excludeOrderId=''){
   const out={};
   for(const o of state.orders||[]){
     if(o.id===excludeOrderId||!RESERVING_STATUSES.has(o.status))continue;
     const item=(o.items||[]).find(i=>i.productCode===productCode);if(!item)continue;
-    const pending=Math.max(0,Number(item.qty||0)-Number(item.dispatchedQty||0));
+    // Durante el picking se reserva lo solicitado. Cuando el operario culmina
+    // parcialmente, se libera el faltante y solo permanece reservada la
+    // cantidad realmente preparada hasta la emisión final.
+    const base=o.status==='PENDIENTE_EMISION'?Number(item.pickedQty||0):Number(item.qty||0);
+    const pending=Math.max(0,base-Number(item.dispatchedQty||0));
     if(pending>0)out[o.sourceSiteId]=(out[o.sourceSiteId]||0)+pending;
   }
   return out;
