@@ -1,0 +1,115 @@
+diff --git a/src/modules/conciliacion/conciliacion.js b/src/modules/conciliacion/conciliacion.js
+index ea0310c..2faf6aa 100644
+--- a/src/modules/conciliacion/conciliacion.js
++++ b/src/modules/conciliacion/conciliacion.js
+@@ -1,17 +1,69 @@
+ import { store } from '../../services/store.js';
+-import { shell,wireShell,toast,notice } from '../../layout/layout.js';
++import { shell,wireShell,notice } from '../../layout/layout.js';
+ import { esc,badge,empty } from '../../components/ui.js';
+ import { parseXlsx,normalizeHeader } from '../../services/xlsx-reader.js';
+ import { activeSiteId,stockBySite } from '../../services/stock.js';
+ import { activeCompanyId,siteCompanyId } from '../../services/company.js';
++import { canonicalCode,resolveProduct } from '../../services/product-codes.js';
+ 
+ let preview=null;
+ function siteName(id){return store.data.sites.find(s=>s.id===id)?.name||id;}
+-function parseRows(rows){if(!rows.length)return {errors:['El Excel está vacío.'],items:[]};const h=rows[0].map(normalizeHeader),ci=h.findIndex(x=>['CODIGO','SKU','CODIGO_PRODUCTO'].includes(x)),si=h.findIndex(x=>['STOCK','CANTIDAD','EXISTENCIA','EXISTENCIAS'].includes(x));if(ci<0||si<0)return {errors:['El Excel debe incluir CODIGO (o SKU) y STOCK (o CANTIDAD).'],items:[]};const errors=[],map=new Map();rows.slice(1).forEach((r,n)=>{const code=String(r[ci]??'').trim(),qty=Number(r[si]);if(!code&&!r[si])return;if(!store.data.products.some(p=>p.code===code)){errors.push(`Fila ${n+2}: código ${code||'(vacío)'} no existe en el catálogo.`);return;}if(!Number.isFinite(qty)||qty<0){errors.push(`Fila ${n+2}: stock inválido para ${code}.`);return;}map.set(code,qty);});return {errors,items:[...map].map(([code,qty])=>({code,qty}))};}
+-function rowsFor(siteId){const erp=store.data.settings?.erpStockBySite?.[siteId]||{};const codes=new Set([...Object.keys(erp),...(store.data.inventory||[]).map(i=>i.productCode)]);return [...codes].map(code=>{const wms=Number(stockBySite(code)[siteId]||0),kame=Object.hasOwn(erp,code)?Number(erp[code]):null,diff=kame===null?null:wms-kame,p=store.data.products.find(x=>x.code===code);return {code,name:p?.name||p?.description||'Producto',wms,kame,diff};}).filter(x=>x.kame!==null||x.wms>0).sort((a,b)=>Math.abs(Number(b.diff||0))-Math.abs(Number(a.diff||0))||a.code.localeCompare(b.code));}
+-function previewHtml(){if(!preview)return '<div class="import-empty">Selecciona un Excel con CODIGO y STOCK para este centro.</div>';return `${preview.errors.length?`<div class="import-errors"><b>Corrige antes de cargar:</b>${preview.errors.slice(0,30).map(e=>`<p>${esc(e)}</p>`).join('')}</div>`:`<div class="callout"><b>Referencia lista</b><span>${preview.items.length} productos reconocidos.</span></div>`}`;}
+-export function renderReconciliation(root){const company=activeCompanyId(),sites=(store.data.sites||[]).filter(s=>siteCompanyId(s)===company&&s.active!==false),siteId=activeSiteId(),rows=rowsFor(siteId),diffs=rows.filter(r=>r.diff!==null&&r.diff!==0),matched=rows.filter(r=>r.diff===0);const body=`<div class="page-intro"><div><span class="eyebrow">SANIDAD DE INVENTARIO</span><h2>Conciliación WMS ↔ Kame</h2><p>Compara el stock físico calculado por el WMS con una referencia de stock exportada desde Kame. La API real se conectará cuando exista documentación.</p></div></div><section class="panel"><div class="form-grid"><label>Centro<select id="recon-site">${sites.map(s=>`<option value="${esc(s.id)}" ${s.id===siteId?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label><label>Excel de referencia<input id="recon-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label></div><div id="recon-preview">${previewHtml()}</div><div class="dialog-actions"><button id="save-recon" class="primary" type="button" ${preview?.items?.length&&!preview.errors.length?'':'disabled'}>Guardar referencia Kame</button></div></section><section class="panel"><div class="center-summary"><div><small>Comparados</small><b>${rows.filter(r=>r.kame!==null).length}</b></div><div><small>Cuadrados</small><b>${matched.length}</b></div><div><small>Con diferencia</small><b>${diffs.length}</b></div><div><small>Centro</small><b>${esc(siteName(siteId))}</b></div></div><div class="table-wrap"><table><thead><tr><th>Código</th><th>Producto</th><th>WMS físico</th><th>Kame ref.</th><th>Diferencia</th><th>Estado</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.code)}</b></td><td>${esc(r.name)}</td><td>${r.wms}</td><td>${r.kame===null?'—':r.kame}</td><td><b>${r.diff===null?'—':r.diff>0?`+${r.diff}`:r.diff}</b></td><td>${r.diff===null?badge('Sin referencia','neutral'):r.diff===0?badge('CUADRADO','ok'):badge('REVISAR','warn')}</td></tr>`).join('')||`<tr><td colspan="6">${empty('Sin referencia de Kame','Carga un Excel CODIGO + STOCK para comenzar la conciliación.')}</td></tr>`}</tbody></table></div></section>`;root.innerHTML=shell('Conciliación WMS ↔ Kame',body,'conciliacion');wireShell();
+- document.querySelector('#recon-site').onchange=e=>{const id=e.target.value,site=store.data.sites.find(s=>s.id===id);localStorage.setItem('serco_wms_active_site',id);localStorage.setItem('serco_wms_active_company',siteCompanyId(site,store.data));preview=null;renderReconciliation(root);};
+- document.querySelector('#recon-file').onchange=async e=>{try{preview=parseRows(await parseXlsx(e.target.files?.[0]));document.querySelector('#recon-preview').innerHTML=previewHtml();document.querySelector('#save-recon').disabled=preview.errors.length>0||!preview.items.length;}catch(err){preview={errors:[err.message],items:[]};document.querySelector('#recon-preview').innerHTML=previewHtml();document.querySelector('#save-recon').disabled=true;}};
+- document.querySelector('#save-recon').onclick=async()=>{if(!preview||preview.errors.length||!preview.items.length)return;await store.commit(d=>{d.settings.erpStockBySite=d.settings.erpStockBySite||{};d.settings.erpStockBySite[siteId]=Object.fromEntries(preview.items.map(x=>[x.code,x.qty]));d.settings.erpStockUpdatedAt=d.settings.erpStockUpdatedAt||{};d.settings.erpStockUpdatedAt[siteId]=new Date().toISOString();},`Referencia Kame actualizada para ${siteName(siteId)}`);preview=null;renderReconciliation(root);await notice('Conciliación actualizada','La referencia de Kame quedó guardada y las diferencias fueron recalculadas.','success');};
++function userName(id){return store.data.users.find(u=>u.id===id)?.name||id||'Sistema';}
++function fecha(v){return v?new Date(v).toLocaleString('es-CL'):'—';}
++function parseRows(rows){
++  if(!rows.length)return {errors:['El Excel está vacío.'],items:[]};
++  const h=rows[0].map(normalizeHeader),ci=h.findIndex(x=>['CODIGO','SKU','CODIGO_PRODUCTO'].includes(x)),si=h.findIndex(x=>['STOCK','CANTIDAD','EXISTENCIA','EXISTENCIAS'].includes(x));
++  if(ci<0||si<0)return {errors:['El Excel debe incluir CODIGO (o SKU) y STOCK (o CANTIDAD).'],items:[]};
++  const errors=[],map=new Map();
++  rows.slice(1).forEach((r,n)=>{
++    const raw=String(r[ci]??'').trim(),code=canonicalCode(raw),qty=Number(r[si]);
++    if(!raw&&!r[si])return;
++    if(!code){errors.push(`Fila ${n+2}: código ${raw||'(vacío)'} no existe en el catálogo ni como código asociado.`);return;}
++    if(!Number.isFinite(qty)||qty<0){errors.push(`Fila ${n+2}: stock inválido para ${raw}.`);return;}
++    map.set(code,qty);
++  });
++  return {errors,items:[...map].map(([code,qty])=>({code,qty}))};
++}
++function erpCanonical(siteId){
++  const raw=store.data.settings?.erpStockBySite?.[siteId]||{},out={};
++  for(const [input,qty] of Object.entries(raw)){const code=canonicalCode(input)||input;out[code]=Number(qty||0);}
++  return out;
++}
++function rowsFor(siteId){
++  const erp=erpCanonical(siteId),codes=new Set([...Object.keys(erp),...(store.data.inventory||[]).map(i=>i.productCode)]);
++  return [...codes].map(code=>{const wms=Number(stockBySite(code)[siteId]||0),kame=Object.hasOwn(erp,code)?Number(erp[code]):null,diff=kame===null?null:wms-kame,p=resolveProduct(code);return {code,name:p?.name||p?.description||'Producto',wms,kame,diff};}).filter(x=>x.kame!==null||x.wms>0).sort((a,b)=>Math.abs(Number(b.diff||0))-Math.abs(Number(a.diff||0))||a.code.localeCompare(b.code));
++}
++function previewHtml(){if(!preview)return '<div class="import-empty">Selecciona un Excel con CODIGO y STOCK para este centro.</div>';return `${preview.errors.length?`<div class="import-errors"><b>Corrige antes de cargar:</b>${preview.errors.slice(0,30).map(e=>`<p>${esc(e)}</p>`).join('')}</div>`:`<div class="callout"><b>Referencia lista</b><span>${preview.items.length} productos reconocidos, incluyendo códigos asociados.</span></div>`}`;}
++function snapshots(siteId){return store.data.settings?.erpStockHistoryBySite?.[siteId]||[];}
++function lastBalancedSnapshot(code,siteId){return [...snapshots(siteId)].reverse().find(s=>Object.hasOwn(s.kame||{},code)&&Number(s.kame[code])===Number(s.wms?.[code]));}
++function productEvents(code,siteId,since=''){
++  const d=store.data,events=[];
++  const after=v=>!since||new Date(v||0)>=new Date(since);
++  for(const r of d.receipts||[]){const item=(r.items||[]).find(x=>x.code===code),at=r.closedAt||r.arrivedAt;if(r.siteId===siteId&&item&&after(at))events.push({at,type:'Recepción',impact:Number(item.qty||0),detail:`${r.id} · Origen ${r.origin||'—'} · ${userName(r.receivedBy)}`});}
++  for(const t of d.transfers||[]){const item=(t.items||[]).find(x=>x.code===code),at=t.departedAt||t.createdAt;if(!item||!after(at))continue;let impact=0,detail='';if(t.sourceSiteId===siteId){impact-=Number(item.qty||0);detail=`${t.id} · Salida a ${t.destinationName||siteName(t.destinationSiteId)}`;}if(t.destinationSiteId===siteId){impact+=Number(item.qty||0);detail=`${t.id} · Entrada desde ${siteName(t.sourceSiteId)}`;}if(impact)events.push({at,type:'Transferencia',impact,detail});}
++  for(const m of d.movements||[]){if(m.productCode!==code||!after(m.at))continue;const loc=d.locations.find(l=>l.id===m.to)||d.locations.find(l=>l.id===m.from),mSite=m.siteId||loc?.siteId||'REC';if(mSite!==siteId)continue;events.push({at:m.at,type:m.type==='AJUSTE_INVENTARIO'?'Ajuste de inventario':'Movimiento interno',impact:m.type==='AJUSTE_INVENTARIO'?Number(m.delta||0):0,detail:m.type==='AJUSTE_INVENTARIO'?`${m.beforeQty} → ${m.afterQty} · ${m.reason||'Sin motivo'}`:`${m.from} → ${m.to} · ${m.qty||0} un. · ${m.reason||'Sin motivo'}`});}
++  return events.sort((a,b)=>new Date(b.at)-new Date(a.at));
++}
++function investigationHtml(code,siteId){
++  const row=rowsFor(siteId).find(r=>r.code===code),baseline=lastBalancedSnapshot(code,siteId),events=productEvents(code,siteId,baseline?.at),adjustments=events.filter(e=>e.type==='Ajuste de inventario'),external=events.filter(e=>e.type==='Recepción'||e.type==='Transferencia'),net=events.reduce((s,e)=>s+Number(e.impact||0),0);
++  if(!row)return '<div class="import-empty">No se encontró el producto para investigar.</div>';
++  const baselineText=baseline?`Última referencia guardada donde WMS y Kame coincidían: ${fecha(baseline.at)}.`:'Todavía no existe un snapshot histórico donde este producto haya quedado cuadrado. Desde esta versión comenzaremos a guardar ese punto automáticamente.';
++  const clue=adjustments.length?`Hay ${adjustments.length} ajuste(s) de inventario desde el punto de comparación. Revísalos primero.`:external.length?`No hay ajustes; revisa las ${external.length} entrada(s)/salida(s) registradas en el período.`:'No aparecen eventos operativos registrados en el período. La diferencia puede venir de una operación anterior, de Kame o de una acción que aún no esté trazada.';
++  return `<div class="recon-invest-summary"><div><small>WMS físico</small><b>${row.wms}</b></div><div><small>Kame</small><b>${row.kame}</b></div><div><small>Diferencia</small><b>${row.diff>0?`+${row.diff}`:row.diff}</b></div><div><small>Impacto trazado</small><b>${net>0?`+${net}`:net}</b></div></div><div class="recon-baseline"><b>Punto de partida</b><span>${esc(baselineText)}</span><small>${baseline?`WMS ${baseline.wms[code]} · Kame ${baseline.kame[code]}`:'El primer snapshot útil se generará al guardar referencias Kame.'}</small></div><div class="recon-clue"><b>Qué revisar primero</b><span>${esc(clue)}</span></div><div class="recon-timeline">${events.length?events.map(e=>`<article><div><span>${esc(e.type)}</span><b>${esc(e.detail)}</b><small>${fecha(e.at)}</small></div><strong class="${e.impact<0?'negative':e.impact>0?'positive':'neutral'}">${e.impact===0?'Sin cambio neto':`${e.impact>0?'+':''}${e.impact}`}</strong></article>`).join(''):empty('Sin eventos posteriores','No hay recepciones, transferencias, movimientos o ajustes posteriores al punto de partida registrado.')}</div>`;
++}
++function openInvestigation(code,siteId){
++  const dialog=document.querySelector('#recon-invest-dialog'),product=resolveProduct(code);if(!dialog)return;
++  dialog.querySelector('#recon-invest-title').textContent=`${code} · ${product?.name||'Producto'}`;
++  dialog.querySelector('#recon-invest-body').innerHTML=investigationHtml(code,siteId);
++  dialog.showModal();
++}
++export function renderReconciliation(root){
++  const company=activeCompanyId(),sites=(store.data.sites||[]).filter(s=>siteCompanyId(s)===company&&s.active!==false),siteId=activeSiteId(),rows=rowsFor(siteId),diffs=rows.filter(r=>r.diff!==null&&r.diff!==0),matched=rows.filter(r=>r.diff===0);
++  const body=`<div class="page-intro"><div><span class="eyebrow">SANIDAD DE INVENTARIO</span><h2>Conciliación WMS ↔ Kame</h2><p>Compara el stock físico calculado por el WMS con una referencia de stock exportada desde Kame. Las referencias guardadas crean historial para investigar desde cuándo apareció una diferencia.</p></div></div><section class="panel"><div class="form-grid"><label>Centro<select id="recon-site">${sites.map(s=>`<option value="${esc(s.id)}" ${s.id===siteId?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label><label>Excel de referencia<input id="recon-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label></div><div id="recon-preview">${previewHtml()}</div><div class="dialog-actions"><button id="save-recon" class="primary" type="button" ${preview?.items?.length&&!preview.errors.length?'':'disabled'}>Guardar referencia Kame</button></div></section><section class="panel"><div class="center-summary"><div><small>Comparados</small><b>${rows.filter(r=>r.kame!==null).length}</b></div><div><small>Cuadrados</small><b>${matched.length}</b></div><div><small>Con diferencia</small><b>${diffs.length}</b></div><div><small>Centro</small><b>${esc(siteName(siteId))}</b></div></div><div class="table-wrap"><table><thead><tr><th>Código</th><th>Producto</th><th>WMS físico</th><th>Kame ref.</th><th>Diferencia</th><th>Estado</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.code)}</b></td><td>${esc(r.name)}</td><td>${r.wms}</td><td>${r.kame===null?'—':r.kame}</td><td><b>${r.diff===null?'—':r.diff>0?`+${r.diff}`:r.diff}</b></td><td>${r.diff===null?badge('Sin referencia','neutral'):r.diff===0?badge('CUADRADO','ok'):badge('REVISAR','warn')}</td><td>${r.diff!==null&&r.diff!==0?`<button class="ghost small recon-invest" data-code="${esc(r.code)}" type="button">Investigar</button>`:''}</td></tr>`).join('')||`<tr><td colspan="7">${empty('Sin referencia de Kame','Carga un Excel CODIGO + STOCK para comenzar la conciliación.')}</td></tr>`}</tbody></table></div></section><dialog id="recon-invest-dialog" class="recon-invest-dialog"><div class="recon-invest-card"><div class="dialog-head"><div><span class="eyebrow">¿POR QUÉ NO CUADRA?</span><h3 id="recon-invest-title">Investigación</h3><small>Reconstrucción basada únicamente en la trazabilidad registrada por el WMS.</small></div><button id="close-recon-invest" class="ghost small" type="button">Cerrar</button></div><div id="recon-invest-body"></div></div></dialog>`;
++  root.innerHTML=shell('Conciliación WMS ↔ Kame',body,'conciliacion');wireShell();
++  document.querySelector('#recon-site').onchange=e=>{const id=e.target.value,site=store.data.sites.find(s=>s.id===id);localStorage.setItem('serco_wms_active_site',id);localStorage.setItem('serco_wms_active_company',siteCompanyId(site,store.data));preview=null;renderReconciliation(root);};
++  document.querySelector('#recon-file').onchange=async e=>{try{preview=parseRows(await parseXlsx(e.target.files?.[0]));document.querySelector('#recon-preview').innerHTML=previewHtml();document.querySelector('#save-recon').disabled=preview.errors.length>0||!preview.items.length;}catch(err){preview={errors:[err.message],items:[]};document.querySelector('#recon-preview').innerHTML=previewHtml();document.querySelector('#save-recon').disabled=true;}};
++  document.querySelector('#save-recon').onclick=async()=>{if(!preview||preview.errors.length||!preview.items.length)return;const at=new Date().toISOString();await store.commit(d=>{d.settings.erpStockBySite=d.settings.erpStockBySite||{};d.settings.erpStockHistoryBySite=d.settings.erpStockHistoryBySite||{};const kame=Object.fromEntries(preview.items.map(x=>[x.code,x.qty])),wms=Object.fromEntries(preview.items.map(x=>[x.code,Number(stockBySite(x.code,d)[siteId]||0)]));d.settings.erpStockBySite[siteId]=kame;d.settings.erpStockUpdatedAt=d.settings.erpStockUpdatedAt||{};d.settings.erpStockUpdatedAt[siteId]=at;const history=d.settings.erpStockHistoryBySite[siteId]||[];history.push({id:`RECON-${Date.now()}`,at,userId:d.session.userId,siteId,kame,wms});d.settings.erpStockHistoryBySite[siteId]=history.slice(-40);},`Referencia Kame actualizada para ${siteName(siteId)}`);preview=null;renderReconciliation(root);await notice('Conciliación actualizada','La referencia quedó guardada, se creó un snapshot histórico y las diferencias fueron recalculadas.','success');};
++  document.querySelectorAll('.recon-invest').forEach(b=>b.onclick=()=>openInvestigation(b.dataset.code,siteId));
++  document.querySelector('#close-recon-invest').onclick=()=>document.querySelector('#recon-invest-dialog').close();
+ }
+diff --git a/src/services/storage.js b/src/services/storage.js
+index 5bee64c..b4ccecb 100644
+--- a/src/services/storage.js
++++ b/src/services/storage.js
+@@ -9,6 +9,7 @@ function migrar(data){
+   data.settings=data.settings||{};
+   data.settings.locationCodeFormat=data.settings.locationCodeFormat||FORMATO_UBICACION_PREDETERMINADO;
+   data.settings.erpStockBySite=data.settings.erpStockBySite&&typeof data.settings.erpStockBySite==='object'?data.settings.erpStockBySite:{};
++  data.settings.erpStockHistoryBySite=data.settings.erpStockHistoryBySite&&typeof data.settings.erpStockHistoryBySite==='object'?data.settings.erpStockHistoryBySite:{};
+   data.companies=Array.isArray(data.companies)&&data.companies.length?data.companies:(base.companies||[{id:'SERCO_RIEGO',name:'Serco Riego',code:'SERCO_RIEGO',active:true}]);
+   data.products=Array.isArray(data.products)?data.products:base.products;
+   data.receipts=Array.isArray(data.receipts)?data.receipts:[];
+diff --git a/styles/app.css b/styles/app.css
+index 3a6a871..129c6be 100644
+--- a/styles/app.css
++++ b/styles/app.css
+@@ -582,3 +582,6 @@
+ /* Stock global WMS · empresa activa */
+ .product-stock-head{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap;justify-content:flex-end}.global-wms-stock{border:1px solid #9fb7aa;background:#f3f8f5;min-width:190px}.global-wms-stock strong{display:block;font-size:1.35rem;margin-top:4px;color:#10251c}.product-site-stock-global{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border:1px solid #9fb7aa;border-radius:14px;background:#f3f8f5;margin-bottom:10px}.product-site-stock-global span{display:block;font-size:.72rem;font-weight:800;letter-spacing:.06em;color:#14743d}.product-site-stock-global b{display:block;margin-top:3px}.product-site-stock-global strong{font-size:1.25rem}.stock-total-group{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}.stock-total.global{border-color:#9fb7aa;background:#f3f8f5}.stock-total.global small{color:#14743d;font-weight:800}
+ @media(max-width:760px){.product-stock-head,.stock-total-group{width:100%;justify-content:stretch}.product-stock-head>* ,.stock-total-group>*{flex:1 1 150px}}
++
++/* 2026-08-21 · Conciliación investigable WMS ↔ Kame */
++.recon-invest-dialog{width:min(920px,calc(100vw - 28px));max-height:92vh;border:0;border-radius:20px;padding:0;box-shadow:0 28px 80px rgba(15,23,42,.30)}.recon-invest-dialog::backdrop{background:rgba(15,23,42,.62);backdrop-filter:blur(2px)}.recon-invest-card{padding:22px;display:grid;gap:16px;max-height:92vh;overflow:auto}.recon-invest-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.recon-invest-summary>div{display:grid;gap:4px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#f8fafc}.recon-invest-summary small{color:var(--muted);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}.recon-invest-summary b{font-size:18px}.recon-baseline,.recon-clue{display:grid;gap:5px;padding:13px 15px;border:1px solid #cfd9e5;border-radius:13px;background:#fff}.recon-baseline span,.recon-clue span{font-size:13px}.recon-baseline small{color:var(--muted)}.recon-clue{border-color:#e7d4a4;background:#fffaf0}.recon-timeline{display:grid;gap:9px}.recon-timeline article{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff}.recon-timeline article>div{display:grid;gap:3px}.recon-timeline article span{font-size:10px;font-weight:900;color:var(--muted);text-transform:uppercase}.recon-timeline article small{color:var(--muted)}.recon-timeline article>strong{font-size:15px;white-space:nowrap}.recon-timeline .positive{color:#08753a}.recon-timeline .negative{color:#b42318}.recon-timeline .neutral{color:#64748b}@media(max-width:700px){.recon-invest-dialog{width:100%;max-width:none;margin:auto 0 0;border-radius:22px 22px 0 0;max-height:96vh}.recon-invest-card{padding:16px;max-height:96vh}.recon-invest-summary{grid-template-columns:1fr 1fr}.recon-timeline article{align-items:flex-start}}
+diff --git a/sw.js b/sw.js
+index fb78d08..771b92b 100644
+--- a/sw.js
++++ b/sw.js
+@@ -1,4 +1,4 @@
+-const APP_VERSION = '2026.08.20-stock-global-wms-v1';
++const APP_VERSION = '2026.08.21-reconciliacion-investigacion-v1';
+ const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
+ const CACHE_PREFIX = 'sercoriego-lite-wms-';
+ 
