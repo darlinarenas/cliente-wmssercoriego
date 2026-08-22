@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.22-mapa3d-localizador-v2';
+const APP_VERSION = '2026.08.22-mapa3d-operativo-v1';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
