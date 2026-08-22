@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.21-mover-reubicar-fix-v2';
+const APP_VERSION = '2026.08.22-mapa3d-operativo-v1';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
@@ -32,6 +32,7 @@ const PRECACHE = [
   './src/modules/importar/importar.js',
   './src/modules/inicio/inicio.js',
   './src/modules/movil/movil.js',
+  './src/modules/mapa3d/mapa3d.js',
   './src/modules/movimientos/movimientos.js',
   './src/modules/palets/palets.js',
   './src/modules/productos/productos.js',

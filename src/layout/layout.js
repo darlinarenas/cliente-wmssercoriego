@@ -7,7 +7,7 @@ import { activeCompanyId,companyName,siteCompanyId,userCanCompany } from '../ser
 
 const nav=[
  ['dashboard','Inicio','⌂'],['ordenes','Órdenes / Mis tareas','✓'],['buscar','Buscar','⌕'],['racks','Racks','▦'],['productos','Productos','◫'],
- ['recepciones','Recepción','⇩'],['conciliacion','Conciliación Kame','≋'],['transferencias','Despacho / Tránsito','⇄'],['movimientos','Mover','↔'],['palets','Palets','▣'],['historial','Historial','◷'],['importar','Importar Excel','⇧'],['centros','Centros y Sucursales','⌂'],['usuarios','Usuarios','♙'],['estructura','Estructura','⚙']
+ ['recepciones','Recepción','⇩'],['conciliacion','Conciliación Kame','≋'],['transferencias','Despacho / Tránsito','⇄'],['movimientos','Mover','↔'],['palets','Palets','▣'],['mapa3d','Mapa 3D','◈'],['historial','Historial','◷'],['importar','Importar Excel','⇧'],['centros','Centros y Sucursales','⌂'],['usuarios','Usuarios','♙'],['estructura','Estructura','⚙']
 ];
 
 export function shell(title,content,active='dashboard'){

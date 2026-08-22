@@ -20,6 +20,7 @@ import { renderCenters } from './modules/centros/centros.js';
 import { renderImport } from './modules/importar/importar.js';
 import { renderOrders } from './modules/ordenes/ordenes.js';
 import { renderReconciliation } from './modules/conciliacion/conciliacion.js';
+import { renderMap3d } from './modules/mapa3d/mapa3d.js';
 
 const root=document.querySelector('#app');
 let router;
@@ -39,6 +40,7 @@ function buildRouter(){
     recepciones:()=>renderReceipts(root),
     transferencias:()=>renderTransfers(root),
     palets:()=>renderPallets(root),
+    mapa3d:()=>renderMap3d(root),
     centros:()=>renderCenters(root),
     usuarios:()=>renderUsers(root),
     importar:()=>renderImport(root),

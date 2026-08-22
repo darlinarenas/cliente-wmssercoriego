@@ -2,7 +2,7 @@ import { store } from '../../services/store.js';
 import { shell,wireShell } from '../../layout/layout.js';
 import { esc,empty,badge } from '../../components/ui.js';
 import { activeSiteId, inventorySiteId } from '../../services/stock.js';
-import { resolveProduct, productAliases } from '../../services/product-codes.js';
+import { resolveProduct,productAliases } from '../../services/product-codes.js';
 
 function mapaUsuarios(){return Object.fromEntries(store.data.users.map(u=>[u.id,u.name]));}
 function usuario(id,users){return users[id]||id||'No registrado';}
