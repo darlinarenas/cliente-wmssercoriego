@@ -4,7 +4,7 @@ import { esc,empty } from '../../components/ui.js';
 import { productPositions,positionKey,deductStock,addStock } from '../../services/inventory-ops.js';
 import { enlazarBotonEscaner } from '../../services/camara-ui.js';
 import { resolveProduct,productAliases } from '../../services/product-codes.js';
-import { inventorySiteId,activeSiteId,stockSitesOrdered } from '../../services/stock.js';
+import { inventorySiteId,activeSiteId,stockSitesOrdered,totalCompanyStock } from '../../services/stock.js';
 import { buscarUbicacionPorCodigo, vistaCodigoUbicacion } from '../../services/ubicaciones.js';
 
 function product(code){return resolveProduct(code);}
@@ -66,7 +66,7 @@ export function renderMovements(root){
  document.querySelectorAll('[data-mv-location]:not(:disabled)').forEach(btn=>btn.onclick=()=>{const loc=store.data.locations.find(l=>l.id===btn.dataset.mvLocation);if(!loc)return;toCode.value='';toSel.value=loc.id;toStatus.textContent=`✓ Destino elegido en mapa: ${vistaCodigoUbicacion(loc,store.data)}`;toStatus.classList.add('valid');showDestination(loc);mapDialog?.close();toast(`Destino seleccionado: ${loc.id}`);});
  toCode.oninput=()=>{if(toCode.value)toSel.value='';validateDestination();};toSel.onchange=()=>{if(toSel.value){toCode.value='';const loc=store.data.locations.find(l=>l.id===toSel.value);toStatus.textContent=loc?'✓ Destino seleccionado manualmente.':'Destino no disponible';toStatus.classList.toggle('valid',!!loc);showDestination(loc||null);}else{toStatus.textContent='Escanea la etiqueta, elige en el mapa o usa la lista manual.';toStatus.classList.remove('valid');showDestination(null);}};
  const refresh=()=>{const code=hidden.value;preview.innerHTML=stockBox(code);fromSel.innerHTML=code?`<option value="">Seleccionar origen…</option>${originOptions(code)}`:'<option value="">Selecciona primero el producto…</option>';};
- const seleccionar=(code)=>{const p=product(code);if(!p)return false;hidden.value=p.code;search.value=`${p.code} · ${p.name||''}`;results.hidden=true;results.innerHTML='';refresh();return true;};
+ const seleccionar=(code)=>{const p=product(code);if(!p)return false;hidden.value=p.code;search.value=`${p.code} · ${p.name||''}`;results.hidden=true;results.innerHTML='';refresh();const positions=activePositions(p.code);if(positions.length===1)fromSel.value=positions[0].key;return true;};
  const pintarResultados=()=>{
   const raw=search.value.trim();
   if(!raw){hidden.value='';results.hidden=true;results.innerHTML='';refresh();return;}

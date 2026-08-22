@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.21-reconciliacion-investigacion-v1';
+const APP_VERSION = '2026.08.21-mover-reubicar-fix-v2';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
