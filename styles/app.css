@@ -160,6 +160,7 @@
 .danger-action:hover{background:#fee2e2}
 .danger-action[hidden]{display:none}
 .order-pending-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.manual-order-feedback{margin:12px 0 0;padding:12px 14px;border:1px solid #f0b429;border-radius:12px;background:#fff8df;color:#704b00;font-weight:800}.manual-order-feedback[hidden]{display:none!important}#manual-order-dialog .field-error{border-color:#d97706!important;box-shadow:0 0 0 3px rgba(217,119,6,.16)}
 @media(max-width:760px){.order-pending-actions{width:100%;display:grid;grid-template-columns:1fr}.order-pending-actions button{width:100%}}
 .rack-dialog-actions{width:100%}.dialog-actions-spacer{flex:1}
 

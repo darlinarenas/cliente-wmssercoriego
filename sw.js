@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.22-flujo-orden-v4';
+const APP_VERSION = '2026.08.22-flujo-comprobado-v5';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
