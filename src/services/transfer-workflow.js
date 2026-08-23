@@ -13,7 +13,7 @@ export function createShipment(data,transfer,{driverName='',packageCount=1,notes
   data.shipments=data.shipments||[];
   const existing=shipmentForTransfer(data,transfer.id);if(existing)return existing;
   const id=unique('CG'),code=`CG-${String(transfer.id).replace(/[^A-Z0-9]/gi,'').toUpperCase()}-${randomPart(6)}`;
-  const shipment={id,code,transferId:transfer.id,orderId:transfer.orderId||null,sourceSiteId:transfer.sourceSiteId,destinationSiteId:transfer.destinationSiteId,status:'LISTA_RETIRO',driverName:driverName||transfer.driver||'',transporterUserId:null,packageCount:Math.max(1,n(packageCount)),containerId:`PAL-${code}`,notes,items:(transfer.items||[]).map(i=>({code:i.code||i.productCode,expectedQty:n(i.qty),receivedQty:null})).filter(i=>i.code&&i.expectedQty>0),createdAt:at,createdBy:userId,sealedAt:at,sealedBy:userId,events:[{at,userId,message:'Carga sellada y lista para retiro'}]};
+  const shipment={id,code,transferId:transfer.id,orderId:transfer.orderId||null,sourceSiteId:transfer.sourceSiteId,destinationSiteId:transfer.destinationSiteId||null,destinationType:transfer.destinationType||'SITE',destinationName:transfer.destinationName||'',destinationAddress:transfer.destinationAddress||'',destinationContact:transfer.destinationContact||'',status:'LISTA_RETIRO',driverName:driverName||transfer.driver||'',transporterUserId:null,packageCount:Math.max(1,n(packageCount)),containerId:`PAL-${code}`,notes,items:(transfer.items||[]).map(i=>({code:i.code||i.productCode,expectedQty:n(i.qty),receivedQty:null})).filter(i=>i.code&&i.expectedQty>0),createdAt:at,createdBy:userId,sealedAt:at,sealedBy:userId,events:[{at,userId,message:'Carga sellada y lista para retiro'}]};
   data.shipments.unshift(shipment);transfer.shipmentId=id;transfer.status='LISTO_RETIRO';transfer.driver=shipment.driverName||transfer.driver;return shipment;
 }
 
@@ -31,7 +31,7 @@ export function acceptShipmentCustody(data,shipment,{userId=data.session?.userId
 
 export function markShipmentArrival(data,shipment,{userId=data.session?.userId,at=now()}={}){
   if(shipment.status!=='EN_TRANSITO')throw new Error('Solo una carga en tránsito puede marcar llegada.');
-  shipment.status='LLEGADA_DESTINO';shipment.arrivedAt=at;shipment.arrivedBy=userId;shipment.events.push({at,userId,message:'Transportista confirmó llegada al centro destino'});return shipment;
+  const external=shipment.destinationType==='EXTERNAL'||!shipment.destinationSiteId;shipment.status=external?'CERRADA':'LLEGADA_DESTINO';shipment.arrivedAt=at;shipment.arrivedBy=userId;shipment.events.push({at,userId,message:external?'Transportista confirmó entrega en destino externo':'Transportista confirmó llegada al centro destino'});const transfer=(data.transfers||[]).find(t=>t.id===shipment.transferId);if(transfer&&external){transfer.status='ENTREGADA';transfer.receivedAt=at;transfer.receivedBy=userId;}return shipment;
 }
 
 export function ensureTransferReceivingLocation(data,siteId){
