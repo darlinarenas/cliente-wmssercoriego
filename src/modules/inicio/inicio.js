@@ -2,6 +2,7 @@ import { store } from '../../services/store.js';
 import { shell,wireShell } from '../../layout/layout.js';
 import { metric,badge,esc,empty } from '../../components/ui.js';
 import { activeSiteId } from '../../services/stock.js';
+import { startSilentRefresh } from '../../services/silent-refresh.js';
 
 function operatorDashboard(d,user,siteId){
  const orderTasks=(d.orders||[]).filter(o=>o.assignedTo===user.id&&!['CERRADA','EMITIDA','ENTREGADA_CONDUCTOR'].includes(o.status));
@@ -23,7 +24,7 @@ export function renderDashboard(root){
  const sessionUser=store.data.users.find(u=>u.id===store.data.session.userId);if(sessionUser?.role==='TRANSPORTISTA'){location.hash='#/cargas';return;}
  const d=store.data,siteId=activeSiteId(d),site=d.sites.find(s=>s.id===siteId),racks=d.racks.filter(r=>r.siteId===siteId),activeLoc=d.locations.filter(x=>x.siteId===siteId&&x.active),occupied=activeLoc.filter(x=>x.status!=='LIBRE').length,temp=activeLoc.filter(x=>x.kind==='POR_UBICAR').length,inTransit=d.transfers.filter(t=>t.sourceSiteId===siteId&&t.status==='EN_TRANSITO').length;
  const effectiveRole=(sessionUser?.accessAssignments||[]).find(a=>a.siteId===siteId)?.role||sessionUser?.role;
- if(['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(effectiveRole)){root.innerHTML=shell('Inicio',operatorDashboard(d,sessionUser,siteId),'dashboard');wireShell();return;}
+ if(['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(effectiveRole)){root.innerHTML=shell('Inicio',operatorDashboard(d,sessionUser,siteId),'dashboard');wireShell();startSilentRefresh('dashboard','#/dashboard',()=>renderDashboard(root),{collections:['orders','tasks']});return;}
  const quick=activeLoc.filter(l=>l.kind==='PICKING_RACK').length;
  const focus=racks.slice(0,4);
  const recent=[...(d.audit||[])].sort((a,b)=>new Date(b.at||0)-new Date(a.at||0)).slice(0,5).map(a=>`<div class="activity"><span>◷</span><div><b>${esc(a.message)}</b><small>${new Date(a.at).toLocaleString('es-CL')}</small></div></div>`).join('');
@@ -35,5 +36,5 @@ export function renderDashboard(root){
  <div class="rack-mini-grid">${focus.length?focus.map(r=>{const count=d.locations.filter(l=>l.rackId===r.id&&l.siteId===siteId&&l.active).length;return `<a href="#/estructura?rack=${encodeURIComponent(r.id)}" class="rack-mini"><b>${esc(r.name)}</b><span>${esc(String(r.status||'ACTIVO').replace('_',' '))}</span><small>${count} ubicaciones · ${esc(r.usage||'Sin descripción')}</small></a>`;}).join(''):empty('Centro sin estructura','Crea los racks de este centro desde Estructura.')}</div></section>
  <section class="panel"><div class="panel-head"><div><span class="eyebrow">ÚLTIMA ACTIVIDAD</span><h3>Trazabilidad</h3></div><a href="#/historial">Ver todo</a></div>${recent}</section></div>
  <section class="panel"><div class="panel-head"><div><span class="eyebrow">FLUJO OPERACIONAL</span><h3>Recepción sin frenar la descarga</h3></div></div><div class="flow"><div><b>1</b><span>Recibir</span></div><i>→</i><div><b>2</b><span>Palet temporal</span></div><i>→</i><div><b>3</b><span>POR UBICAR</span></div><i>→</i><div><b>4</b><span>Ubicar / consolidar</span></div><i>→</i><div><b>5</b><span>Encontrar siempre</span></div></div></section>`;
- root.innerHTML=shell('Inicio',content,'dashboard'); wireShell();
+ root.innerHTML=shell('Inicio',content,'dashboard'); wireShell();startSilentRefresh('dashboard','#/dashboard',()=>renderDashboard(root),{collections:['orders','tasks','transfers','audit']});
 }

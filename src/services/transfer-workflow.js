@@ -1,5 +1,6 @@
 function n(value){return Number(value||0);}
 function clean(value){return String(value||'').trim().toUpperCase();}
+function searchable(value){return clean(value).replace(/[^A-Z0-9]/g,'');}
 function now(){return new Date().toISOString();}
 function randomPart(size=7){return globalThis.crypto?.randomUUID?.().replaceAll('-','').slice(0,size).toUpperCase()||Math.random().toString(36).slice(2,2+size).toUpperCase();}
 function unique(prefix){return `${prefix}-${Date.now()}-${randomPart(7)}`;}
@@ -7,7 +8,9 @@ function unique(prefix){return `${prefix}-${Date.now()}-${randomPart(7)}`;}
 export const SHIPMENT_STATUS={LISTA_RETIRO:'Lista para retiro',EN_TRANSITO:'En tránsito',LLEGADA_DESTINO:'Llegó al destino',RECIBIDA:'Recibida',RECIBIDA_DIFERENCIAS:'Recibida con diferencias',CERRADA:'Cerrada'};
 
 export function shipmentForTransfer(data,transferId){return (data.shipments||[]).find(s=>s.transferId===transferId);}
-export function shipmentByCode(data,value){const code=clean(value);return (data.shipments||[]).find(s=>clean(s.code)===code||clean(s.id)===code);}
+export function shipmentSearchText(shipment){return [shipment.code,shipment.id,shipment.transferId,shipment.orderId,shipment.sourceSiteId,shipment.destinationSiteId,shipment.destinationName].filter(Boolean).map(searchable).join(' ');}
+export function shipmentMatches(shipment,value){const query=searchable(value);if(!query)return true;return shipmentSearchText(shipment).split(' ').some(candidate=>candidate===query||candidate.includes(query)||query.includes(candidate));}
+export function shipmentByCode(data,value){const query=searchable(value);if(!query)return null;const shipments=data.shipments||[];return shipments.find(s=>[s.code,s.id,s.transferId,s.orderId].some(candidate=>searchable(candidate)===query))||shipments.find(s=>shipmentMatches(s,query));}
 
 export function createShipment(data,transfer,{driverName='',packageCount=1,notes='',userId=data.session?.userId,at=now()}={}){
   data.shipments=data.shipments||[];
@@ -26,7 +29,8 @@ export function ensureLegacyShipment(data,transfer){
 export function acceptShipmentCustody(data,shipment,{userId=data.session?.userId,driverName='',at=now()}={}){
   if(shipment.status!=='LISTA_RETIRO')throw new Error('Esta carga ya fue retirada o no está disponible.');
   const transfer=(data.transfers||[]).find(t=>t.id===shipment.transferId);if(!transfer)throw new Error('No existe el traspaso relacionado.');
-  shipment.status='EN_TRANSITO';shipment.transporterUserId=userId;shipment.driverName=driverName||shipment.driverName||'';shipment.custodyAcceptedAt=at;shipment.events.push({at,userId,message:`Custodia aceptada${shipment.driverName?` por ${shipment.driverName}`:''}`});transfer.status='EN_TRANSITO';transfer.driver=shipment.driverName;transfer.departedAt=transfer.departedAt||at;transfer.transporterUserId=userId;return shipment;
+  if(shipment.transporterUserId&&shipment.transporterUserId!==userId)throw new Error('Esta carga está asignada a otro transportista.');
+  shipment.status='EN_TRANSITO';shipment.transporterUserId=shipment.transporterUserId||userId;shipment.driverName=shipment.driverName||driverName||'';shipment.custodyAcceptedAt=at;shipment.events.push({at,userId,message:`Custodia aceptada${shipment.driverName?` por ${shipment.driverName}`:''}`});transfer.status='EN_TRANSITO';transfer.driver=shipment.driverName;transfer.departedAt=transfer.departedAt||at;transfer.transporterUserId=shipment.transporterUserId;return shipment;
 }
 
 export function markShipmentArrival(data,shipment,{userId=data.session?.userId,at=now()}={}){
