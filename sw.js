@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.22-ordenes-guardado-compatible-v1';
+const APP_VERSION = '2026.08.22-borrador-directo-v2';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
