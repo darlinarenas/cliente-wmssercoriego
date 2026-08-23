@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23-usuarios-login-v8';
+const APP_VERSION = '2026.08.23-usuarios-aislados-v11';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
@@ -42,7 +42,11 @@ const PRECACHE = [
   './src/modules/usuarios/usuarios.js',
   './src/modules/ordenes/ordenes.js',
   './src/modules/conciliacion/conciliacion.js',
+  './src/modules/cargas/cargas.js',
+  './src/modules/recepcion-traspasos/recepcion-traspasos.js',
+  './src/modules/tareas-ubicacion/tareas-ubicacion.js',
   './src/services/api.js',
+  './src/services/barcode.js',
   './src/services/camara-ui.js',
   './src/services/escaner.js',
   './src/services/product-editor.js',
@@ -52,6 +56,7 @@ const PRECACHE = [
   './src/services/store.js',
   './src/services/state-upgrade.js',
   './src/services/stock.js',
+  './src/services/transfer-workflow.js',
   './src/services/ubicaciones.js',
   './src/services/inventory-ops.js',
   './src/services/pallet-ops.js',
