@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23-produccion-reparada-v11';
+const APP_VERSION = '2026.08.23-pantalla-blanca-reparada-v12';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
