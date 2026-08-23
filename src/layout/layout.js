@@ -6,8 +6,9 @@ import { activeSiteId,userAllowedSites } from '../services/stock.js';
 import { activeCompanyId,companyName,siteCompanyId,userCanCompany } from '../services/company.js';
 
 const nav=[
- ['dashboard','Inicio','⌂'],['ordenes','Órdenes / Mis tareas','✓'],['buscar','Buscar','⌕'],['racks','Racks','▦'],['productos','Productos','◫'],
- ['recepciones','Recepción','⇩'],['conciliacion','Conciliación Kame','≋'],['transferencias','Despacho / Tránsito','⇄'],['cargas','Cargas / Custodia','▤'],['recepcion-traspasos','Recibir traspasos','⇩'],['tareas-ubicacion','Tareas de ubicación','✓'],['movimientos','Mover','↔'],['palets','Palets','▣'],['mapa3d','Mapa 3D','◈'],['historial','Historial','◷'],['importar','Importar Excel','⇧'],['centros','Centros y Sucursales','⌂'],['usuarios','Usuarios','♙'],['estructura','Estructura','⚙']
+ ['dashboard','Inicio','⌂'],['buscar','Buscar','⌕'],['ordenes','Órdenes / Mis tareas','✓'],
+ ['recepciones','Recepción','⇩'],['transferencias','Despacho / Tránsito','⇄'],['cargas','Cargas / Custodia','▤'],['recepcion-traspasos','Recibir traspasos','⇩'],['tareas-ubicacion','Tareas de ubicación','✓'],['movimientos','Mover','↔'],['palets','Palets','▣'],
+ ['productos','Productos','◫'],['racks','Racks','▦'],['conciliacion','Conciliación Kame','≋'],['historial','Historial','◷'],['importar','Importar Excel','⇧'],['centros','Centros y Sucursales','⌂'],['usuarios','Usuarios','♙'],['estructura','Estructura','⚙'],['mapa3d','Mapa 3D','◈']
 ];
 
 export function shell(title,content,active='dashboard'){
