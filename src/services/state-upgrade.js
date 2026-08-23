@@ -9,7 +9,7 @@ export function upgradeState(data){
  for(const site of data.sites||[]){if(!site.companyId){site.companyId=defaultCompany;changed=true;}if('parentSiteId' in site){delete site.parentSiteId;changed=true;}}
  if(!data.session.activeCompanyId){const activeSite=(data.sites||[]).find(s=>s.id===data.session.activeSiteId);data.session.activeCompanyId=activeSite?.companyId||defaultCompany;changed=true;}
  if(!data.settings.erpStockBySite||typeof data.settings.erpStockBySite!=='object'){data.settings.erpStockBySite={};changed=true;}
-if(!data.session.activeSiteId){const u=(data.users||[]).find(x=>x.id===data.session.userId);data.session.activeSiteId=(u?.siteIds||[])[0]||(data.sites||[]).find(s=>s.id==='REC')?.id||(data.sites||[])[0]?.id||'REC';changed=true;}if(!Array.isArray(data.product_codes)){data.product_codes=[];changed=true;}if(!Array.isArray(data.orders)){data.orders=[];changed=true;}
+if(!data.session.activeSiteId){const u=(data.users||[]).find(x=>x.id===data.session.userId);data.session.activeSiteId=(u?.siteIds||[])[0]||(data.sites||[]).find(s=>s.id==='REC')?.id||(data.sites||[])[0]?.id||'REC';changed=true;}if(!Array.isArray(data.product_codes)){data.product_codes=[];changed=true;}if(!Array.isArray(data.orders)){data.orders=[];changed=true;}if(!Array.isArray(data.shipments)){data.shipments=[];changed=true;}if(!Array.isArray(data.tasks)){data.tasks=[];changed=true;}
  for(const u of data.users||[]){if(!Array.isArray(u.siteIds)){u.siteIds=[];changed=true;}if(!Array.isArray(u.companyIds)){u.companyIds=[];changed=true;}if(!Array.isArray(u.accessAssignments)){u.accessAssignments=(u.siteIds||[]).map(siteId=>({siteId,companyId:(data.sites||[]).find(s=>s.id===siteId)?.companyId||'',role:u.role})).filter(a=>a.companyId);changed=true;}if(!u.accessStatus){u.accessStatus=u.active===false?'DISABLED':'ACTIVE';changed=true;}if(!u.companyIds.length&&!['ADMIN_GLOBAL','ADMINISTRADOR'].includes(u.role)){u.companyIds=[...new Set((u.siteIds||[]).map(id=>(data.sites||[]).find(s=>s.id===id)?.companyId).filter(Boolean))];changed=true;}}
 
  const placeholder=(data.sites||[]).find(s=>s.id==='TIENDA'&&s.active===false);
@@ -55,6 +55,6 @@ if(!data.session.activeSiteId){const u=(data.users||[]).find(x=>x.id===data.sess
  for(const m of data.movements||[]){if(!m.siteId){m.siteId=siteFromLocation(m.to)||siteFromLocation(m.from)||siteFromPallet(m.palletId)||siteFromPallet(m.sourcePalletId)||fallbackSite;changed=true;}}
  for(const t of data.transfers||[]){if(!t.sourceSiteId){t.sourceSiteId=fallbackSite;changed=true;}}
  for(const o of data.orders||[]){if(!o.sourceSiteId){o.sourceSiteId=fallbackSite;changed=true;}}
- if((data.meta?.version||0)<15){data.meta=data.meta||{};data.meta.version=15;changed=true;}
+ if((data.meta?.version||0)<16){data.meta=data.meta||{};data.meta.version=16;changed=true;}
  return changed;
 }

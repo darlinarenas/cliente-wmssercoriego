@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23-usuarios-aislados-v11';
+const APP_VERSION = '2026.08.23-cargas-intercentro-v10';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

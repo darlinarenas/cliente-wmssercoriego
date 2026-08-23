@@ -7,12 +7,12 @@ import { activeCompanyId,companyName,siteCompanyId,userCanCompany } from '../ser
 
 const nav=[
  ['dashboard','Inicio','⌂'],['ordenes','Órdenes / Mis tareas','✓'],['buscar','Buscar','⌕'],['racks','Racks','▦'],['productos','Productos','◫'],
- ['recepciones','Recepción','⇩'],['conciliacion','Conciliación Kame','≋'],['transferencias','Despacho / Tránsito','⇄'],['movimientos','Mover','↔'],['palets','Palets','▣'],['mapa3d','Mapa 3D','◈'],['historial','Historial','◷'],['importar','Importar Excel','⇧'],['centros','Centros y Sucursales','⌂'],['usuarios','Usuarios','♙'],['estructura','Estructura','⚙']
+ ['recepciones','Recepción','⇩'],['conciliacion','Conciliación Kame','≋'],['transferencias','Despacho / Tránsito','⇄'],['cargas','Cargas / Custodia','▤'],['recepcion-traspasos','Recibir traspasos','⇩'],['tareas-ubicacion','Tareas de ubicación','✓'],['movimientos','Mover','↔'],['palets','Palets','▣'],['mapa3d','Mapa 3D','◈'],['historial','Historial','◷'],['importar','Importar Excel','⇧'],['centros','Centros y Sucursales','⌂'],['usuarios','Usuarios','♙'],['estructura','Estructura','⚙']
 ];
 
 export function shell(title,content,active='dashboard'){
   const d=store.data; const activeSite=activeSiteId(d); const site=d.sites.find(s=>s.id===activeSite)||d.sites[0]||{name:'Centro sin definir',code:activeSite}; const currentUser=d.users.find(u=>u.id===d.session.userId)||auth.user; const activeCompany=activeCompanyId(d); const allowedCompanies=(d.companies||[]).filter(c=>c.active!==false&&userCanCompany(currentUser,c.id)); const allowedSites=userAllowedSites(d); const initials=(currentUser?.name||'Usuario').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
-  const visibleNav=nav.filter(([id])=>!['usuarios','centros'].includes(id)||['ADMIN_GLOBAL','ADMINISTRADOR'].includes(currentUser?.role));
+  const visibleNav=nav.filter(([id])=>currentUser?.role==='TRANSPORTISTA'?['dashboard','cargas'].includes(id):(!['usuarios','centros'].includes(id)||['ADMIN_GLOBAL','ADMINISTRADOR'].includes(currentUser?.role)));
   const links=visibleNav.map(([id,label,ico])=>`<a href="#/${id}" class="nav-link ${active===id?'active':''}"><span>${ico}</span><b>${label}</b></a>`).join('');
   return `<div class="app-shell vista-administrativa">
     <aside class="sidebar">

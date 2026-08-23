@@ -4,6 +4,7 @@ import { metric,badge,esc,empty } from '../../components/ui.js';
 import { activeSiteId } from '../../services/stock.js';
 
 export function renderDashboard(root){
+ const sessionUser=store.data.users.find(u=>u.id===store.data.session.userId);if(sessionUser?.role==='TRANSPORTISTA'){location.hash='#/cargas';return;}
  const d=store.data,siteId=activeSiteId(d),site=d.sites.find(s=>s.id===siteId),racks=d.racks.filter(r=>r.siteId===siteId),activeLoc=d.locations.filter(x=>x.siteId===siteId&&x.active),occupied=activeLoc.filter(x=>x.status!=='LIBRE').length,temp=activeLoc.filter(x=>x.kind==='POR_UBICAR').length,inTransit=d.transfers.filter(t=>t.sourceSiteId===siteId&&t.status==='EN_TRANSITO').length;
  const quick=activeLoc.filter(l=>l.kind==='PICKING_RACK').length;
  const focus=racks.slice(0,4);

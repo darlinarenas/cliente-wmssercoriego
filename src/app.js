@@ -21,6 +21,9 @@ import { renderImport } from './modules/importar/importar.js';
 import { renderOrders } from './modules/ordenes/ordenes.js';
 import { renderReconciliation } from './modules/conciliacion/conciliacion.js';
 import { renderMap3d } from './modules/mapa3d/mapa3d.js';
+import { renderLoads } from './modules/cargas/cargas.js';
+import { renderTransferReceiving } from './modules/recepcion-traspasos/recepcion-traspasos.js';
+import { renderPutawayTasks } from './modules/tareas-ubicacion/tareas-ubicacion.js';
 
 const root=document.querySelector('#app');
 let router;
@@ -39,6 +42,9 @@ function buildRouter(){
     historial:()=>renderHistory(root),
     recepciones:()=>renderReceipts(root),
     transferencias:()=>renderTransfers(root),
+    cargas:()=>renderLoads(root),
+    'recepcion-traspasos':()=>renderTransferReceiving(root),
+    'tareas-ubicacion':()=>renderPutawayTasks(root),
     palets:()=>renderPallets(root),
     mapa3d:()=>renderMap3d(root),
     centros:()=>renderCenters(root),

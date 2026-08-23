@@ -8,7 +8,7 @@ class Store {
   subscribe(fn){ this.listeners.add(fn); return()=>this.listeners.delete(fn); }
   emit(){ this.listeners.forEach(fn=>fn(this.data)); }
   async commit(mutator,auditMessage='Cambio registrado'){
-    const collections=['companies','sites','sectors','racks','locations','products','product_codes','inventory','pallets','receipts','transfers','orders','movements','audit'];
+    const collections=['companies','sites','sectors','racks','locations','products','product_codes','inventory','pallets','receipts','transfers','shipments','tasks','orders','movements','audit'];
     const before=new Map(collections.map(key=>[key,JSON.stringify(this.data[key]||[])]));
     mutator(this.data);
     const userId=this.data.session.userId;
