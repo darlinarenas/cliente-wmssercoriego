@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23-recepcion-parcial-menu-simple-v16';
+const APP_VERSION = '2026.08.23-etiqueta-tareas-operario-v17';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

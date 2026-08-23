@@ -7,18 +7,26 @@ import { activeCompanyId,companyName,siteCompanyId,userCanCompany } from '../ser
 
 const nav=[
  ['dashboard','Inicio','⌂'],
- {id:'buscar-inventario',label:'Buscar e inventario',ico:'⌕',items:[['buscar','Buscar productos','⌕'],['productos','Productos','◫'],['racks','Racks','▦'],['palets','Palets','▣'],['movimientos','Mover / reubicar','↔'],['mapa3d','Mapa 3D','◈']]},
+ ['buscar','Buscar','⌕'],
  ['ordenes','Órdenes / Mis tareas','✓'],
  {id:'recepcion',label:'Recepción',ico:'⇩',items:[['recepciones','Recibir mercadería','⇩'],['recepcion-traspasos','Recibir traspasos','⇄'],['tareas-ubicacion','Tareas de ubicación','✓']]},
  {id:'despacho',label:'Despacho',ico:'⇄',items:[['transferencias','Preparar salida / tránsito','⇄'],['cargas','Cargas / Custodia','▤']]},
+ ['palets','Organizar palets','▣'],
+ ['movimientos','Mover / reubicar','↔'],
+ {id:'inventario',label:'Inventario y estructura',ico:'▦',items:[['productos','Productos','◫'],['racks','Racks','▦'],['mapa3d','Mapa 3D','◈']]},
  {id:'control',label:'Control y trazabilidad',ico:'◷',items:[['conciliacion','Conciliación Kame','≋'],['historial','Historial','◷']]},
  {id:'administracion',label:'Administración',ico:'⚙',items:[['importar','Importar Excel','⇧'],['centros','Centros y Sucursales','⌂'],['usuarios','Usuarios','♙'],['estructura','Estructura','⚙']]}
 ];
 
 export function shell(title,content,active='dashboard'){
   const d=store.data; const activeSite=activeSiteId(d); const site=d.sites.find(s=>s.id===activeSite)||d.sites[0]||{name:'Centro sin definir',code:activeSite}; const currentUser=d.users.find(u=>u.id===d.session.userId)||auth.user; const activeCompany=activeCompanyId(d); const allowedCompanies=(d.companies||[]).filter(c=>c.active!==false&&userCanCompany(currentUser,c.id)); const allowedSites=userAllowedSites(d); const initials=(currentUser?.name||'Usuario').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
-  const canSee=id=>currentUser?.role==='TRANSPORTISTA'?['dashboard','cargas'].includes(id):(!['usuarios','centros'].includes(id)||['ADMIN_GLOBAL','ADMINISTRADOR'].includes(currentUser?.role));
-  const navLink=([id,label,ico],sub=false)=>`<a href="#/${id}" class="nav-link ${sub?'nav-sub-link':''} ${active===id?'active':''}"><span>${ico}</span><b>${label}</b></a>`;
+  const effectiveRole=(currentUser?.accessAssignments||[]).find(a=>a.siteId===activeSite)?.role||currentUser?.role;
+  const operatorMenu=new Set(['dashboard','buscar','ordenes','recepciones','recepcion-traspasos','tareas-ubicacion','transferencias','cargas','palets','movimientos']);
+  const canSee=id=>effectiveRole==='TRANSPORTISTA'?['dashboard','cargas'].includes(id):['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(effectiveRole)?operatorMenu.has(id):(!['usuarios','centros'].includes(id)||['ADMIN_GLOBAL','ADMINISTRADOR'].includes(effectiveRole));
+  const orderTasks=(d.orders||[]).filter(o=>o.assignedTo===currentUser?.id&&!['CERRADA','EMITIDA','ENTREGADA_CONDUCTOR'].includes(o.status)).length;
+  const putawayTasks=(d.tasks||[]).filter(t=>t.assignedTo===currentUser?.id&&t.status!=='CERRADA').length;
+  const taskCountFor=id=>id==='ordenes'?orderTasks:id==='tareas-ubicacion'?putawayTasks:0;
+  const navLink=([id,label,ico],sub=false)=>{const count=taskCountFor(id);return `<a href="#/${id}" class="nav-link ${sub?'nav-sub-link':''} ${active===id?'active':''}"><span>${ico}</span><b>${label}</b>${count?`<em class="nav-count">${count}</em>`:''}</a>`;};
   const links=nav.map(node=>{if(Array.isArray(node))return canSee(node[0])?navLink(node):'';const items=node.items.filter(([id])=>canSee(id));if(!items.length)return '';const opened=items.some(([id])=>id===active);return `<details class="nav-group ${opened?'active':''}" ${opened?'open':''}><summary><span>${node.ico}</span><b>${node.label}</b><i>⌄</i></summary><div class="nav-submenu">${items.map(item=>navLink(item,true)).join('')}</div></details>`;}).join('');
   return `<div class="app-shell vista-administrativa">
     <aside class="sidebar">

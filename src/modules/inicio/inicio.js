@@ -3,9 +3,27 @@ import { shell,wireShell } from '../../layout/layout.js';
 import { metric,badge,esc,empty } from '../../components/ui.js';
 import { activeSiteId } from '../../services/stock.js';
 
+function operatorDashboard(d,user,siteId){
+ const orderTasks=(d.orders||[]).filter(o=>o.assignedTo===user.id&&!['CERRADA','EMITIDA','ENTREGADA_CONDUCTOR'].includes(o.status));
+ const putaway=(d.tasks||[]).filter(t=>t.siteId===siteId&&t.assignedTo===user.id&&t.status!=='CERRADA');
+ const total=orderTasks.length+putaway.length;
+ const actions=[
+  ['buscar','⌕','Buscar','Localizar productos y ubicaciones'],
+  ['recepciones','⇩','Recibir','Registrar mercadería que llega'],
+  ['transferencias','⇄','Despachar','Preparar una salida o traspaso'],
+  ['palets','▣','Organizar palets','Revisar y ubicar productos'],
+  ['movimientos','↔','Mover','Reubicar producto o pallet'],
+  ['ordenes','✓','Órdenes / Mis tareas',`${total} pendiente(s)`]
+ ];
+ const content=`<section class="operator-welcome"><div><span class="eyebrow">PANEL DEL OPERARIO</span><h2>¿Qué necesitas hacer?</h2><p>Accesos operativos del centro actual. Las opciones administrativas están ocultas.</p></div>${total?`<a class="operator-task-alert" href="#/ordenes"><b>${total}</b><span><strong>Tienes trabajo pendiente</strong><small>${orderTasks.length} orden(es) · ${putaway.length} tarea(s) de ubicación</small></span></a>`:'<span class="operator-task-clear">✓ No tienes tareas asignadas</span>'}</section><div class="operator-action-grid">${actions.map(([id,icon,label,help])=>`<a href="#/${id}" class="operator-action-card ${id==='ordenes'&&total?'has-tasks':''}"><span>${icon}</span><div><b>${label}</b><small>${help}</small></div>${id==='ordenes'&&total?`<em>${total}</em>`:''}</a>`).join('')}</div>${putaway.length?`<section class="panel operator-pending-panel"><div class="panel-head"><div><span class="eyebrow">TAREAS DE UBICACIÓN</span><h3>${putaway.length} asignada(s) a tu usuario</h3></div><a class="primary" href="#/tareas-ubicacion">Ver mis tareas</a></div></section>`:''}`;
+ return content;
+}
+
 export function renderDashboard(root){
  const sessionUser=store.data.users.find(u=>u.id===store.data.session.userId);if(sessionUser?.role==='TRANSPORTISTA'){location.hash='#/cargas';return;}
  const d=store.data,siteId=activeSiteId(d),site=d.sites.find(s=>s.id===siteId),racks=d.racks.filter(r=>r.siteId===siteId),activeLoc=d.locations.filter(x=>x.siteId===siteId&&x.active),occupied=activeLoc.filter(x=>x.status!=='LIBRE').length,temp=activeLoc.filter(x=>x.kind==='POR_UBICAR').length,inTransit=d.transfers.filter(t=>t.sourceSiteId===siteId&&t.status==='EN_TRANSITO').length;
+ const effectiveRole=(sessionUser?.accessAssignments||[]).find(a=>a.siteId===siteId)?.role||sessionUser?.role;
+ if(['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(effectiveRole)){root.innerHTML=shell('Inicio',operatorDashboard(d,sessionUser,siteId),'dashboard');wireShell();return;}
  const quick=activeLoc.filter(l=>l.kind==='PICKING_RACK').length;
  const focus=racks.slice(0,4);
  const recent=[...(d.audit||[])].sort((a,b)=>new Date(b.at||0)-new Date(a.at||0)).slice(0,5).map(a=>`<div class="activity"><span>◷</span><div><b>${esc(a.message)}</b><small>${new Date(a.at).toLocaleString('es-CL')}</small></div></div>`).join('');
