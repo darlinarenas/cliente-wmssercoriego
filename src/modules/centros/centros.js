@@ -6,7 +6,7 @@ import { activeCompanyId,companyName,siteCompanyId } from '../../services/compan
 import { requireAdminSupercode } from '../../services/security.js';
 
 function currentUser(){return store.data.users.find(u=>u.id===store.data.session.userId);}
-function canAdmin(){return currentUser()?.role==='ADMINISTRADOR';}
+function canAdmin(){const u=currentUser();return u?.role==='ADMIN_GLOBAL'||(u?.role==='ADMINISTRADOR'&&!(u.siteIds||[]).length);}
 function siteStock(siteId){return (store.data.inventory||[]).filter(i=>inventorySiteId(i)===siteId&&Number(i.qty)>0).reduce((a,b)=>a+Number(b.qty||0),0);}
 function siteSku(siteId){return new Set((store.data.inventory||[]).filter(i=>inventorySiteId(i)===siteId&&Number(i.qty)>0).map(i=>i.productCode)).size;}
 function siteLocations(siteId){return (store.data.locations||[]).filter(l=>l.siteId===siteId&&l.active!==false).length;}

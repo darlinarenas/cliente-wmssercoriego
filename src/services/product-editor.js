@@ -6,7 +6,7 @@ import { inventorySiteId,activeSiteId,stockSitesOrdered,totalCompanyStock } from
 import { activeCompanyId,siteCompanyId } from './company.js';
 
 function currentUser(){ return store.data.users.find(u=>u.id===store.data.session.userId); }
-function canEdit(){ return ['ADMINISTRADOR','ENCARGADO'].includes(currentUser()?.role); }
+function canEdit(){ return ['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(currentUser()?.role); }
 function product(code){ return store.data.products.find(p=>p.code===code); }
 function inventory(code){ const company=activeCompanyId(store.data); return store.data.inventory.filter(i=>i.productCode===code&&siteCompanyId(store.data.sites.find(s=>s.id===inventorySiteId(i,store.data)),store.data)===company); }
 function locationLabel(inv){

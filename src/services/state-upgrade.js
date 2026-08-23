@@ -10,7 +10,7 @@ export function upgradeState(data){
  if(!data.session.activeCompanyId){const activeSite=(data.sites||[]).find(s=>s.id===data.session.activeSiteId);data.session.activeCompanyId=activeSite?.companyId||defaultCompany;changed=true;}
  if(!data.settings.erpStockBySite||typeof data.settings.erpStockBySite!=='object'){data.settings.erpStockBySite={};changed=true;}
 if(!data.session.activeSiteId){const u=(data.users||[]).find(x=>x.id===data.session.userId);data.session.activeSiteId=(u?.siteIds||[])[0]||(data.sites||[]).find(s=>s.id==='REC')?.id||(data.sites||[])[0]?.id||'REC';changed=true;}if(!Array.isArray(data.product_codes)){data.product_codes=[];changed=true;}if(!Array.isArray(data.orders)){data.orders=[];changed=true;}
- for(const u of data.users||[]){if(!Array.isArray(u.siteIds)){u.siteIds=[];changed=true;}if(!Array.isArray(u.companyIds)){u.companyIds=[];changed=true;}if(!u.companyIds.length&&u.role!=='ADMINISTRADOR'){u.companyIds=[...new Set((u.siteIds||[]).map(id=>(data.sites||[]).find(s=>s.id===id)?.companyId).filter(Boolean))];changed=true;}}
+ for(const u of data.users||[]){if(!Array.isArray(u.siteIds)){u.siteIds=[];changed=true;}if(!Array.isArray(u.companyIds)){u.companyIds=[];changed=true;}if(!u.companyIds.length&&!['ADMIN_GLOBAL','ADMINISTRADOR'].includes(u.role)){u.companyIds=[...new Set((u.siteIds||[]).map(id=>(data.sites||[]).find(s=>s.id===id)?.companyId).filter(Boolean))];changed=true;}}
 
  const placeholder=(data.sites||[]).find(s=>s.id==='TIENDA'&&s.active===false);
  if(placeholder){const used=(data.locations||[]).some(l=>l.siteId==='TIENDA')||(data.racks||[]).some(r=>r.siteId==='TIENDA')||(data.pallets||[]).some(p=>p.siteId==='TIENDA');if(!used){data.sites=data.sites.filter(s=>s.id!=='TIENDA');changed=true;}}

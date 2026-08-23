@@ -7,12 +7,15 @@ class Store {
   subscribe(fn){ this.listeners.add(fn); return()=>this.listeners.delete(fn); }
   emit(){ this.listeners.forEach(fn=>fn(this.data)); }
   async commit(mutator,auditMessage='Cambio registrado'){
+    const collections=['companies','sites','sectors','racks','locations','products','product_codes','inventory','pallets','receipts','transfers','orders','movements','audit'];
+    const before=new Map(collections.map(key=>[key,JSON.stringify(this.data[key]||[])]));
     mutator(this.data);
     const userId=this.data.session.userId;
     this.data.audit.unshift({id:`AUD-${Date.now()}`,type:'CHANGE',message:auditMessage,userId,at:new Date().toISOString()});
-    this.data=(await repository.save(this.data))||this.data; this.emit();
+    const changed=collections.filter(key=>before.get(key)!==JSON.stringify(this.data[key]||[]));
+    this.data=(await repository.save(this.data,{collections:changed}))||this.data; this.emit();
   }
   async reset(){ this.data=await repository.reset(); this.emit(); }
-  async reload(){ this.data=await repository.load(); upgradeState(this.data); this.emit(); return this.data; }
+  async reload({emit=true}={}){ this.data=await repository.load(); upgradeState(this.data); if(emit)this.emit(); return this.data; }
 }
 export const store=new Store();

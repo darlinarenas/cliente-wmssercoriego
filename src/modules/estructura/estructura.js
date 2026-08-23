@@ -5,7 +5,7 @@ import { esc,badge,empty } from '../../components/ui.js';
 import { FORMATO_UBICACION_PREDETERMINADO,recalcularCodigosEscaneables,vistaCodigoUbicacion } from '../../services/ubicaciones.js';
 import { requireAdminSupercode } from '../../services/security.js';
 
-function isAdmin(){const u=store.data.users.find(x=>x.id===store.data.session.userId);return u?.role==='ADMINISTRADOR';}
+function isAdmin(){const u=store.data.users.find(x=>x.id===store.data.session.userId);return ['ADMIN_GLOBAL','ADMINISTRADOR'].includes(u?.role);}
 function siteId(){return activeSiteId();}
 function rackCode(r){return r.rackCode||(/^R\d+$/.test(r.id)?r.id:String(r.id).split('-').pop());}
 function racksFor(site){return store.data.racks.filter(r=>r.siteId===site);}

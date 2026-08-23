@@ -8,7 +8,7 @@ import { stockBySite,activeSiteId,stockSitesOrdered,totalCompanyStock,inventoryS
 
 const pesoRotacion={ALTA:3,MEDIA:2,BAJA:1};
 function currentUser(){return store.data.users.find(u=>u.id===store.data.session.userId);}
-function canCreateProduct(){return ['ADMINISTRADOR','ENCARGADO'].includes(currentUser()?.role);}
+function canCreateProduct(){return ['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(currentUser()?.role);}
 function stockCentroActivo(code){return Number(stockBySite(code)[activeSiteId()]||0);}
 function cleanNewCode(v){return normalizeProductCode(v).replaceAll('-','');}
 function totalProducto(code){return totalCompanyStock(code,store.data);}

@@ -31,7 +31,7 @@ export function stockStatus(productCode,siteId,state=store.data,excludeOrderId='
 }
 export function activeSiteId(state=store.data){
   const sites=state.sites||[],user=(state.users||[]).find(u=>u.id===state.session?.userId),stored=typeof localStorage!=='undefined'?localStorage.getItem('serco_wms_active_site'):'',requested=stored||state.session?.activeSiteId,company=activeCompanyId(state);
-  if(requested&&sites.some(s=>s.id===requested&&s.active!==false&&siteCompanyId(s,state)===company)&&(user?.role==='ADMINISTRADOR'||!(user?.siteIds||[]).length||(user.siteIds||[]).includes(requested)))return requested;
+  if(requested&&sites.some(s=>s.id===requested&&s.active!==false&&siteCompanyId(s,state)===company)&&(user?.role==='ADMIN_GLOBAL'||!(user?.siteIds||[]).length||(user.siteIds||[]).includes(requested)))return requested;
   const firstAllowed=(user?.siteIds||[]).find(id=>sites.some(s=>s.id===id&&s.active!==false&&siteCompanyId(s,state)===company));
   return firstAllowed||sites.find(s=>s.id==='REC'&&s.active!==false&&siteCompanyId(s,state)===company)?.id||sites.find(s=>s.active!==false&&siteCompanyId(s,state)===company)?.id||sites[0]?.id||'REC';
 }
@@ -39,4 +39,4 @@ export function stockSitesOrdered(productCode,state=store.data){
   const active=activeSiteId(state),company=activeCompanyId(state),by=stockBySite(productCode,state),sites=state.sites||[];
   return sites.filter(s=>siteCompanyId(s,state)===company&&(s.active!==false||Number(by[s.id]||0)>0)).map(s=>({siteId:s.id,name:s.name||s.id,qty:Number(by[s.id]||0),active:s.id===active})).sort((a,b)=>Number(b.active)-Number(a.active)||b.qty-a.qty||a.name.localeCompare(b.name,'es'));
 }
-export function userAllowedSites(state=store.data){const u=(state.users||[]).find(x=>x.id===state.session?.userId),company=activeCompanyId(state);return (state.sites||[]).filter(s=>siteCompanyId(s,state)===company&&s.active!==false&&userCanCompany(u,company)&&(u?.role==='ADMINISTRADOR'||!(u?.siteIds||[]).length||(u.siteIds||[]).includes(s.id)));}
+export function userAllowedSites(state=store.data){const u=(state.users||[]).find(x=>x.id===state.session?.userId),company=activeCompanyId(state);return (state.sites||[]).filter(s=>siteCompanyId(s,state)===company&&s.active!==false&&userCanCompany(u,company)&&(u?.role==='ADMIN_GLOBAL'||!(u?.siteIds||[]).length||(u.siteIds||[]).includes(s.id)));}

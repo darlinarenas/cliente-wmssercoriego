@@ -12,4 +12,4 @@ export function activeCompanyId(state=store.data){
 }
 export function companyName(id,state=store.data){return (state.companies||[]).find(c=>c.id===id)?.name||id||'Empresa';}
 export function sitesForCompany(companyId,state=store.data){return (state.sites||[]).filter(s=>siteCompanyId(s,state)===companyId);}
-export function userCanCompany(user,companyId){return user?.role==='ADMINISTRADOR'||!(user?.companyIds||[]).length||(user.companyIds||[]).includes(companyId);}
+export function userCanCompany(user,companyId){return user?.role==='ADMIN_GLOBAL'||!(user?.companyIds||[]).length||(user.companyIds||[]).includes(companyId);}

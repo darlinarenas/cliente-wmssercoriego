@@ -4,6 +4,12 @@ export async function apiRequest(path,options={}){return auth.request(path,optio
 export class ApiRepository {
   request(path,options={}){return apiRequest(path,options);}
   load(){return this.request('/state');}
-  save(data){return this.request('/state',{method:'PUT',body:JSON.stringify(data)});}
+  async save(data,{collections}={}){
+    const partial=Array.isArray(collections);
+    const payload=partial?{meta:data.meta,settings:data.settings,planning:data.planning,...Object.fromEntries(collections.map(key=>[key,data[key]]))}:data;
+    const saved=await this.request('/state',{method:'PUT',headers:partial?{'X-WMS-Compact':'1'}:{},body:JSON.stringify(payload)});
+    if(saved?.compact&&saved.meta)return {...data,meta:saved.meta};
+    return saved;
+  }
   reset(){return this.request('/state/reset',{method:'POST'});}
 }

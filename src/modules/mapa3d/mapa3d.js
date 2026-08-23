@@ -16,7 +16,7 @@ const REC_LAYOUT={
 function rackKey(r){return String(r?.rackCode||r?.id||'').match(/R\d+/i)?.[0]?.toUpperCase()||String(r?.id||'').toUpperCase();}
 function rackNum(key){return Number(String(key).replace(/\D/g,''))||999;}
 function currentUser(){return store.data.users.find(u=>u.id===store.data.session.userId);}
-function isAdmin(){return currentUser()?.role==='ADMINISTRADOR';}
+function isAdmin(){return ['ADMIN_GLOBAL','ADMINISTRADOR'].includes(currentUser()?.role);}
 function defaultLayout(siteId,racks){
  const keys=siteId==='REC'?Array.from({length:13},(_,i)=>`R${i+1}`):racks.map(r=>rackKey(r));
  const result={};
