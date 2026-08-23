@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23-menu-y-rendimiento-v14';
+const APP_VERSION = '2026.08.23-salidas-cors-etiqueta-v15';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

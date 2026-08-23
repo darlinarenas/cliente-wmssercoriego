@@ -65,7 +65,7 @@ export function renderTransfers(root){
      try{
        await store.commit(s=>{s.transfers=s.transfers||[];s.transfers.unshift({id,sourceSiteId:activeSiteId(s),destinationSiteId:isExternal?null:selected,destinationType:isExternal?'EXTERNAL':'SITE',destinationName,destinationAddress,destinationContact,driver,status:'PREPARANDO',createdAt:now,createdBy:s.session.userId,items:[],supervisedBy:null,dispatchedBy:null});},`Salida ${id} creada`);
        dlg.close();toast(`Salida ${id} creada`,'success');renderTransfers(root);
-     }catch(error){submit.disabled=false;submit.textContent=label;toast(error?.message||'No se pudo crear la salida','warning');}
+     }catch(error){submit.disabled=false;submit.textContent=label;const message=error?.message==='Failed to fetch'?'No se pudo conectar con el servidor. Verifica que Render esté activo y vuelve a intentar.':error?.message||'No se pudo crear la salida';toast(message,'warning');}
    });
  }else{
    enlazarBotonEscaner('camara-tr-code','tr-code',{titulo:'Escanear producto para despacho',ayuda:'Apunta al código de barras del producto'});
