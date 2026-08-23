@@ -1,7 +1,7 @@
 import { APP_CONFIG } from '../core/config.js';
 const TOKEN_KEY='serco_wms_auth_token';
 class AuthService{
-  constructor(){this.user=null;}
+  constructor(){this.user=null;this.loginState=null;}
   token(){return localStorage.getItem(TOKEN_KEY)||'';}
   setToken(token){token?localStorage.setItem(TOKEN_KEY,token):localStorage.removeItem(TOKEN_KEY);}
   async request(path,options={}){
@@ -21,10 +21,11 @@ class AuthService{
     const data=await this.request('/auth/login',{method:'POST',auth:false,body:JSON.stringify({username,password})});
     this.setToken(data.token);
     this.user=data.user;
+    this.loginState=data.state||null;
     return data.user;
   }
   async restore(){if(!this.token())return null;try{const d=await this.request('/auth/me');this.user=d.user;return this.user;}catch{this.logout();return null;}}
-  logout(){this.user=null;this.setToken('');}
+  logout(){this.user=null;this.loginState=null;this.setToken('');}
   async changePassword(currentPassword,newPassword){return this.request('/auth/change-password',{method:'POST',body:JSON.stringify({currentPassword,newPassword})});}
   async verifySupercode(supercode){return this.request('/auth/verify-supercode',{method:'POST',body:JSON.stringify({supercode})});}
 }

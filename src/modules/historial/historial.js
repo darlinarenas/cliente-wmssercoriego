@@ -40,11 +40,11 @@ function movimientosNormalizados(){
   }).map(m=>({
     ...m,
     searchable:[m.productCode,nombreProducto(m.productCode),m.qty,m.delta,m.beforeQty,m.afterQty,m.from,m.to,m.reason,usuario(m.userId,users),m.id].join(' ')
-  }));
+  })).sort((a,b)=>new Date(b.at||0)-new Date(a.at||0));
 }
 function auditoriaNormalizada(){
   const users=mapaUsuarios();
-  return store.data.audit.map(a=>({...a,searchable:[a.message,a.type,usuario(a.userId,users),a.id].join(' ')}));
+  return [...store.data.audit].sort((a,b)=>new Date(b.at||0)-new Date(a.at||0)).map(a=>({...a,searchable:[a.message,a.type,usuario(a.userId,users),a.id].join(' ')}));
 }
 
 function trazaProducto(code){
@@ -87,7 +87,7 @@ function pintarMovimientos(q=''){
 }
 function pintarAuditoria(q=''){
   const out=document.querySelector('#auditoria-filtrada'); if(!out)return;
-  const users=mapaUsuarios(),audit=auditoriaNormalizada().filter(a=>!q||contiene(a.searchable,q)).slice(0,q?100:30);
+  const users=mapaUsuarios(),audit=auditoriaNormalizada().filter(a=>!q||contiene(a.searchable,q));
   out.innerHTML=audit.length?audit.map(a=>`<div class="history-row"><div class="hist-icon">◷</div><div><b>${esc(a.message)}</b><small>${esc(usuario(a.userId,users)||'Sistema')}</small></div><time>${fecha(a.at)}</time></div>`).join(''):empty('Sin actividad coincidente','No hay registros de auditoría para esta búsqueda.');
 }
 function actualizarBusqueda(){

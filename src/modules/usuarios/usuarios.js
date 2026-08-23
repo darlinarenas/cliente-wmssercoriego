@@ -5,154 +5,30 @@ import { shell, wireShell, toast } from '../../layout/layout.js';
 import { esc, badge } from '../../components/ui.js';
 import { companyName, siteCompanyId } from '../../services/company.js';
 
-const ROLES={
-  ADMIN_GLOBAL:'Administrador general',
-  ADMINISTRADOR:'Administrador',
-  ENCARGADO:'Encargado',
-  OPERADOR_BODEGA:'Operador de bodega',
-  OPERADOR_RECEPCION:'Operador de recepción'
-};
+const ROLES={ADMIN_GLOBAL:'Administrador general',ADMINISTRADOR:'Administrador de centro',ENCARGADO:'Encargado',OPERADOR_BODEGA:'Operador de bodega',OPERADOR_RECEPCION:'Operador de recepción'};
+const STATUS={ACTIVE:'Activo',PAUSED:'Pausado',DISABLED:'Desactivado'};
+const ROLE_WEIGHT={OPERADOR_RECEPCION:1,OPERADOR_BODEGA:2,ENCARGADO:3,ADMINISTRADOR:4};
 
 function current(){return store.data.users.find(u=>u.id===store.data.session.userId)||auth.user;}
 function roleName(role){return ROLES[role]||String(role||'Sin rol').replaceAll('_',' ');}
+function userStatus(u){return u.accessStatus||(u.active===false?'DISABLED':'ACTIVE');}
 function visibleUsers(){const cur=current();if(cur?.role==='ADMIN_GLOBAL'||(cur?.role==='ADMINISTRADOR'&&!(cur.siteIds||[]).length))return store.data.users;const allowed=new Set(cur?.siteIds||[]);return store.data.users.filter(u=>u.id===cur?.id||(u.siteIds||[]).some(id=>allowed.has(id)));}
-function rows(){
-  const cur=current();
-  return visibleUsers().map(u=>`<div class="user-admin-row ${u.id===cur?.id?'current-operator-row':''}">
-    <div class="user-avatar">${esc((u.name||'?').slice(0,2).toUpperCase())}</div>
-    <div class="user-admin-main"><b>${esc(u.name)}</b><small>@${esc(u.username||'sinusuario')} · ${esc(roleName(u.role))} · ${u.active?'Activo':'Inactivo'}</small></div>
-    <div>${u.id===cur?.id?badge('SESIÓN ACTUAL','ok'):badge(u.active?'ACTIVO':'INACTIVO',u.active?'neutral':'warn')}</div>
-    <div class="user-admin-actions">
-      <button class="ghost reset-user-password" data-id="${esc(u.id)}" type="button">Restablecer contraseña</button>
-      <button class="ghost edit-user" data-id="${esc(u.id)}" type="button">Editar</button>
-    </div>
-  </div>`).join('');
-}
+function assignmentSummary(u){if(u.role==='ADMIN_GLOBAL')return 'Todas las empresas y centros';const list=(u.accessAssignments||[]).map(a=>`${store.data.sites.find(s=>s.id===a.siteId)?.name||a.siteId}: ${roleName(a.role)}`);return list.length?list.join(' · '):`${(u.siteIds||[]).length} centro(s) autorizado(s)`;}
+function rows(){const cur=current();return visibleUsers().map(u=>{const status=userStatus(u),isSelf=u.id===cur?.id;return `<div class="user-admin-row ${isSelf?'current-operator-row':''}"><div class="user-avatar">${esc((u.name||'?').slice(0,2).toUpperCase())}</div><div class="user-admin-main"><b>${esc(u.name)}</b><small>@${esc(u.username||'sinusuario')} · ${esc(roleName(u.role))}</small><small>${esc(assignmentSummary(u))}</small></div><div>${isSelf?badge('SESIÓN ACTUAL','ok'):badge(STATUS[status]||status,status==='ACTIVE'?'neutral':'warn')}</div><div class="user-admin-actions"><button class="ghost reset-user-password" data-id="${esc(u.id)}" type="button">Restablecer contraseña</button><button class="ghost edit-user" data-id="${esc(u.id)}" type="button">Editar / estado</button></div></div>`;}).join('');}
+function roleLegend(){return `<section class="panel role-legend"><div class="panel-head"><div><span class="eyebrow">DESCRIPCIÓN DE PERMISOS</span><h3>Alcance de cada rol</h3></div></div><div class="role-legend-grid"><div><b>Operador de bodega</b><small>Picking, búsqueda, escaneo, movimientos y tareas asignadas en sus centros.</small></div><div><b>Operador de recepción</b><small>Recibe mercadería, registra cantidades y deja pallets o productos por ubicar.</small></div><div><b>Encargado</b><small>Coordina la operación de los centros asignados, revisa órdenes y supervisa operarios.</small></div><div><b>Administrador de centro</b><small>Administra usuarios y configuración únicamente en los centros autorizados.</small></div><div><b>Administrador general</b><small>Acceso completo a todas las empresas, centros, configuración y usuarios.</small></div></div><small class="field-help">Los permisos operativos detallados por pantalla se configurarán en la siguiente etapa.</small></section>`;}
+function assignmentRows(u,allowedSites){const assignments=(u?.accessAssignments||[]).length?u.accessAssignments:(u?.siteIds||[]).map(siteId=>({siteId,role:u.role})),map=new Map(assignments.map(a=>[a.siteId,a.role]));return allowedSites.map(s=>`<label class="access-assignment-row"><span><b>${esc(companyName(siteCompanyId(s)))}</b><small>${esc(s.name)}</small></span><select class="site-role" data-site-id="${esc(s.id)}" data-company-id="${esc(siteCompanyId(s))}"><option value="">Sin acceso</option>${Object.entries(ROLES).filter(([r])=>r!=='ADMIN_GLOBAL').map(([r,n])=>`<option value="${r}" ${map.get(s.id)===r?'selected':''}>${esc(n)}</option>`).join('')}</select></label>`).join('');}
+function dialogs(){return `<dialog id="user-dialog"><form id="user-form" class="dialog-card"><div class="dialog-head"><div><span class="eyebrow">USUARIO / ACCESO</span><h3 id="user-dialog-title">Nuevo usuario</h3></div><button type="button" id="close-user-dialog" class="ghost">×</button></div><input id="user-id" type="hidden"><label>Nombre completo<input id="user-name" required maxlength="80" placeholder="Nombre de la persona"></label><label>Nombre de usuario<input id="user-username" required maxlength="40" placeholder="Ej. nelson.g"></label><label>Tipo de acceso<select id="user-global-role"><option value="SCOPED">Asignar rol por centro</option><option value="ADMIN_GLOBAL">Administrador general</option></select><small class="field-help">Un usuario puede ser encargado en una bodega y operario en otra.</small></label><div id="user-assignment-wrap"><b>Rol en cada empresa / centro</b><div id="user-assignments" class="access-assignment-list"></div></div><label>Estado de acceso<select id="user-status"><option value="ACTIVE">Activo</option><option value="PAUSED">Pausado temporalmente</option><option value="DISABLED">Desactivado indefinidamente</option></select><small class="field-help">Pausado o desactivado conserva toda la trazabilidad, pero impide iniciar sesión.</small></label><div id="new-user-password-wrap"><label>Contraseña inicial<input id="user-password" type="password" minlength="8" maxlength="128" placeholder="Mínimo 8 caracteres"></label><small class="field-help">Solo se solicita al crear el usuario.</small></div><div class="warning-box">Cada acción seguirá vinculada a la identidad de esta persona, aunque su acceso se pause o desactive.</div><div class="dialog-actions"><button type="button" id="delete-user" class="danger-action" hidden>Eliminar usuario</button><span class="dialog-actions-spacer"></span><button type="button" id="cancel-user" class="ghost">Cancelar</button><button class="primary" type="submit">Guardar usuario</button></div></form></dialog><dialog id="reset-password-dialog"><form id="reset-password-form" class="dialog-card"><div class="dialog-head"><div><span class="eyebrow">SEGURIDAD</span><h3>Restablecer contraseña</h3></div><button type="button" id="close-reset-password" class="ghost">×</button></div><input id="reset-password-user-id" type="hidden"><p id="reset-password-user-label"></p><label>Nueva contraseña<input id="reset-password-new" type="password" minlength="8" maxlength="128" required></label><label>Confirmar nueva contraseña<input id="reset-password-confirm" type="password" minlength="8" maxlength="128" required></label><label>Tu contraseña administrativa<input id="reset-password-admin" type="password" required></label><div class="dialog-actions"><button type="button" id="cancel-reset-password" class="ghost">Cancelar</button><button class="primary" type="submit">Restablecer contraseña</button></div></form></dialog>`;}
 
-function dialogs(){return `
-<dialog id="user-dialog"><form id="user-form" class="dialog-card">
-  <div class="dialog-head"><div><span class="eyebrow">USUARIO / ACCESO</span><h3 id="user-dialog-title">Nuevo usuario</h3></div><button type="button" id="close-user-dialog" class="ghost">×</button></div>
-  <input id="user-id" type="hidden">
-  <label>Nombre completo<input id="user-name" required maxlength="80" placeholder="Nombre de la persona"></label>
-  <label>Nombre de usuario<input id="user-username" required maxlength="40" placeholder="Ej. nelson.g"></label>
-  <label>Rol<select id="user-role"><option value="OPERADOR_BODEGA">Operador de bodega</option><option value="OPERADOR_RECEPCION">Operador de recepción</option><option value="ENCARGADO">Encargado</option><option value="ADMINISTRADOR">Administrador de centro</option><option value="ADMIN_GLOBAL">Administrador general</option></select></label>
-  <label>Empresas autorizadas<select id="user-companies" multiple size="3"></select><small class="field-help">Define en qué empresas puede operar esta persona.</small></label>
-  <label>Centros autorizados<select id="user-sites" multiple size="6"></select><small class="field-help">Los centros pertenecen a una empresa. El administrador general puede quedar sin restricción.</small></label>
-  <div id="new-user-password-wrap"><label>Contraseña inicial<input id="user-password" type="password" minlength="8" maxlength="128" placeholder="Mínimo 8 caracteres"></label><small class="field-help">Solo se solicita al crear el usuario. Después se cambia con “Restablecer contraseña”.</small></div>
-  <label class="toggle-line"><input id="user-active" type="checkbox" checked> Usuario activo</label>
-  <div class="warning-box">Cada persona iniciará sesión con su propio usuario. Sus movimientos, recepciones y despachos quedarán registrados con su identidad.</div>
-  <div class="dialog-actions"><button type="button" id="cancel-user" class="ghost">Cancelar</button><button class="primary" type="submit">Guardar usuario</button></div>
-</form></dialog>
-<dialog id="reset-password-dialog"><form id="reset-password-form" class="dialog-card">
-  <div class="dialog-head"><div><span class="eyebrow">SEGURIDAD</span><h3>Restablecer contraseña</h3></div><button type="button" id="close-reset-password" class="ghost">×</button></div>
-  <input id="reset-password-user-id" type="hidden">
-  <p id="reset-password-user-label"></p>
-  <label>Nueva contraseña<input id="reset-password-new" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
-  <label>Confirmar nueva contraseña<input id="reset-password-confirm" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
-  <label>Tu contraseña administrativa<input id="reset-password-admin" type="password" autocomplete="current-password" required></label>
-  <small class="field-help">Tu contraseña autoriza el cambio. La contraseña del usuario nunca se muestra ni se guarda en texto visible.</small>
-  <div class="dialog-actions"><button type="button" id="cancel-reset-password" class="ghost">Cancelar</button><button class="primary" type="submit">Restablecer contraseña</button></div>
-</form></dialog>`;}
-
-export function renderUsers(root){
-  const cur=current();
-  if(!['ADMIN_GLOBAL','ADMINISTRADOR'].includes(cur?.role)){
-    root.innerHTML=shell('Usuarios','<section class="panel"><h2>Acceso restringido</h2><p>Solo un administrador puede crear o modificar usuarios.</p></section>','usuarios');
-    wireShell();
-    return;
-  }
-  const body=`<div class="page-intro"><div><span class="eyebrow">CONTROL DE ACCESO</span><h2>Usuarios autorizados</h2><p>Registra aquí a cada persona que utilizará el WMS. No hay operadores demo: tú decides quién entra y qué rol tiene.</p></div><button id="new-user" class="primary">+ Nuevo usuario</button></div>
-  <section class="panel operator-current"><div><span class="eyebrow">SESIÓN ACTUAL</span><h3>${esc(cur?.name||'Administrador')}</h3><small>@${esc(cur?.username||'admin')} · ${esc(roleName(cur?.role))}</small></div><button id="change-own-password" class="secondary" type="button">Cambiar mi contraseña</button></section>
-  <section class="panel"><div class="panel-head"><div><h3>Personas registradas</h3><small>Solo usuarios activos pueden iniciar sesión y aparecen en listas de responsables.</small></div><span>${visibleUsers().length} usuarios</span></div><div class="user-admin-list">${rows()}</div></section>${dialogs()}`;
-  root.innerHTML=shell('Usuarios',body,'usuarios');
-  wireShell();
-  wireUsers(root);
-}
+export function renderUsers(root){const cur=current();if(!['ADMIN_GLOBAL','ADMINISTRADOR'].includes(cur?.role)){root.innerHTML=shell('Usuarios','<section class="panel"><h2>Acceso restringido</h2><p>Solo un administrador puede crear o modificar usuarios.</p></section>','usuarios');wireShell();return;}const body=`<div class="page-intro"><div><span class="eyebrow">CONTROL DE ACCESO</span><h2>Usuarios autorizados</h2><p>Define quién entra, su estado y el rol que tendrá en cada bodega.</p></div><button id="new-user" class="primary">+ Nuevo usuario</button></div><section class="panel operator-current"><div><span class="eyebrow">SESIÓN ACTUAL</span><h3>${esc(cur?.name||'Administrador')}</h3><small>@${esc(cur?.username||'admin')} · ${esc(roleName(cur?.role))}</small></div><button id="change-own-password" class="secondary" type="button">Cambiar mi contraseña</button></section>${roleLegend()}<section class="panel"><div class="panel-head"><div><h3>Personas registradas</h3><small>Los usuarios pausados o desactivados no pueden iniciar sesión.</small></div><span>${visibleUsers().length} usuarios</span></div><div class="user-admin-list">${rows()}</div></section>${dialogs()}`;root.innerHTML=shell('Usuarios',body,'usuarios');wireShell();wireUsers(root);}
 
 function wireUsers(root){
-  const dlg=document.querySelector('#user-dialog');
-  const form=document.querySelector('#user-form');
-  const open=(u=null)=>{
-    const cur=current(),globalAdmin=cur?.role==='ADMIN_GLOBAL'||(cur?.role==='ADMINISTRADOR'&&!(cur.siteIds||[]).length),allowedSiteIds=new Set(cur?.siteIds||[]),allowedCompanyIds=new Set(cur?.companyIds||[]);
-    document.querySelector('#user-dialog-title').textContent=u?'Editar usuario':'Nuevo usuario';
-    document.querySelector('#user-id').value=u?.id||'';
-    document.querySelector('#user-name').value=u?.name||'';
-    document.querySelector('#user-username').value=u?.username||'';
-    const roleSelect=document.querySelector('#user-role');roleSelect.querySelector('option[value="ADMIN_GLOBAL"]')?.toggleAttribute('hidden',!globalAdmin);roleSelect.value=u?.role||'OPERADOR_BODEGA';
-    const companies=document.querySelector('#user-companies');
-    companies.innerHTML=(store.data.companies||[]).filter(c=>globalAdmin||!allowedCompanyIds.size||allowedCompanyIds.has(c.id)).map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
-    [...companies.options].forEach(o=>o.selected=(u?.companyIds||[]).includes(o.value));
-    const sites=document.querySelector('#user-sites');
-    const renderSites=()=>{
-      const selectedCompanies=[...companies.selectedOptions].map(o=>o.value);
-      sites.innerHTML=store.data.sites.filter(s=>(globalAdmin||allowedSiteIds.has(s.id))&&(!selectedCompanies.length||selectedCompanies.includes(siteCompanyId(s)))).map(s=>`<option value="${esc(s.id)}">${esc(companyName(siteCompanyId(s)))} · ${esc(s.name)}</option>`).join('');
-      [...sites.options].forEach(o=>o.selected=(u?.siteIds||[]).includes(o.value));
-    };
-    companies.onchange=renderSites;
-    renderSites();
-    document.querySelector('#user-password').value='';
-    document.querySelector('#user-password').required=!u;
-    document.querySelector('#new-user-password-wrap').hidden=!!u;
-    document.querySelector('#user-active').checked=u?.active!==false;
-    dlg.showModal();
-  };
-  const close=()=>dlg.close();
-  document.querySelector('#new-user').onclick=()=>open();
-  document.querySelector('#close-user-dialog').onclick=close;
-  document.querySelector('#cancel-user').onclick=close;
-  document.querySelectorAll('.edit-user').forEach(b=>b.onclick=()=>open(store.data.users.find(u=>u.id===b.dataset.id)));
-
-  const resetDlg=document.querySelector('#reset-password-dialog');
-  const resetForm=document.querySelector('#reset-password-form');
-  const closeReset=()=>{resetForm.reset();resetDlg.close();};
-  document.querySelector('#close-reset-password').onclick=closeReset;
-  document.querySelector('#cancel-reset-password').onclick=closeReset;
-  document.querySelectorAll('.reset-user-password').forEach(b=>b.onclick=()=>{
-    const u=store.data.users.find(x=>x.id===b.dataset.id);
-    resetForm.reset();
-    document.querySelector('#reset-password-user-id').value=u?.id||'';
-    document.querySelector('#reset-password-user-label').textContent=`Usuario: ${u?.name||''} (@${u?.username||''})`;
-    resetDlg.showModal();
-  });
-  resetForm.onsubmit=async e=>{
-    e.preventDefault();
-    const id=document.querySelector('#reset-password-user-id').value;
-    const newPassword=document.querySelector('#reset-password-new').value;
-    const confirmPassword=document.querySelector('#reset-password-confirm').value;
-    const adminPassword=document.querySelector('#reset-password-admin').value;
-    if(newPassword!==confirmPassword){toast('Las contraseñas no coinciden.');return;}
-    try{
-      await apiRequest(`/users/${encodeURIComponent(id)}/reset-password`,{method:'POST',body:JSON.stringify({newPassword,adminPassword})});
-      closeReset();
-      toast('Contraseña restablecida correctamente');
-    }catch(ex){toast(ex.message);}
-  };
-
-  document.querySelector('#change-own-password').onclick=async()=>{
-    const currentPassword=prompt('Contraseña actual:');if(currentPassword===null)return;
-    const newPassword=prompt('Nueva contraseña (mínimo 8 caracteres):');if(newPassword===null)return;
-    try{await auth.changePassword(currentPassword,newPassword);toast('Contraseña actualizada');}catch(e){toast(e.message);}
-  };
-
-  form.onsubmit=async e=>{
-    e.preventDefault();
-    const id=document.querySelector('#user-id').value;
-    const body={
-      name:document.querySelector('#user-name').value.trim(),
-      username:document.querySelector('#user-username').value.trim(),
-      role:document.querySelector('#user-role').value,
-      companyIds:[...document.querySelector('#user-companies').selectedOptions].map(o=>o.value),
-      siteIds:[...document.querySelector('#user-sites').selectedOptions].map(o=>o.value),
-      active:document.querySelector('#user-active').checked
-    };
-    if(body.role==='ADMINISTRADOR'&&!body.siteIds.length){toast('El administrador de centro necesita al menos un centro asignado.');return;}
-    if(!id)body.password=document.querySelector('#user-password').value;
-    try{
-      await apiRequest(id?`/users/${encodeURIComponent(id)}`:'/users',{method:id?'PUT':'POST',body:JSON.stringify(body)});
-      await store.reload();
-      close();
-      toast(id?'Usuario actualizado':'Usuario creado');
-      renderUsers(root);
-    }catch(ex){toast(ex.message);}
-  };
+ const dlg=document.querySelector('#user-dialog'),form=document.querySelector('#user-form'),cur=current(),globalAdmin=cur?.role==='ADMIN_GLOBAL'||(cur?.role==='ADMINISTRADOR'&&!(cur.siteIds||[]).length),allowed=new Set(cur?.siteIds||[]),allowedSites=store.data.sites.filter(s=>globalAdmin||allowed.has(s.id));
+ const toggleAssignments=()=>document.querySelector('#user-assignment-wrap').hidden=document.querySelector('#user-global-role').value==='ADMIN_GLOBAL';
+ const open=(u=null)=>{document.querySelector('#user-dialog-title').textContent=u?'Editar usuario':'Nuevo usuario';document.querySelector('#user-id').value=u?.id||'';document.querySelector('#user-name').value=u?.name||'';document.querySelector('#user-username').value=u?.username||'';const globalSel=document.querySelector('#user-global-role');globalSel.querySelector('option[value="ADMIN_GLOBAL"]')?.toggleAttribute('hidden',!globalAdmin);globalSel.value=u?.role==='ADMIN_GLOBAL'?'ADMIN_GLOBAL':'SCOPED';document.querySelector('#user-assignments').innerHTML=assignmentRows(u,allowedSites);document.querySelector('#user-status').value=userStatus(u||{active:true});document.querySelector('#user-password').value='';document.querySelector('#user-password').required=!u;document.querySelector('#new-user-password-wrap').hidden=!!u;document.querySelector('#delete-user').hidden=!u||u.id===cur.id||u.id==='USR-ADMIN';toggleAssignments();dlg.showModal();};
+ document.querySelector('#user-global-role').onchange=toggleAssignments;document.querySelector('#new-user').onclick=()=>open();document.querySelector('#close-user-dialog').onclick=()=>dlg.close();document.querySelector('#cancel-user').onclick=()=>dlg.close();document.querySelectorAll('.edit-user').forEach(b=>b.onclick=()=>open(store.data.users.find(u=>u.id===b.dataset.id)));
+ document.querySelector('#delete-user').onclick=async()=>{const id=document.querySelector('#user-id').value,u=store.data.users.find(x=>x.id===id);if(!id||!confirm(`¿Eliminar a ${u?.name||'este usuario'}? Solo será posible si nunca ha registrado actividad.`))return;try{await apiRequest(`/users/${encodeURIComponent(id)}`,{method:'DELETE'});await store.reload();dlg.close();toast('Usuario eliminado');renderUsers(root);}catch(e){toast(e.message);}};
+ const resetDlg=document.querySelector('#reset-password-dialog'),resetForm=document.querySelector('#reset-password-form'),closeReset=()=>{resetForm.reset();resetDlg.close();};document.querySelector('#close-reset-password').onclick=closeReset;document.querySelector('#cancel-reset-password').onclick=closeReset;document.querySelectorAll('.reset-user-password').forEach(b=>b.onclick=()=>{const u=store.data.users.find(x=>x.id===b.dataset.id);resetForm.reset();document.querySelector('#reset-password-user-id').value=u?.id||'';document.querySelector('#reset-password-user-label').textContent=`Usuario: ${u?.name||''} (@${u?.username||''})`;resetDlg.showModal();});
+ resetForm.onsubmit=async e=>{e.preventDefault();const id=document.querySelector('#reset-password-user-id').value,newPassword=document.querySelector('#reset-password-new').value,confirmPassword=document.querySelector('#reset-password-confirm').value,adminPassword=document.querySelector('#reset-password-admin').value;if(newPassword!==confirmPassword){toast('Las contraseñas no coinciden.');return;}try{await apiRequest(`/users/${encodeURIComponent(id)}/reset-password`,{method:'POST',body:JSON.stringify({newPassword,adminPassword})});closeReset();toast('Contraseña restablecida correctamente');}catch(ex){toast(ex.message);}};
+ document.querySelector('#change-own-password').onclick=async()=>{const currentPassword=prompt('Contraseña actual:');if(currentPassword===null)return;const newPassword=prompt('Nueva contraseña (mínimo 8 caracteres):');if(newPassword===null)return;try{await auth.changePassword(currentPassword,newPassword);toast('Contraseña actualizada');}catch(e){toast(e.message);}};
+ form.onsubmit=async e=>{e.preventDefault();const id=document.querySelector('#user-id').value,isGlobal=document.querySelector('#user-global-role').value==='ADMIN_GLOBAL',accessAssignments=isGlobal?[]:[...document.querySelectorAll('.site-role')].filter(s=>s.value).map(s=>({siteId:s.dataset.siteId,companyId:s.dataset.companyId,role:s.value}));if(!isGlobal&&!accessAssignments.length){toast('Asigna al menos un centro y un rol.');return;}const siteIds=[...new Set(accessAssignments.map(a=>a.siteId))],companyIds=[...new Set(accessAssignments.map(a=>a.companyId))],role=isGlobal?'ADMIN_GLOBAL':accessAssignments.reduce((best,a)=>ROLE_WEIGHT[a.role]>ROLE_WEIGHT[best]?a.role:best,'OPERADOR_RECEPCION'),body={name:document.querySelector('#user-name').value.trim(),username:document.querySelector('#user-username').value.trim(),role,siteIds,companyIds,accessAssignments,accessStatus:document.querySelector('#user-status').value};if(!id)body.password=document.querySelector('#user-password').value;try{await apiRequest(id?`/users/${encodeURIComponent(id)}`:'/users',{method:id?'PUT':'POST',body:JSON.stringify(body)});await store.reload();dlg.close();toast(id?'Usuario actualizado':'Usuario creado');renderUsers(root);}catch(ex){toast(ex.message);}};
 }

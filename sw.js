@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23-emision-pdf-v7';
+const APP_VERSION = '2026.08.23-usuarios-login-v8';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

@@ -175,6 +175,11 @@ export function renderStructure(root){
     renderModuleLevelEditor(r,module,Number(r.levels||0));
     moduleDlg.showModal();
   };
+  const requestedRack=new URLSearchParams(location.hash.split('?')[1]||'').get('rack');
+  if(requestedRack){
+    const button=[...document.querySelectorAll('.view-rack-map')].find(b=>b.dataset.id===requestedRack);
+    button?.click();
+  }
   document.querySelector('#close-module-dialog').onclick=()=>moduleDlg.close();
   document.querySelector('#cancel-module-dialog').onclick=()=>moduleDlg.close();
   document.querySelector('#reset-module-layout').onclick=async()=>{
