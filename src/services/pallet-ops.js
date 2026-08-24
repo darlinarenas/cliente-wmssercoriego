@@ -2,6 +2,12 @@ import { refreshInventoryStatuses } from './inventory-ops.js';
 
 function n(v){ const x=Number(v); return Number.isFinite(x)?x:0; }
 function isStaging(location){ return ['POR_UBICAR','RECEPCION_TRANSFERENCIA'].includes(location?.kind); }
+function closePutawayTask(data,palletId,{userId,at,locationId}={}){
+  const task=(data.tasks||[]).find(t=>t.type==='UBICAR_CARGA'&&t.palletId===palletId&&t.status!=='CERRADA');
+  if(!task)return;
+  task.status='CERRADA';task.closedAt=at;task.closedBy=userId;task.events=task.events||[];task.events.push({at,userId,message:`Pallet ubicado completamente en ${locationId}`});
+  const shipment=(data.shipments||[]).find(s=>s.id===task.shipmentId);if(shipment){shipment.status='CERRADA';shipment.closedAt=at;shipment.events=shipment.events||[];shipment.events.push({at,userId,message:`Ubicación final completada en ${locationId}`});}
+}
 
 export function canReceiveWholePallet(location){
   return !!location?.active && location.kind!=='PICKING_RACK' && location.kind!=='PALET_EXISTENTE';
@@ -39,6 +45,7 @@ export function moveWholePallet(data,{palletId,siteId,destinationLocationId,user
 
   refreshInventoryStatuses(data,siteId);
   pallet.status=isStaging(destination)?'POR_UBICAR':'UBICADO';
+  if(pallet.status==='UBICADO')closePutawayTask(data,palletId,{userId:userId||data.session?.userId||null,at,locationId:destination.id});
 
   const oldLocation=(data.locations||[]).find(l=>l.id===from&&l.siteId===siteId);
   if(oldLocation&&!['BLOQUEADA','INHABILITADA','RESERVADA'].includes(oldLocation.status)){

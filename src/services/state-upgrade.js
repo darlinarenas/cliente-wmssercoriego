@@ -55,6 +55,8 @@ if(!data.session.activeSiteId){const u=(data.users||[]).find(x=>x.id===data.sess
  for(const m of data.movements||[]){if(!m.siteId){m.siteId=siteFromLocation(m.to)||siteFromLocation(m.from)||siteFromPallet(m.palletId)||siteFromPallet(m.sourcePalletId)||fallbackSite;changed=true;}}
  for(const t of data.transfers||[]){if(!t.sourceSiteId){t.sourceSiteId=fallbackSite;changed=true;}}
  for(const o of data.orders||[]){if(!o.sourceSiteId){o.sourceSiteId=fallbackSite;changed=true;}}
+ // Cierra tareas antiguas que quedaron abiertas aunque su pallet ya fue ubicado.
+ for(const task of data.tasks||[]){const pallet=(data.pallets||[]).find(p=>p.id===task.palletId);if(task.type==='UBICAR_CARGA'&&task.status!=='CERRADA'&&pallet&&['UBICADO','VACÍO'].includes(pallet.status)){const at=pallet.updatedAt||new Date().toISOString();task.status='CERRADA';task.closedAt=task.closedAt||at;task.closedBy=task.closedBy||'SISTEMA';task.events=task.events||[];task.events.push({at,userId:'SISTEMA',message:'Tarea cerrada automáticamente: el pallet ya estaba ubicado'});const shipment=(data.shipments||[]).find(s=>s.id===task.shipmentId);if(shipment&&shipment.status!=='CERRADA'){shipment.status='CERRADA';shipment.closedAt=shipment.closedAt||at;}changed=true;}}
  if((data.meta?.version||0)<16){data.meta=data.meta||{};data.meta.version=16;changed=true;}
  return changed;
 }

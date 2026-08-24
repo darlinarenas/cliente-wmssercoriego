@@ -25,7 +25,7 @@ export function shell(title,content,active='dashboard'){
   const canSee=id=>effectiveRole==='TRANSPORTISTA'?['dashboard','cargas'].includes(id):['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(effectiveRole)?operatorMenu.has(id):(!['usuarios','centros'].includes(id)||['ADMIN_GLOBAL','ADMINISTRADOR'].includes(effectiveRole));
   const orderTasks=(d.orders||[]).filter(o=>o.assignedTo===currentUser?.id&&!['CERRADA','EMITIDA','ENTREGADA_CONDUCTOR'].includes(o.status)).length;
   const putawayTasks=(d.tasks||[]).filter(t=>t.assignedTo===currentUser?.id&&t.status!=='CERRADA').length;
-  const taskCountFor=id=>id==='ordenes'?orderTasks:id==='tareas-ubicacion'?putawayTasks:0;
+  const taskCountFor=id=>id==='ordenes'?orderTasks+putawayTasks:id==='tareas-ubicacion'?putawayTasks:0;
   const navLink=([id,label,ico],sub=false)=>{const count=taskCountFor(id);return `<a href="#/${id}" class="nav-link ${sub?'nav-sub-link':''} ${active===id?'active':''}"><span>${ico}</span><b>${label}</b>${count?`<em class="nav-count">${count}</em>`:''}</a>`;};
   const links=nav.map(node=>{if(Array.isArray(node))return canSee(node[0])?navLink(node):'';const items=node.items.filter(([id])=>canSee(id));if(!items.length)return '';const opened=items.some(([id])=>id===active);return `<details class="nav-group ${opened?'active':''}" ${opened?'open':''}><summary><span>${node.ico}</span><b>${node.label}</b><i>⌄</i></summary><div class="nav-submenu">${items.map(item=>navLink(item,true)).join('')}</div></details>`;}).join('');
   return `<div class="app-shell vista-administrativa">

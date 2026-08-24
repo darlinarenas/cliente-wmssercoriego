@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23-referencia-documental-custodia-v19';
+const APP_VERSION = '2026.08.23-cierre-tareas-ubicacion-v21';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
