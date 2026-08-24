@@ -1,0 +1,629 @@
+diff --git a/backend/src/app.js b/backend/src/app.js
+index a5c630c..81bfb90 100644
+--- a/backend/src/app.js
++++ b/backend/src/app.js
+@@ -49,7 +49,7 @@ app.use(cors({
+   methods:['GET','HEAD','PUT','PATCH','POST','DELETE','OPTIONS'],
+   // X-WMS-Compact lo envía el frontend al guardar el estado. Si no se declara
+   // aquí, el navegador bloquea el PUT en el preflight y muestra "Failed to fetch".
+-  allowedHeaders:['Content-Type','Authorization','X-Kame-Integration-Key','X-WMS-Site','X-WMS-Compact'],
++  allowedHeaders:['Content-Type','Authorization','X-Integration-Key','X-Kame-Integration-Key','X-WMS-Site','X-WMS-Company','X-WMS-Compact'],
+   optionsSuccessStatus:204,
+ }));
+ 
+diff --git a/backend/src/db/database.js b/backend/src/db/database.js
+index 938cd80..0b56930 100644
+--- a/backend/src/db/database.js
++++ b/backend/src/db/database.js
+@@ -2,12 +2,14 @@ import pg from 'pg';
+ import { env } from '../config/env.js';
+ import { INITIAL_STATE } from './initial-state.js';
+ import { storePassword } from '../security/passwords.js';
++import { DEFAULT_COMPANY_ID, tenantItem, userCompanyIds } from '../security/tenant.js';
+ 
+ const { Pool } = pg;
+ if(!env.databaseUrl) console.warn('[WMS] DATABASE_URL no configurada.');
+ export const pool = new Pool({connectionString:env.databaseUrl,ssl:env.databaseSsl?{rejectUnauthorized:false}:false});
+ 
+ const ENTITY_TABLES=['companies','sites','sectors','racks','locations','products','product_codes','inventory','pallets','receipts','transfers','shipments','tasks','orders','movements','audit'];
++const TENANT_TABLES=ENTITY_TABLES.filter(t=>t!=='companies');
+ 
+ const schemaSql=`
+ CREATE TABLE IF NOT EXISTS wms_meta (
+@@ -45,6 +47,14 @@ CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, data JSONB NOT NULL);
+ CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, data JSONB NOT NULL);
+ CREATE TABLE IF NOT EXISTS movements (id TEXT PRIMARY KEY, data JSONB NOT NULL);
+ CREATE TABLE IF NOT EXISTS audit (id TEXT PRIMARY KEY, data JSONB NOT NULL);
++CREATE TABLE IF NOT EXISTS wms_company_meta (
++  company_id TEXT PRIMARY KEY,
++  revision BIGINT NOT NULL DEFAULT 1,
++  settings JSONB NOT NULL DEFAULT '{}'::jsonb,
++  planning JSONB NOT NULL DEFAULT '{}'::jsonb,
++  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
++  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
++);
+ CREATE INDEX IF NOT EXISTS idx_products_code ON products(code);
+ CREATE INDEX IF NOT EXISTS idx_inventory_product ON inventory(product_code);
+ CREATE INDEX IF NOT EXISTS idx_inventory_location ON inventory(location_id);
+@@ -58,6 +68,71 @@ ALTER TABLE users DROP CONSTRAINT IF EXISTS users_access_status_check;
+ ALTER TABLE users ADD CONSTRAINT users_access_status_check CHECK (access_status IN ('ACTIVE','PAUSED','DISABLED'));
+ ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO','OPERADOR_BODEGA','OPERADOR_RECEPCION','TRANSPORTISTA'));
++UPDATE users u SET company_ids=COALESCE((SELECT jsonb_agg(DISTINCT a->>'companyId') FROM jsonb_array_elements(u.access_assignments) a WHERE NULLIF(a->>'companyId','') IS NOT NULL),'[]'::jsonb) WHERE u.role<>'ADMIN_GLOBAL' AND jsonb_array_length(u.company_ids)=0;
++UPDATE users SET company_ids=jsonb_build_array('SERCO_RIEGO') WHERE role<>'ADMIN_GLOBAL' AND jsonb_array_length(company_ids)=0;
++UPDATE users u SET company_ids=jsonb_build_array(u.company_ids->0),access_assignments=COALESCE((SELECT jsonb_agg(a) FROM jsonb_array_elements(u.access_assignments) a WHERE a->>'companyId'=u.company_ids->>0),'[]'::jsonb) WHERE u.role<>'ADMIN_GLOBAL' AND jsonb_array_length(u.company_ids)>1;
++ALTER TABLE users DROP CONSTRAINT IF EXISTS users_single_company_check;
++ALTER TABLE users ADD CONSTRAINT users_single_company_check CHECK (role='ADMIN_GLOBAL' OR jsonb_array_length(company_ids)=1);
++ALTER TABLE sites ADD COLUMN IF NOT EXISTS company_id TEXT NOT NULL DEFAULT 'SERCO_RIEGO';
++ALTER TABLE sectors ADD COLUMN IF NOT EXISTS company_id TEXT NOT NULL DEFAULT 'SERCO_RIEGO';
++ALTER TABLE racks ADD COLUMN IF NOT EXISTS company_id TEXT NOT NULL DEFAULT 'SERCO_RIEGO';
++ALTER TABLE locations ADD COLUMN IF NOT EXISTS company_id TEXT NOT NULL DEFAULT 'SERCO_RIEGO';
++ALTER TABLE products ADD COLUMN IF NOT EXISTS company_id TEXT NOT NULL DEFAULT 'SERCO_RIEGO';
++ALTER TABLE product_codes ADD COLUMN IF NOT EXISTS company_id TEXT NOT NULL DEFAULT 'SERCO_RIEGO';
++ALTER TABLE inventory ADD COLUMN IF NOT EXISTS company_id TEXT NOT NULL DEFAULT 'SERCO_RIEGO';
++ALTER TABLE pallets ADD COLUMN IF NOT EXISTS company_id TEXT NOT NULL DEFAULT 'SERCO_RIEGO';
++ALTER TABLE receipts ADD COLUMN IF NOT EXISTS company_id TEXT NOT NULL DEFAULT 'SERCO_RIEGO';
++ALTER TABLE transfers ADD COLUMN IF NOT EXISTS company_id TEXT NOT NULL DEFAULT 'SERCO_RIEGO';
++ALTER TABLE shipments ADD COLUMN IF NOT EXISTS company_id TEXT NOT NULL DEFAULT 'SERCO_RIEGO';
++ALTER TABLE tasks ADD COLUMN IF NOT EXISTS company_id TEXT NOT NULL DEFAULT 'SERCO_RIEGO';
++ALTER TABLE orders ADD COLUMN IF NOT EXISTS company_id TEXT NOT NULL DEFAULT 'SERCO_RIEGO';
++ALTER TABLE movements ADD COLUMN IF NOT EXISTS company_id TEXT NOT NULL DEFAULT 'SERCO_RIEGO';
++ALTER TABLE audit ADD COLUMN IF NOT EXISTS company_id TEXT NOT NULL DEFAULT 'SERCO_RIEGO';
++UPDATE sites SET company_id=COALESCE(NULLIF(data->>'companyId',''),'SERCO_RIEGO');
++UPDATE sectors x SET company_id=COALESCE(NULLIF(x.data->>'companyId',''),s.company_id,'SERCO_RIEGO') FROM sites s WHERE s.id=x.data->>'siteId';
++UPDATE racks x SET company_id=COALESCE(NULLIF(x.data->>'companyId',''),s.company_id,'SERCO_RIEGO') FROM sites s WHERE s.id=x.data->>'siteId';
++UPDATE locations x SET company_id=COALESCE(NULLIF(x.data->>'companyId',''),s.company_id,'SERCO_RIEGO') FROM sites s WHERE s.id=x.data->>'siteId';
++UPDATE pallets x SET company_id=COALESCE(NULLIF(x.data->>'companyId',''),s.company_id,'SERCO_RIEGO') FROM sites s WHERE s.id=x.data->>'siteId';
++UPDATE receipts x SET company_id=COALESCE(NULLIF(x.data->>'companyId',''),s.company_id,'SERCO_RIEGO') FROM sites s WHERE s.id=x.data->>'siteId';
++UPDATE transfers x SET company_id=COALESCE(NULLIF(x.data->>'companyId',''),s.company_id,'SERCO_RIEGO') FROM sites s WHERE s.id=x.data->>'sourceSiteId';
++UPDATE orders x SET company_id=COALESCE(NULLIF(x.data->>'companyId',''),s.company_id,'SERCO_RIEGO') FROM sites s WHERE s.id=x.data->>'sourceSiteId';
++UPDATE movements x SET company_id=COALESCE(NULLIF(x.data->>'companyId',''),s.company_id,'SERCO_RIEGO') FROM sites s WHERE s.id=x.data->>'siteId';
++UPDATE inventory x SET company_id=COALESCE(NULLIF(x.data->>'companyId',''),l.company_id,x.company_id) FROM locations l WHERE l.id=x.location_id;
++UPDATE product_codes x SET company_id=COALESCE(NULLIF(x.data->>'companyId',''),p.company_id,x.company_id) FROM products p WHERE p.id=x.data->>'productId' AND (x.data->>'companyId' IS NULL OR p.company_id=x.data->>'companyId');
++UPDATE sites SET data=jsonb_set(data,'{companyId}',to_jsonb(company_id),true);
++UPDATE sectors SET data=jsonb_set(data,'{companyId}',to_jsonb(company_id),true);
++UPDATE racks SET data=jsonb_set(data,'{companyId}',to_jsonb(company_id),true);
++UPDATE locations SET data=jsonb_set(data,'{companyId}',to_jsonb(company_id),true);
++UPDATE products SET data=jsonb_set(data,'{companyId}',to_jsonb(company_id),true);
++UPDATE product_codes SET data=jsonb_set(data,'{companyId}',to_jsonb(company_id),true);
++UPDATE inventory SET data=jsonb_set(data,'{companyId}',to_jsonb(company_id),true);
++UPDATE pallets SET data=jsonb_set(data,'{companyId}',to_jsonb(company_id),true);
++UPDATE receipts SET data=jsonb_set(data,'{companyId}',to_jsonb(company_id),true);
++UPDATE transfers SET data=jsonb_set(data,'{companyId}',to_jsonb(company_id),true);
++UPDATE shipments SET data=jsonb_set(data,'{companyId}',to_jsonb(company_id),true);
++UPDATE tasks SET data=jsonb_set(data,'{companyId}',to_jsonb(company_id),true);
++UPDATE orders SET data=jsonb_set(data,'{companyId}',to_jsonb(company_id),true);
++UPDATE movements SET data=jsonb_set(data,'{companyId}',to_jsonb(company_id),true);
++UPDATE audit SET data=jsonb_set(data,'{companyId}',to_jsonb(company_id),true);
++INSERT INTO wms_company_meta(company_id,revision,settings,planning)
++SELECT c.id,COALESCE(m.revision,1),COALESCE(m.settings,'{}'::jsonb),COALESCE(m.planning,'{}'::jsonb)
++FROM companies c CROSS JOIN wms_meta m ON m.id=1 ON CONFLICT(company_id) DO NOTHING;
++CREATE INDEX IF NOT EXISTS idx_sites_company ON sites(company_id);
++CREATE INDEX IF NOT EXISTS idx_inventory_company_product ON inventory(company_id,product_code);
++CREATE INDEX IF NOT EXISTS idx_orders_company ON orders(company_id);
++CREATE INDEX IF NOT EXISTS idx_users_company_ids ON users USING GIN(company_ids);
++ALTER TABLE products DROP CONSTRAINT IF EXISTS products_code_key;
++CREATE UNIQUE INDEX IF NOT EXISTS products_company_code_key ON products(company_id,code);
++DO $$
++DECLARE t TEXT;
++BEGIN
++  FOREACH t IN ARRAY ARRAY['sites','sectors','racks','locations','products','product_codes','inventory','pallets','receipts','transfers','shipments','tasks','orders','movements','audit'] LOOP
++    IF EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid=t::regclass AND contype='p' AND pg_get_constraintdef(oid) NOT ILIKE '%company_id%') THEN
++      EXECUTE format('ALTER TABLE %I DROP CONSTRAINT %I_pkey',t,t);
++      EXECUTE format('ALTER TABLE %I ADD PRIMARY KEY(company_id,id)',t);
++    END IF;
++  END LOOP;
++END $$;
+ `;
+ 
+ function makeUserId(name){
+@@ -65,10 +140,12 @@ function makeUserId(name){
+   return `USR-${base}`;
+ }
+ 
+-async function insertEntity(client,table,item){
+-  if(table==='products') return client.query('INSERT INTO products(id,code,data) VALUES($1,$2,$3::jsonb) ON CONFLICT(id) DO UPDATE SET code=EXCLUDED.code,data=EXCLUDED.data',[item.id,item.code,JSON.stringify(item)]);
+-  if(table==='inventory') return client.query('INSERT INTO inventory(id,product_code,location_id,qty,pallet_id,data) VALUES($1,$2,$3,$4,$5,$6::jsonb) ON CONFLICT(id) DO UPDATE SET product_code=EXCLUDED.product_code,location_id=EXCLUDED.location_id,qty=EXCLUDED.qty,pallet_id=EXCLUDED.pallet_id,data=EXCLUDED.data',[item.id,item.productCode,item.locationId,Number(item.qty||0),item.palletId||null,JSON.stringify(item)]);
+-  return client.query(`INSERT INTO ${table}(id,data) VALUES($1,$2::jsonb) ON CONFLICT(id) DO UPDATE SET data=EXCLUDED.data`,[item.id,JSON.stringify(item)]);
++async function insertEntity(client,table,item,companyId=DEFAULT_COMPANY_ID){
++  if(table==='companies')return client.query('INSERT INTO companies(id,data) VALUES($1,$2::jsonb) ON CONFLICT(id) DO UPDATE SET data=EXCLUDED.data',[item.id,JSON.stringify(item)]);
++  const scoped=tenantItem(item,companyId);
++  if(table==='products') return client.query('INSERT INTO products(id,code,data,company_id) VALUES($1,$2,$3::jsonb,$4) ON CONFLICT(company_id,id) DO UPDATE SET code=EXCLUDED.code,data=EXCLUDED.data',[scoped.id,scoped.code,JSON.stringify(scoped),companyId]);
++  if(table==='inventory') return client.query('INSERT INTO inventory(id,product_code,location_id,qty,pallet_id,data,company_id) VALUES($1,$2,$3,$4,$5,$6::jsonb,$7) ON CONFLICT(company_id,id) DO UPDATE SET product_code=EXCLUDED.product_code,location_id=EXCLUDED.location_id,qty=EXCLUDED.qty,pallet_id=EXCLUDED.pallet_id,data=EXCLUDED.data',[scoped.id,scoped.productCode,scoped.locationId,Number(scoped.qty||0),scoped.palletId||null,JSON.stringify(scoped),companyId]);
++  return client.query(`INSERT INTO ${table}(id,data,company_id) VALUES($1,$2::jsonb,$3) ON CONFLICT(company_id,id) DO UPDATE SET data=EXCLUDED.data`,[scoped.id,JSON.stringify(scoped),companyId]);
+ }
+ 
+ export async function ensureDatabase(){
+@@ -97,7 +174,7 @@ export async function ensureDatabase(){
+     const count=(await client.query('SELECT count(*)::int AS n FROM products')).rows[0].n;
+     if(count===0){
+       for(const table of ENTITY_TABLES){
+-        for(const item of INITIAL_STATE[table]||[]) await insertEntity(client,table,item);
++        for(const item of INITIAL_STATE[table]||[]) await insertEntity(client,table,item,DEFAULT_COMPANY_ID);
+       }
+     }
+     await client.query('COMMIT');
+@@ -109,7 +186,9 @@ export async function withTransaction(fn){
+   try{await client.query('BEGIN');const result=await fn(client);await client.query('COMMIT');return result;}catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
+ }
+ 
+-export async function readState(client=pool,currentUser=null){
++export async function readState(client=pool,currentUser=null,companyId=DEFAULT_COMPANY_ID){
++  await client.query("INSERT INTO wms_company_meta(company_id) VALUES($1) ON CONFLICT(company_id) DO NOTHING",[companyId]);
++  const allowedCompanies=currentUser?.role==='ADMIN_GLOBAL'?null:userCompanyIds(currentUser);
+   // Una sola ida a PostgreSQL para reconstruir el estado completo. Antes se
+   // realizaba una consulta por colección, acumulando latencia innecesaria.
+   const row=(await client.query(`
+@@ -119,22 +198,22 @@ export async function readState(client=pool,currentUser=null){
+       m.planning,
+       m.created_at,
+       m.updated_at,
+-      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM companies),'[]'::jsonb) AS companies,
+-      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM sites),'[]'::jsonb) AS sites,
+-      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM sectors),'[]'::jsonb) AS sectors,
+-      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM racks),'[]'::jsonb) AS racks,
+-      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM locations),'[]'::jsonb) AS locations,
+-      COALESCE((SELECT jsonb_agg(data ORDER BY code) FROM products),'[]'::jsonb) AS products,
+-      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM product_codes),'[]'::jsonb) AS product_codes,
+-      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM inventory),'[]'::jsonb) AS inventory,
+-      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM pallets),'[]'::jsonb) AS pallets,
+-      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM receipts),'[]'::jsonb) AS receipts,
+-      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM transfers),'[]'::jsonb) AS transfers,
+-      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM shipments),'[]'::jsonb) AS shipments,
+-      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM tasks),'[]'::jsonb) AS tasks,
+-      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM orders),'[]'::jsonb) AS orders,
+-      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM movements),'[]'::jsonb) AS movements,
+-      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM audit),'[]'::jsonb) AS audit,
++      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM companies WHERE $3::text[] IS NULL OR id=ANY($3::text[])),'[]'::jsonb) AS companies,
++      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM sites WHERE company_id=$1),'[]'::jsonb) AS sites,
++      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM sectors WHERE company_id=$1),'[]'::jsonb) AS sectors,
++      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM racks WHERE company_id=$1),'[]'::jsonb) AS racks,
++      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM locations WHERE company_id=$1),'[]'::jsonb) AS locations,
++      COALESCE((SELECT jsonb_agg(data ORDER BY code) FROM products WHERE company_id=$1),'[]'::jsonb) AS products,
++      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM product_codes WHERE company_id=$1),'[]'::jsonb) AS product_codes,
++      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM inventory WHERE company_id=$1),'[]'::jsonb) AS inventory,
++      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM pallets WHERE company_id=$1),'[]'::jsonb) AS pallets,
++      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM receipts WHERE company_id=$1),'[]'::jsonb) AS receipts,
++      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM transfers WHERE company_id=$1),'[]'::jsonb) AS transfers,
++      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM shipments WHERE company_id=$1),'[]'::jsonb) AS shipments,
++      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM tasks WHERE company_id=$1),'[]'::jsonb) AS tasks,
++      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM orders WHERE company_id=$1),'[]'::jsonb) AS orders,
++      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM movements WHERE company_id=$1),'[]'::jsonb) AS movements,
++      COALESCE((SELECT jsonb_agg(data ORDER BY id) FROM audit WHERE company_id=$1),'[]'::jsonb) AS audit,
+       COALESCE((
+         SELECT jsonb_agg(
+           jsonb_build_object(
+@@ -149,17 +228,17 @@ export async function readState(client=pool,currentUser=null){
+             'companyIds',u.company_ids,
+             'createdAt',u.created_at
+           ) ORDER BY u.name
+-        ) FROM users u
++        ) FROM users u WHERE u.id=$2 OR u.role='ADMIN_GLOBAL' OR u.company_ids ? $1
+       ),'[]'::jsonb) AS users
+-    FROM wms_meta m
+-    WHERE m.id=1
+-  `)).rows[0];
++    FROM wms_company_meta m
++    WHERE m.company_id=$1
++  `,[companyId,currentUser?.id||'USR-ADMIN',allowedCompanies])).rows[0];
+ 
+   return {
+     meta:{version:12,revision:Number(row?.revision||1),updatedAt:row?.updated_at,createdAt:row?.created_at},
+     settings:row?.settings||{},
+     planning:row?.planning||{},
+-    session:{userId:currentUser?.id||'USR-ADMIN',activeSiteId:(currentUser?.siteIds||currentUser?.site_ids||[])[0]||'REC',activeCompanyId:(currentUser?.companyIds||currentUser?.company_ids||[])[0]||'SERCO_RIEGO'},
++    session:{userId:currentUser?.id||'USR-ADMIN',activeSiteId:(currentUser?.siteIds||currentUser?.site_ids||[]).find(id=>(row?.sites||[]).some(s=>s.id===id))||(row?.sites||[])[0]?.id||'',activeCompanyId:companyId},
+     companies:row?.companies||[],
+     sites:row?.sites||[],
+     sectors:row?.sectors||[],
+@@ -180,56 +259,66 @@ export async function readState(client=pool,currentUser=null){
+   };
+ }
+ 
+-async function replaceTableBulk(client,table,items){
++async function replaceTableBulk(client,table,items,companyId,currentUser){
+   // Conserva exactamente la semántica anterior (reemplazo completo de la
+   // colección), pero inserta toda la colección en una sola consulta SQL.
+-  await client.query(`DELETE FROM ${table}`);
++  if(table==='companies'){
++    if(currentUser?.role!=='ADMIN_GLOBAL')throw Object.assign(new Error('Solo el administrador general puede modificar empresas.'),{status:403});
++    await client.query('DELETE FROM companies');
++    if(items.length)await client.query(`INSERT INTO companies(id,data) SELECT x->>'id',x FROM jsonb_array_elements($1::jsonb) x`,[JSON.stringify(items)]);
++    for(const c of items)await client.query('INSERT INTO wms_company_meta(company_id) VALUES($1) ON CONFLICT(company_id) DO NOTHING',[c.id]);
++    return;
++  }
++  const scoped=items.map(item=>tenantItem(item,companyId));
++  await client.query(`DELETE FROM ${table} WHERE company_id=$1`,[companyId]);
+   if(!items.length)return;
+ 
+-  const payload=JSON.stringify(items);
++  const payload=JSON.stringify(scoped);
+   if(table==='products'){
+     await client.query(`
+-      INSERT INTO products(id,code,data)
+-      SELECT x->>'id',x->>'code',x
++      INSERT INTO products(id,code,data,company_id)
++      SELECT x->>'id',x->>'code',x,$2
+       FROM jsonb_array_elements($1::jsonb) AS x
+-    `,[payload]);
++    `,[payload,companyId]);
+     return;
+   }
+   if(table==='inventory'){
+     await client.query(`
+-      INSERT INTO inventory(id,product_code,location_id,qty,pallet_id,data)
++      INSERT INTO inventory(id,product_code,location_id,qty,pallet_id,data,company_id)
+       SELECT
+         x->>'id',
+         x->>'productCode',
+         x->>'locationId',
+         COALESCE(NULLIF(x->>'qty',''),'0')::numeric,
+         NULLIF(x->>'palletId',''),
+-        x
++        x,
++        $2
+       FROM jsonb_array_elements($1::jsonb) AS x
+-    `,[payload]);
++    `,[payload,companyId]);
+     return;
+   }
+   await client.query(`
+-    INSERT INTO ${table}(id,data)
+-    SELECT x->>'id',x
++    INSERT INTO ${table}(id,data,company_id)
++    SELECT x->>'id',x,$2
+     FROM jsonb_array_elements($1::jsonb) AS x
+-  `,[payload]);
++  `,[payload,companyId]);
+ }
+ 
+-export async function replaceState(client,state,expectedRevision,currentUser,compact=false){
+-  const locked=(await client.query('SELECT revision FROM wms_meta WHERE id=1 FOR UPDATE')).rows[0];
++export async function replaceState(client,state,expectedRevision,currentUser,compact=false,companyId=DEFAULT_COMPANY_ID){
++  await client.query('INSERT INTO wms_company_meta(company_id) VALUES($1) ON CONFLICT(company_id) DO NOTHING',[companyId]);
++  const locked=(await client.query('SELECT revision FROM wms_company_meta WHERE company_id=$1 FOR UPDATE',[companyId])).rows[0];
+   const actual=Number(locked?.revision||1);
+   if(expectedRevision!=null && Number(expectedRevision)!==actual){const e=new Error('El inventario cambió en otro equipo. Recarga antes de guardar.');e.status=409;e.code='REVISION_CONFLICT';throw e;}
+   for(const table of ENTITY_TABLES){
+     // Compatibilidad durante despliegues: un frontend anterior que aún no conozca
+     // una colección nueva no puede vaciarla accidentalmente.
+     if(!Array.isArray(state[table])) continue;
+-    await replaceTableBulk(client,table,state[table]);
++    await replaceTableBulk(client,table,state[table],companyId,currentUser);
+   }
+   const next=actual+1;
+-  const updated=(await client.query('UPDATE wms_meta SET revision=$1,settings=$2::jsonb,planning=$3::jsonb,updated_at=now() WHERE id=1 RETURNING updated_at',[next,JSON.stringify(state.settings||{}),JSON.stringify(state.planning||{})])).rows[0];
++  const updated=(await client.query('UPDATE wms_company_meta SET revision=$1,settings=$2::jsonb,planning=$3::jsonb,updated_at=now() WHERE company_id=$4 RETURNING updated_at',[next,JSON.stringify(state.settings||{}),JSON.stringify(state.planning||{}),companyId])).rows[0];
+   if(compact)return {compact:true,meta:{version:15,revision:next,updatedAt:updated?.updated_at}};
+-  return readState(client,currentUser);
++  return readState(client,currentUser,companyId);
+ }
+ 
+-export { ENTITY_TABLES, makeUserId };
++export { ENTITY_TABLES, TENANT_TABLES, makeUserId };
+diff --git a/backend/src/middleware/auth.js b/backend/src/middleware/auth.js
+index b4e4ea2..b9e0f06 100644
+--- a/backend/src/middleware/auth.js
++++ b/backend/src/middleware/auth.js
+@@ -1,6 +1,7 @@
+ import jwt from 'jsonwebtoken';
+ import { env } from '../config/env.js';
+ import { pool } from '../db/database.js';
++import { requestedCompany } from '../security/tenant.js';
+ 
+ export async function requireAuth(req,res,next){
+   try{
+@@ -11,7 +12,7 @@ export async function requireAuth(req,res,next){
+     const {rows}=await pool.query('SELECT id,name,username,role,active,access_status AS "accessStatus",access_assignments AS "accessAssignments",site_ids AS "siteIds",company_ids AS "companyIds",must_change_password AS "mustChangePassword" FROM users WHERE id=$1',[payload.sub]);
+     const user=rows[0];
+     if(!user||!user.active||user.accessStatus!=='ACTIVE') return res.status(401).json({error:'Usuario pausado o desactivado.'});
+-    req.user=user;next();
++    req.user=user;req.companyId=requestedCompany(req,user);next();
+   }catch(e){return res.status(401).json({error:'Sesión inválida o vencida.'});}
+ }
+ export function requireRole(...roles){return(req,res,next)=>roles.includes(req.user?.role)?next():res.status(403).json({error:'No tienes permiso para esta operación.'});}
+diff --git a/backend/src/modules/auth/auth.routes.js b/backend/src/modules/auth/auth.routes.js
+index aafd0b5..c7e2a9e 100644
+--- a/backend/src/modules/auth/auth.routes.js
++++ b/backend/src/modules/auth/auth.routes.js
+@@ -34,7 +34,7 @@ authRouter.post('/login',loginLimiter,async(req,res,next)=>{try{
+ 
+   const token=jwt.sign({sub:u.id,role:u.role},env.jwtSecret,{expiresIn:env.jwtExpiresIn});
+   const user=publicUser(u);
+-  const state=await readState(undefined,user);
++  const state=await readState(undefined,user,(user.companyIds||[])[0]||'SERCO_RIEGO');
+   res.json({token,user,state});
+ }catch(e){next(e);}});
+ 
+diff --git a/backend/src/modules/catalogo/entity.routes.js b/backend/src/modules/catalogo/entity.routes.js
+index 726aead..bdc3737 100644
+--- a/backend/src/modules/catalogo/entity.routes.js
++++ b/backend/src/modules/catalogo/entity.routes.js
+@@ -1,19 +1,22 @@
+ import { Router } from 'express';
+ import { pool, ENTITY_TABLES } from '../../db/database.js';
++import { tenantItem } from '../../security/tenant.js';
+ 
+ const allowed=new Set(ENTITY_TABLES);
+ function tableFor(req){const t=req.params.entity;if(!allowed.has(t))throw Object.assign(new Error('Módulo no válido.'),{status:404});return t;}
+-function selectSql(t){return t==='products'?'SELECT data FROM products ORDER BY code':t==='inventory'?'SELECT data FROM inventory ORDER BY id':`SELECT data FROM ${t} ORDER BY id`;}
+-async function upsert(t,item){
++function selectSql(t){return t==='products'?'SELECT data FROM products WHERE company_id=$1 ORDER BY code':t==='inventory'?'SELECT data FROM inventory WHERE company_id=$1 ORDER BY id':`SELECT data FROM ${t} WHERE company_id=$1 ORDER BY id`;}
++async function upsert(t,item,companyId){
+  if(!item?.id)throw Object.assign(new Error('El campo id es obligatorio.'),{status:400});
+- if(t==='products')return pool.query('INSERT INTO products(id,code,data) VALUES($1,$2,$3::jsonb) ON CONFLICT(id) DO UPDATE SET code=EXCLUDED.code,data=EXCLUDED.data RETURNING data',[item.id,item.code,JSON.stringify(item)]);
+- if(t==='inventory')return pool.query('INSERT INTO inventory(id,product_code,location_id,qty,pallet_id,data) VALUES($1,$2,$3,$4,$5,$6::jsonb) ON CONFLICT(id) DO UPDATE SET product_code=EXCLUDED.product_code,location_id=EXCLUDED.location_id,qty=EXCLUDED.qty,pallet_id=EXCLUDED.pallet_id,data=EXCLUDED.data RETURNING data',[item.id,item.productCode,item.locationId,Number(item.qty||0),item.palletId||null,JSON.stringify(item)]);
+- return pool.query(`INSERT INTO ${t}(id,data) VALUES($1,$2::jsonb) ON CONFLICT(id) DO UPDATE SET data=EXCLUDED.data RETURNING data`,[item.id,JSON.stringify(item)]);
++ const scoped=tenantItem(item,companyId);
++ if(t==='companies')throw Object.assign(new Error('Las empresas se administran desde el estado global.'),{status:400});
++ if(t==='products')return pool.query('INSERT INTO products(id,code,data,company_id) VALUES($1,$2,$3::jsonb,$4) ON CONFLICT(company_id,id) DO UPDATE SET code=EXCLUDED.code,data=EXCLUDED.data RETURNING data',[scoped.id,scoped.code,JSON.stringify(scoped),companyId]);
++ if(t==='inventory')return pool.query('INSERT INTO inventory(id,product_code,location_id,qty,pallet_id,data,company_id) VALUES($1,$2,$3,$4,$5,$6::jsonb,$7) ON CONFLICT(company_id,id) DO UPDATE SET product_code=EXCLUDED.product_code,location_id=EXCLUDED.location_id,qty=EXCLUDED.qty,pallet_id=EXCLUDED.pallet_id,data=EXCLUDED.data RETURNING data',[scoped.id,scoped.productCode,scoped.locationId,Number(scoped.qty||0),scoped.palletId||null,JSON.stringify(scoped),companyId]);
++ return pool.query(`INSERT INTO ${t}(id,data,company_id) VALUES($1,$2::jsonb,$3) ON CONFLICT(company_id,id) DO UPDATE SET data=EXCLUDED.data RETURNING data`,[scoped.id,JSON.stringify(scoped),companyId]);
+ }
+ export const entityRouter=Router();
+-entityRouter.post('/orders/:id/emit',async(req,res,next)=>{const client=await pool.connect();try{const {order,inventory=[],deleteInventoryIds=[],transfer=null,shipment=null}=req.body||{};if(!order?.id||order.id!==req.params.id)return res.status(400).json({error:'La orden emitida no es válida.'});if(order.status!=='EMITIDA')return res.status(400).json({error:'La orden debe quedar en estado EMITIDA.'});await client.query('BEGIN');const current=(await client.query('SELECT data FROM orders WHERE id=$1 FOR UPDATE',[order.id])).rows[0]?.data;if(!current){await client.query('ROLLBACK');return res.status(404).json({error:'La orden ya no existe.'});}if(!['PENDIENTE_EMISION','PREPARADA'].includes(current.status)){await client.query('ROLLBACK');return res.status(409).json({error:`La orden está en estado ${current.status} y no puede emitirse nuevamente.`});}for(const row of inventory){await client.query('INSERT INTO inventory(id,product_code,location_id,qty,pallet_id,data) VALUES($1,$2,$3,$4,$5,$6::jsonb) ON CONFLICT(id) DO UPDATE SET product_code=EXCLUDED.product_code,location_id=EXCLUDED.location_id,qty=EXCLUDED.qty,pallet_id=EXCLUDED.pallet_id,data=EXCLUDED.data',[row.id,row.productCode,row.locationId,Number(row.qty||0),row.palletId||null,JSON.stringify(row)]);}for(const id of deleteInventoryIds)await client.query('DELETE FROM inventory WHERE id=$1',[id]);if(transfer?.id)await client.query('INSERT INTO transfers(id,data) VALUES($1,$2::jsonb) ON CONFLICT(id) DO UPDATE SET data=EXCLUDED.data',[transfer.id,JSON.stringify(transfer)]);if(shipment?.id)await client.query('INSERT INTO shipments(id,data) VALUES($1,$2::jsonb) ON CONFLICT(id) DO UPDATE SET data=EXCLUDED.data',[shipment.id,JSON.stringify(shipment)]);await client.query('UPDATE orders SET data=$2::jsonb WHERE id=$1',[order.id,JSON.stringify(order)]);await client.query('UPDATE wms_meta SET revision=revision+1,updated_at=now() WHERE id=1');await client.query('COMMIT');res.json({order,inventory,deleteInventoryIds,transfer,shipment});}catch(e){await client.query('ROLLBACK').catch(()=>{});next(e);}finally{client.release();}});
+-entityRouter.get('/:entity',async(req,res,next)=>{try{const t=tableFor(req);res.json((await pool.query(selectSql(t))).rows.map(r=>r.data));}catch(e){next(e);}});
+-entityRouter.get('/:entity/:id',async(req,res,next)=>{try{const t=tableFor(req),r=(await pool.query(`SELECT data FROM ${t} WHERE id=$1`,[req.params.id])).rows[0];if(!r)return res.status(404).json({error:'Registro no encontrado.'});res.json(r.data);}catch(e){next(e);}});
+-entityRouter.post('/:entity',async(req,res,next)=>{try{const t=tableFor(req);res.status(201).json((await upsert(t,req.body)).rows[0].data);}catch(e){next(e);}});
+-entityRouter.put('/:entity/:id',async(req,res,next)=>{try{const t=tableFor(req);res.json((await upsert(t,{...req.body,id:req.params.id})).rows[0].data);}catch(e){next(e);}});
+-entityRouter.delete('/:entity/:id',async(req,res,next)=>{try{const t=tableFor(req);await pool.query(`DELETE FROM ${t} WHERE id=$1`,[req.params.id]);res.status(204).end();}catch(e){next(e);}});
++entityRouter.post('/orders/:id/emit',async(req,res,next)=>{const client=await pool.connect();try{const companyId=req.companyId,{order,inventory=[],deleteInventoryIds=[],transfer=null,shipment=null}=req.body||{},safeOrder=tenantItem(order,companyId);if(!safeOrder?.id||safeOrder.id!==req.params.id)return res.status(400).json({error:'La orden emitida no es válida.'});if(safeOrder.status!=='EMITIDA')return res.status(400).json({error:'La orden debe quedar en estado EMITIDA.'});await client.query('BEGIN');const current=(await client.query('SELECT data FROM orders WHERE company_id=$1 AND id=$2 FOR UPDATE',[companyId,safeOrder.id])).rows[0]?.data;if(!current){await client.query('ROLLBACK');return res.status(404).json({error:'La orden ya no existe en esta empresa.'});}if(!['PENDIENTE_EMISION','PREPARADA'].includes(current.status)){await client.query('ROLLBACK');return res.status(409).json({error:`La orden está en estado ${current.status} y no puede emitirse nuevamente.`});}for(const raw of inventory){const row=tenantItem(raw,companyId);await client.query('INSERT INTO inventory(id,product_code,location_id,qty,pallet_id,data,company_id) VALUES($1,$2,$3,$4,$5,$6::jsonb,$7) ON CONFLICT(company_id,id) DO UPDATE SET product_code=EXCLUDED.product_code,location_id=EXCLUDED.location_id,qty=EXCLUDED.qty,pallet_id=EXCLUDED.pallet_id,data=EXCLUDED.data',[row.id,row.productCode,row.locationId,Number(row.qty||0),row.palletId||null,JSON.stringify(row),companyId]);}for(const id of deleteInventoryIds)await client.query('DELETE FROM inventory WHERE company_id=$1 AND id=$2',[companyId,id]);for(const [table,raw] of [['transfers',transfer],['shipments',shipment]])if(raw?.id){const row=tenantItem(raw,companyId);await client.query(`INSERT INTO ${table}(id,data,company_id) VALUES($1,$2::jsonb,$3) ON CONFLICT(company_id,id) DO UPDATE SET data=EXCLUDED.data`,[row.id,JSON.stringify(row),companyId]);}await client.query('UPDATE orders SET data=$3::jsonb WHERE company_id=$1 AND id=$2',[companyId,safeOrder.id,JSON.stringify(safeOrder)]);await client.query('UPDATE wms_company_meta SET revision=revision+1,updated_at=now() WHERE company_id=$1',[companyId]);await client.query('COMMIT');res.json({order:safeOrder,inventory,deleteInventoryIds,transfer,shipment});}catch(e){await client.query('ROLLBACK').catch(()=>{});next(e);}finally{client.release();}});
++entityRouter.get('/:entity',async(req,res,next)=>{try{const t=tableFor(req);if(t==='companies')return res.status(400).json({error:'Usa el estado autorizado para consultar empresas.'});res.json((await pool.query(selectSql(t),[req.companyId])).rows.map(r=>r.data));}catch(e){next(e);}});
++entityRouter.get('/:entity/:id',async(req,res,next)=>{try{const t=tableFor(req);if(t==='companies')return res.status(400).json({error:'Usa el estado autorizado para consultar empresas.'});const r=(await pool.query(`SELECT data FROM ${t} WHERE company_id=$1 AND id=$2`,[req.companyId,req.params.id])).rows[0];if(!r)return res.status(404).json({error:'Registro no encontrado en esta empresa.'});res.json(r.data);}catch(e){next(e);}});
++entityRouter.post('/:entity',async(req,res,next)=>{try{const t=tableFor(req);res.status(201).json((await upsert(t,req.body,req.companyId)).rows[0].data);}catch(e){next(e);}});
++entityRouter.put('/:entity/:id',async(req,res,next)=>{try{const t=tableFor(req);res.json((await upsert(t,{...req.body,id:req.params.id},req.companyId)).rows[0].data);}catch(e){next(e);}});
++entityRouter.delete('/:entity/:id',async(req,res,next)=>{try{const t=tableFor(req);if(t==='companies')return res.status(400).json({error:'Las empresas no se eliminan desde esta ruta.'});await pool.query(`DELETE FROM ${t} WHERE company_id=$1 AND id=$2`,[req.companyId,req.params.id]);res.status(204).end();}catch(e){next(e);}});
+diff --git a/backend/src/modules/integraciones/kame.routes.js b/backend/src/modules/integraciones/kame.routes.js
+index c9936fc..b9e0beb 100644
+--- a/backend/src/modules/integraciones/kame.routes.js
++++ b/backend/src/modules/integraciones/kame.routes.js
+@@ -10,19 +10,21 @@ kameRouter.post('/orders',async(req,res,next)=>{
+  try{
+   if(!env.kameIntegrationKey)return res.status(503).json({error:'Integración Kame preparada pero aún no activada. Configura KAME_INTEGRATION_KEY cuando dispongas de la API.'});
+   if(String(req.get('x-integration-key')||'')!==env.kameIntegrationKey)return unauthorized(res);
++  const companyId=String(req.get('x-wms-company')||req.body?.companyId||'').trim();
++  if(!companyId)return res.status(400).json({error:'La integración debe indicar companyId o X-WMS-Company.'});
+   const externalNumber=String(req.body?.externalNumber||req.body?.orderNumber||'').trim();
+   const sourceSiteId=String(req.body?.sourceSiteId||'').trim();
+   const requestSiteId=String(req.body?.requestSiteId||'').trim();
+   const incoming=Array.isArray(req.body?.items)?req.body.items:[];
+   if(!externalNumber||!sourceSiteId||!requestSiteId||!incoming.length)return res.status(400).json({error:'Faltan externalNumber, sourceSiteId, requestSiteId o items.'});
+-  const products=(await pool.query('SELECT data FROM products')).rows.map(r=>r.data);
+-  const codes=(await pool.query('SELECT data FROM product_codes')).rows.map(r=>r.data).filter(x=>x.active!==false);
++  const products=(await pool.query('SELECT data FROM products WHERE company_id=$1',[companyId])).rows.map(r=>r.data);
++  const codes=(await pool.query('SELECT data FROM product_codes WHERE company_id=$1',[companyId])).rows.map(r=>r.data).filter(x=>x.active!==false);
+   const codeMap=new Map();for(const p of products){codeMap.set(norm(p.code),p);for(const old of p.previousCodes||[])codeMap.set(norm(old),p);}for(const c of codes){const p=products.find(x=>x.id===c.productId);if(p)codeMap.set(norm(c.code),p);}
+   const grouped=new Map(),errors=[];
+   incoming.forEach((x,i)=>{const raw=norm(x.code??x.sku??x.productCode),qty=Number(x.qty??x.quantity);const p=codeMap.get(raw);if(!p){errors.push(`Item ${i+1}: código ${raw||'(vacío)'} no reconocido.`);return;}if(!Number.isFinite(qty)||qty<=0){errors.push(`Item ${i+1}: cantidad inválida.`);return;}const prev=grouped.get(p.code)||{productCode:p.code,qty:0,pickedQty:0,inputCodes:[]};prev.qty+=qty;prev.inputCodes.push(raw);grouped.set(p.code,prev);});
+   if(errors.length)return res.status(422).json({error:'La orden contiene códigos o cantidades inválidas.',details:errors});
+-  const sourceSite=(state.sites||[]).find(s=>s.id===sourceSiteId),requestSite=(state.sites||[]).find(s=>s.id===requestSiteId);if(!sourceSite||!requestSite)return res.status(400).json({error:'Centro origen o solicitante no existe en el WMS.'});if(sourceSite.companyId&&requestSite.companyId&&sourceSite.companyId!==requestSite.companyId)return res.status(400).json({error:'Origen y destino deben pertenecer a la misma empresa.'});const now=new Date().toISOString(),id=`ORD-KAME-${Date.now()}`;const order={id,externalNumber,source:'KAME_API',companyId:sourceSite.companyId||'SERCO_RIEGO',sourceSiteId,requestSiteId,status:'RECIBIDA',assignedTo:null,items:[...grouped.values()],createdAt:now,createdBy:'KAME',events:[{at:now,userId:'KAME',message:'Orden recibida desde integración Kame'}]};
+-  const client=await pool.connect();try{await client.query('BEGIN');const duplicate=await client.query("SELECT data FROM orders WHERE data->>'externalNumber'=$1",[externalNumber]);if(duplicate.rowCount){await client.query('ROLLBACK');return res.status(409).json({error:'La orden ya fue recibida.',order:duplicate.rows[0].data});}await client.query('INSERT INTO orders(id,data) VALUES($1,$2::jsonb)',[id,JSON.stringify(order)]);await client.query('UPDATE wms_meta SET revision=revision+1,updated_at=now() WHERE id=1');await client.query('COMMIT');}catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
++  const siteRows=(await pool.query('SELECT data FROM sites WHERE company_id=$1 AND id=ANY($2::text[])',[companyId,[sourceSiteId,requestSiteId]])).rows.map(r=>r.data);const sourceSite=siteRows.find(s=>s.id===sourceSiteId),requestSite=siteRows.find(s=>s.id===requestSiteId);if(!sourceSite||!requestSite)return res.status(400).json({error:'Centro origen o solicitante no existe en la empresa indicada.'});const now=new Date().toISOString(),id=`ORD-KAME-${Date.now()}`;const order={id,externalNumber,source:'KAME_API',companyId,sourceSiteId,requestSiteId,status:'RECIBIDA',assignedTo:null,items:[...grouped.values()],createdAt:now,createdBy:'KAME',events:[{at:now,userId:'KAME',message:'Orden recibida desde integración Kame'}]};
++  const client=await pool.connect();try{await client.query('BEGIN');const duplicate=await client.query("SELECT data FROM orders WHERE company_id=$1 AND data->>'externalNumber'=$2",[companyId,externalNumber]);if(duplicate.rowCount){await client.query('ROLLBACK');return res.status(409).json({error:'La orden ya fue recibida.',order:duplicate.rows[0].data});}await client.query('INSERT INTO orders(id,data,company_id) VALUES($1,$2::jsonb,$3)',[id,JSON.stringify(order),companyId]);await client.query('INSERT INTO wms_company_meta(company_id) VALUES($1) ON CONFLICT(company_id) DO NOTHING',[companyId]);await client.query('UPDATE wms_company_meta SET revision=revision+1,updated_at=now() WHERE company_id=$1',[companyId]);await client.query('COMMIT');}catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
+   res.status(201).json(order);
+  }catch(e){next(e);}
+ });
+diff --git a/backend/src/modules/state/state.routes.js b/backend/src/modules/state/state.routes.js
+index e3b1520..2f34e89 100644
+--- a/backend/src/modules/state/state.routes.js
++++ b/backend/src/modules/state/state.routes.js
+@@ -3,6 +3,6 @@ import { readState, replaceState, withTransaction } from '../../db/database.js';
+ import { INITIAL_STATE } from '../../db/initial-state.js';
+ import { requireRole } from '../../middleware/auth.js';
+ export const stateRouter=Router();
+-stateRouter.get('/',async(req,res,next)=>{try{res.json(await readState(undefined,req.user));}catch(e){next(e);}});
+-stateRouter.put('/',async(req,res,next)=>{try{const expected=req.body?.meta?.revision,compact=req.get('X-WMS-Compact')==='1';const nextState=await withTransaction(c=>replaceState(c,req.body,expected,req.user,compact));res.json(nextState);}catch(e){next(e);}});
+-stateRouter.post('/reset',requireRole('ADMIN_GLOBAL','ADMINISTRADOR'),async(req,res,next)=>{try{const current=await readState(undefined,req.user);const fresh={...INITIAL_STATE,shipments:[],tasks:[],users:current.users,session:{userId:req.user.id},meta:{...INITIAL_STATE.meta,revision:current.meta.revision}};res.json(await withTransaction(c=>replaceState(c,fresh,current.meta.revision,req.user)));}catch(e){next(e);}});
++stateRouter.get('/',async(req,res,next)=>{try{res.json(await readState(undefined,req.user,req.companyId));}catch(e){next(e);}});
++stateRouter.put('/',async(req,res,next)=>{try{const expected=req.body?.meta?.revision,compact=req.get('X-WMS-Compact')==='1';const nextState=await withTransaction(c=>replaceState(c,req.body,expected,req.user,compact,req.companyId));res.json(nextState);}catch(e){next(e);}});
++stateRouter.post('/reset',requireRole('ADMIN_GLOBAL','ADMINISTRADOR'),async(req,res,next)=>{try{if(req.companyId!=='SERCO_RIEGO')return res.status(400).json({error:'El restablecimiento de demostración solo está disponible para la empresa inicial.'});const current=await readState(undefined,req.user,req.companyId),{companies:_companies,users:_users,...initialTenant}=INITIAL_STATE;const fresh={...initialTenant,shipments:[],tasks:[],session:{userId:req.user.id},meta:{...INITIAL_STATE.meta,revision:current.meta.revision}};res.json(await withTransaction(c=>replaceState(c,fresh,current.meta.revision,req.user,false,req.companyId)));}catch(e){next(e);}});
+diff --git a/backend/src/modules/usuarios/users.routes.js b/backend/src/modules/usuarios/users.routes.js
+index 83f0331..31f5518 100644
+--- a/backend/src/modules/usuarios/users.routes.js
++++ b/backend/src/modules/usuarios/users.routes.js
+@@ -22,21 +22,21 @@ function validate(body,creating=false){
+  if(role==='ADMINISTRADOR'&&!siteIds.length)throw Object.assign(new Error('El administrador de centro debe tener al menos un centro asignado. Usa Administrador general para acceso total.'),{status:400});
+  return{name,username,role,password,active:accessStatus==='ACTIVE',accessStatus,accessAssignments,siteIds,companyIds};
+ }
+-function enforceAdminScope(requestUser,value){const global=requestUser?.role==='ADMIN_GLOBAL'||(requestUser?.role==='ADMINISTRADOR'&&!(requestUser.siteIds||[]).length);if(global)return;if(value.role==='ADMIN_GLOBAL')throw Object.assign(new Error('Un administrador de centro no puede crear administradores generales.'),{status:403});const allowed=new Set(requestUser.siteIds||[]);if(value.siteIds.some(id=>!allowed.has(id)))throw Object.assign(new Error('No puedes asignar usuarios a un centro fuera de tu autorización.'),{status:403});}
++function enforceAdminScope(requestUser,value,companyId){const global=requestUser?.role==='ADMIN_GLOBAL';if(value.role==='ADMIN_GLOBAL'){if(!global)throw Object.assign(new Error('Un administrador de centro no puede crear administradores generales.'),{status:403});return;}if(value.companyIds.length!==1||value.companyIds[0]!==companyId||value.accessAssignments.some(a=>a.companyId!==companyId))throw Object.assign(new Error('Cada trabajador debe pertenecer únicamente a la empresa activa.'),{status:403,code:'CROSS_COMPANY_USER'});if(global)return;const allowed=new Set(requestUser.siteIds||[]);if(value.siteIds.some(id=>!allowed.has(id)))throw Object.assign(new Error('No puedes asignar usuarios a un centro fuera de tu autorización.'),{status:403});}
+ function publicUserSql(){return `id,name,username,role,active,access_status AS "accessStatus",access_assignments AS "accessAssignments",site_ids AS "siteIds",company_ids AS "companyIds",must_change_password AS "mustChangePassword",created_at AS "createdAt"`; }
+ export function assertTargetIdentity(pathId,bodyId){if(String(bodyId||'')!==String(pathId||''))throw Object.assign(new Error('La identidad del usuario no coincide. Recarga la pantalla antes de guardar.'),{status:409});}
+ export function protectPrimaryAdmin(id,value){if(id==='USR-ADMIN'&&(value.role!=='ADMIN_GLOBAL'||value.accessStatus!=='ACTIVE'||value.siteIds.length||value.accessAssignments.length))throw Object.assign(new Error('El administrador principal debe conservar acceso general activo.'),{status:400});}
+ 
+-usersRouter.get('/',async(_req,res,next)=>{try{const {rows}=await pool.query(`SELECT ${publicUserSql()} FROM users ORDER BY name`);res.json(rows);}catch(e){next(e);}});
++usersRouter.get('/',async(req,res,next)=>{try{const {rows}=await pool.query(`SELECT ${publicUserSql()} FROM users WHERE id=$2 OR role='ADMIN_GLOBAL' OR company_ids ? $1 ORDER BY name`,[req.companyId,req.user.id]);res.json(rows);}catch(e){next(e);}});
+ 
+ usersRouter.post('/',async(req,res,next)=>{try{
+- const v=validate(req.body,true);enforceAdminScope(req.user,v);let id=makeUserId(v.name),n=2;while((await pool.query('SELECT 1 FROM users WHERE id=$1',[id])).rowCount)id=`${makeUserId(v.name)}-${n++}`;
++ const v=validate(req.body,true);enforceAdminScope(req.user,v,req.companyId);let id=makeUserId(v.name),n=2;while((await pool.query('SELECT 1 FROM users WHERE id=$1',[id])).rowCount)id=`${makeUserId(v.name)}-${n++}`;
+  const storedPassword=storePassword(v.password);const {rows}=await pool.query(`INSERT INTO users(id,name,username,password_hash,role,active,access_status,access_assignments,site_ids,company_ids,must_change_password) VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10::jsonb,false) RETURNING ${publicUserSql()}`,[id,v.name,v.username,storedPassword,v.role,v.active,v.accessStatus,JSON.stringify(v.accessAssignments),JSON.stringify(v.siteIds),JSON.stringify(v.companyIds)]);res.status(201).json(rows[0]);
+ }catch(e){if(e.code==='23505')e=Object.assign(new Error('Ese nombre de usuario ya existe.'),{status:409});next(e);}});
+ 
+ usersRouter.put('/:id',async(req,res,next)=>{try{
+  assertTargetIdentity(req.params.id,req.body?.targetUserId);
+- const v=validate(req.body,false),target=(await pool.query('SELECT role,site_ids AS "siteIds" FROM users WHERE id=$1',[req.params.id])).rows[0];if(!target)return res.status(404).json({error:'Usuario no encontrado.'});const requesterGlobal=req.user?.role==='ADMIN_GLOBAL'||(req.user?.role==='ADMINISTRADOR'&&!(req.user.siteIds||[]).length);if(!requesterGlobal&&(target.role==='ADMIN_GLOBAL'||!(target.siteIds||[]).some(id=>(req.user.siteIds||[]).includes(id))))return res.status(403).json({error:'No puedes modificar un usuario fuera de tu centro.'});enforceAdminScope(req.user,v);protectPrimaryAdmin(req.params.id,v);if(req.params.id===req.user.id&&v.accessStatus!=='ACTIVE')return res.status(400).json({error:'No puedes pausar ni desactivar tu propia sesión.'});
++ const v=validate(req.body,false),target=(await pool.query('SELECT role,site_ids AS "siteIds",company_ids AS "companyIds" FROM users WHERE id=$1',[req.params.id])).rows[0];if(!target)return res.status(404).json({error:'Usuario no encontrado.'});const requesterGlobal=req.user?.role==='ADMIN_GLOBAL';if(target.role!=='ADMIN_GLOBAL'&&!(target.companyIds||[]).includes(req.companyId))return res.status(404).json({error:'Usuario no encontrado en esta empresa.'});if(!requesterGlobal&&(target.role==='ADMIN_GLOBAL'||!(target.siteIds||[]).some(id=>(req.user.siteIds||[]).includes(id))))return res.status(403).json({error:'No puedes modificar un usuario fuera de tu centro.'});enforceAdminScope(req.user,v,req.companyId);protectPrimaryAdmin(req.params.id,v);if(req.params.id===req.user.id&&v.accessStatus!=='ACTIVE')return res.status(400).json({error:'No puedes pausar ni desactivar tu propia sesión.'});
+  const {rows}=await pool.query(`UPDATE users SET name=$1,username=$2,role=$3,active=$4,access_status=$5,access_assignments=$6::jsonb,site_ids=$7::jsonb,company_ids=$8::jsonb,updated_at=now() WHERE id=$9 RETURNING ${publicUserSql()}`,[v.name,v.username,v.role,v.active,v.accessStatus,JSON.stringify(v.accessAssignments),JSON.stringify(v.siteIds),JSON.stringify(v.companyIds),req.params.id]);
+  if(rows.length!==1)return res.status(409).json({error:'No se pudo confirmar una actualización individual del usuario.'});res.json(rows[0]);
+ }catch(e){if(e.code==='23505')e=Object.assign(new Error('Ese nombre de usuario ya existe.'),{status:409});next(e);}});
+@@ -49,7 +49,7 @@ usersRouter.post('/:id/reset-password',passwordResetLimiter,async(req,res,next)=
+  if(!adminPassword)return res.status(400).json({error:'Ingresa tu contraseña administrativa para autorizar el cambio.'});
+  const admin=(await pool.query('SELECT password_hash FROM users WHERE id=$1',[req.user.id])).rows[0];
+  if(!admin||!verifyPassword(adminPassword,admin.password_hash))return res.status(401).json({error:'La contraseña administrativa no coincide.'});
+- const target=(await pool.query('SELECT id,name,username FROM users WHERE id=$1',[req.params.id])).rows[0];
++ const target=(await pool.query("SELECT id,name,username FROM users WHERE id=$1 AND (role='ADMIN_GLOBAL' OR company_ids ? $2)",[req.params.id,req.companyId])).rows[0];
+  if(!target)return res.status(404).json({error:'Usuario no encontrado.'});
+  const storedPassword=storePassword(newPassword);
+  await pool.query('UPDATE users SET password_hash=$1,must_change_password=false,updated_at=now() WHERE id=$2',[storedPassword,target.id]);
+@@ -58,17 +58,18 @@ usersRouter.post('/:id/reset-password',passwordResetLimiter,async(req,res,next)=
+ 
+ usersRouter.delete('/:id',async(req,res,next)=>{try{
+  if(req.params.id==='USR-ADMIN'||req.params.id===req.user.id)return res.status(400).json({error:'No puedes eliminar el administrador principal ni tu propia sesión.'});
+- const target=(await pool.query('SELECT id,role,site_ids AS "siteIds" FROM users WHERE id=$1',[req.params.id])).rows[0];
++ const target=(await pool.query('SELECT id,role,site_ids AS "siteIds",company_ids AS "companyIds" FROM users WHERE id=$1',[req.params.id])).rows[0];
+  if(!target)return res.status(404).json({error:'Usuario no encontrado.'});
+- const requesterGlobal=req.user?.role==='ADMIN_GLOBAL'||(req.user?.role==='ADMINISTRADOR'&&!(req.user.siteIds||[]).length);
++ if(target.role!=='ADMIN_GLOBAL'&&!(target.companyIds||[]).includes(req.companyId))return res.status(404).json({error:'Usuario no encontrado en esta empresa.'});
++ const requesterGlobal=req.user?.role==='ADMIN_GLOBAL';
+  if(!requesterGlobal&&(target.role==='ADMIN_GLOBAL'||!(target.siteIds||[]).some(id=>(req.user.siteIds||[]).includes(id))))return res.status(403).json({error:'No puedes eliminar un usuario fuera de tu centro.'});
+  const referenced=await pool.query(`SELECT EXISTS(
+-   SELECT 1 FROM audit WHERE data->>'userId'=$1
+-   UNION ALL SELECT 1 FROM movements WHERE data::text LIKE $2
+-   UNION ALL SELECT 1 FROM receipts WHERE data::text LIKE $2
+-   UNION ALL SELECT 1 FROM transfers WHERE data::text LIKE $2
+-   UNION ALL SELECT 1 FROM orders WHERE data::text LIKE $2
+- ) AS used`,[target.id,`%${target.id}%`]);
++   SELECT 1 FROM audit WHERE company_id=$3 AND data->>'userId'=$1
++   UNION ALL SELECT 1 FROM movements WHERE company_id=$3 AND data::text LIKE $2
++   UNION ALL SELECT 1 FROM receipts WHERE company_id=$3 AND data::text LIKE $2
++   UNION ALL SELECT 1 FROM transfers WHERE company_id=$3 AND data::text LIKE $2
++   UNION ALL SELECT 1 FROM orders WHERE company_id=$3 AND data::text LIKE $2
++ ) AS used`,[target.id,`%${target.id}%`,req.companyId]);
+  if(referenced.rows[0]?.used)return res.status(409).json({error:'Este usuario ya tiene actividad registrada. Desactívalo para conservar la trazabilidad.'});
+  await pool.query('DELETE FROM users WHERE id=$1',[target.id]);
+  res.status(204).end();
+diff --git a/backend/test/cors-contract.test.js b/backend/test/cors-contract.test.js
+index 4f16a6b..358fb6d 100644
+--- a/backend/test/cors-contract.test.js
++++ b/backend/test/cors-contract.test.js
+@@ -10,12 +10,13 @@ try{
+     headers:{
+       Origin:'https://cliente-wmssercoriego-q7w5.vercel.app',
+       'Access-Control-Request-Method':'PUT',
+-      'Access-Control-Request-Headers':'authorization,content-type,x-wms-compact,x-wms-site'
++      'Access-Control-Request-Headers':'authorization,content-type,x-wms-compact,x-wms-site,x-wms-company'
+     }
+   });
+   assert.equal(response.status,204,'El preflight de guardado debe ser aceptado');
+   const allowed=String(response.headers.get('access-control-allow-headers')||'').toLowerCase();
+   assert.match(allowed,/x-wms-compact/,'CORS debe permitir X-WMS-Compact');
++  assert.match(allowed,/x-wms-company/,'CORS debe permitir el contexto empresarial');
+   assert.equal(response.headers.get('access-control-allow-origin'),'https://cliente-wmssercoriego-q7w5.vercel.app');
+   console.log('OK · preflight CORS del guardado PUT permite X-WMS-Compact');
+ }finally{
+diff --git a/backend/test/partial-state-save.test.js b/backend/test/partial-state-save.test.js
+index 92eef5f..b7ceb6e 100644
+--- a/backend/test/partial-state-save.test.js
++++ b/backend/test/partial-state-save.test.js
+@@ -4,6 +4,6 @@ const { replaceState }=await import('../src/db/database.js');
+ const sql=[];
+ const client={query:async(query)=>{sql.push(String(query).replace(/\s+/g,' ').trim());if(String(query).includes('SELECT revision'))return {rows:[{revision:7}]};if(String(query).includes('RETURNING updated_at'))return {rows:[{updated_at:new Date().toISOString()}]};return {rows:[]};}};
+ await replaceState(client,{meta:{revision:7},settings:{},planning:{},inventory:[{id:'I1',productCode:'P1',locationId:'L1',qty:3}]},7,{id:'U'},true);
+-assert.ok(sql.some(q=>q==='DELETE FROM inventory'),'el backend debe actualizar inventario recibido');
+-assert.equal(sql.some(q=>q==='DELETE FROM products'),false,'el backend debe conservar tablas ausentes');
++assert.ok(sql.some(q=>q==='DELETE FROM inventory WHERE company_id=$1'),'el backend debe actualizar solo el inventario de la empresa activa');
++assert.equal(sql.some(q=>q.startsWith('DELETE FROM products')),false,'el backend debe conservar tablas ausentes');
+ console.log('OK · el backend reemplaza solo las colecciones recibidas');
+diff --git a/src/layout/layout.js b/src/layout/layout.js
+index 256c31b..3e68c38 100644
+--- a/src/layout/layout.js
++++ b/src/layout/layout.js
+@@ -50,7 +50,7 @@ export function shell(title,content,active='dashboard'){
+ export function wireShell(){
+   const currentUser=store.data.users.find(u=>u.id===store.data.session.userId)||auth.user;
+ 
+-  document.querySelector('#company-switch')?.addEventListener('change',e=>{const companyId=e.target.value;const candidate=(store.data.sites||[]).find(s=>siteCompanyId(s,store.data)===companyId&&s.active!==false&&(currentUser?.role==='ADMIN_GLOBAL'||!(currentUser?.siteIds||[]).length||(currentUser.siteIds||[]).includes(s.id)));if(!candidate){toast('No tienes un centro activo disponible en esa empresa','warning');return;}localStorage.setItem('serco_wms_active_company',companyId);localStorage.setItem('serco_wms_active_site',candidate.id);location.reload();});
++  document.querySelector('#company-switch')?.addEventListener('change',e=>{const companyId=e.target.value;if(!userCanCompany(currentUser,companyId)){toast('No tienes acceso a esa empresa','warning');return;}localStorage.setItem('serco_wms_active_company',companyId);localStorage.removeItem('serco_wms_active_site');location.reload();});
+   document.querySelector('#site-switch')?.addEventListener('change',e=>{const siteId=e.target.value,site=(store.data.sites||[]).find(s=>s.id===siteId);if(!site)return;localStorage.setItem('serco_wms_active_company',siteCompanyId(site,store.data));localStorage.setItem('serco_wms_active_site',siteId);location.reload();});
+   const contextBtn=document.querySelector('#context-switcher-btn'),contextPanel=document.querySelector('#context-switcher-panel');
+   if(contextBtn&&contextPanel){const closeContext=()=>{contextPanel.hidden=true;contextBtn.setAttribute('aria-expanded','false');document.removeEventListener('click',outsideContext);};const outsideContext=e=>{if(!contextBtn.contains(e.target)&&!contextPanel.contains(e.target))closeContext();};contextBtn.addEventListener('click',e=>{e.stopPropagation();const open=contextPanel.hidden;if(open){contextPanel.hidden=false;contextBtn.setAttribute('aria-expanded','true');setTimeout(()=>document.addEventListener('click',outsideContext),0);}else closeContext();});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!contextPanel.hidden)closeContext();});}
+diff --git a/src/modules/productos/productos.js b/src/modules/productos/productos.js
+index de61279..d9008e9 100644
+--- a/src/modules/productos/productos.js
++++ b/src/modules/productos/productos.js
+@@ -5,8 +5,10 @@ import { openProductEditor } from '../../services/product-editor.js';
+ import { enlazarBotonEscaner } from '../../services/camara-ui.js';
+ import { productAliases,codeInUse,normalizeProductCode,addProductCode } from '../../services/product-codes.js';
+ import { stockBySite,activeSiteId,stockSitesOrdered,totalCompanyStock,inventorySiteId } from '../../services/stock.js';
++import { activeCompanyId } from '../../services/company.js';
+ 
+ const pesoRotacion={ALTA:3,MEDIA:2,BAJA:1};
++let alcanceStock='CENTRO';
+ function currentUser(){return store.data.users.find(u=>u.id===store.data.session.userId);}
+ function canCreateProduct(){return ['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(currentUser()?.role);}
+ function stockCentroActivo(code){return Number(stockBySite(code)[activeSiteId()]||0);}
+@@ -21,7 +23,12 @@ function ubicacionesProducto(code){
+ function tipos(){return [...new Set(store.data.products.map(p=>p.type||p.family).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));}
+ function filaProducto(p){
+   const total=totalProducto(p.code),active=activeSiteId(),rows=stockSitesOrdered(p.code),activeRow=rows.find(x=>x.active)||{qty:0,name:active},others=rows.filter(x=>!x.active&&x.qty>0).map(x=>`${x.name}: ${x.qty}`).join(' · ');
+-  return `<tr class="click-row" data-code="${esc(p.code)}"><td><b>${esc(p.code)}</b><small class="row-sub">${productAliases(p).length-1} código(s) asociado(s)</small></td><td><b>${esc(p.description||p.name||`Producto ${p.code}`)}</b></td><td><b>${activeRow.qty}</b><small class="row-sub"><b>${esc(activeRow.name)} · centro activo</b>${others?` · Otras: ${esc(others)}`:''} · <b>Stock global WMS: ${total}</b></small></td><td>${ubicacionesProducto(p.code)}</td><td><button class="ghost small edit-product-row" data-code="${esc(p.code)}">Ver ficha / Editar</button></td></tr>`;
++  const stock=alcanceStock==='GLOBAL'
++    ?`<b>${total}</b><small class="row-sub"><b>Stock global de la empresa</b> · ${esc(activeRow.name)}: ${activeRow.qty}${others?` · Otras: ${esc(others)}`:''}</small>`
++    :alcanceStock==='TODOS'
++      ?`<b>${total}</b><small class="row-sub"><b>Todos los centros</b> · ${rows.map(x=>`${x.name}: ${x.qty}`).join(' · ')}</small>`
++      :`<b>${activeRow.qty}</b><small class="row-sub"><b>${esc(activeRow.name)} · solo centro activo</b></small>`;
++  return `<tr class="click-row" data-code="${esc(p.code)}"><td><b>${esc(p.code)}</b><small class="row-sub">${productAliases(p).length-1} código(s) asociado(s)</small></td><td><b>${esc(p.description||p.name||`Producto ${p.code}`)}</b></td><td>${stock}</td><td>${ubicacionesProducto(p.code)}</td><td><button class="ghost small edit-product-row" data-code="${esc(p.code)}">Ver ficha / Editar</button></td></tr>`;
+ }
+ function obtenerFiltrados(){
+   const texto=(document.querySelector('#productos-buscar')?.value||'').trim().toLowerCase();
+@@ -33,7 +40,8 @@ function obtenerFiltrados(){
+     const coincideTexto=!texto||`${productAliases(p).join(' ')} ${p.name} ${p.description||''} ${p.type||p.family||''} ${p.category||''} ${p.subcategory||''}`.toLowerCase().includes(texto);
+     const qtyCentro=stockCentroActivo(p.code);
+     const coincideStock=!stockCentro||(stockCentro==='con-stock'?qtyCentro>0:stockCentro==='sin-stock'?qtyCentro<=0:true);
+-    return coincideTexto&&(!rotacion||p.rotation===rotacion)&&(!tipo||(p.type||p.family)===tipo)&&coincideStock;
++    const coincideAlcance=alcanceStock==='CENTRO'?qtyCentro>0:alcanceStock==='GLOBAL'?totalProducto(p.code)>0:true;
++    return coincideTexto&&(!rotacion||p.rotation===rotacion)&&(!tipo||(p.type||p.family)===tipo)&&coincideStock&&coincideAlcance;
+   });
+   lista=[...lista].sort((a,b)=>{
+     if(orden==='codigo-desc')return String(b.code).localeCompare(String(a.code),'es',{numeric:true});
+@@ -123,10 +131,14 @@ function openNewProductDialog(onCreated){
+ export function renderProducts(root){
+   const d=store.data;
+   root.innerHTML=shell('Productos',`<div class="page-intro"><div><span class="eyebrow">CATÁLOGO</span><h2>Productos y ubicación localizada</h2><p>El mismo producto puede existir en varias ubicaciones. El total se calcula sumando todas las posiciones registradas.</p></div><div class="product-page-actions"><button id="nuevo-producto" class="primary">+ Nuevo producto</button><button id="abrir-filtros" class="secondary filter-button">☷ Filtrar y ordenar</button></div></div>
+-  <section id="panel-filtros" class="panel filtros-productos oculto"><div class="filtros-grid"><label>Buscar<div class="entrada-con-camara"><input id="productos-buscar" placeholder="Código, descripción o palabra"><button id="camara-productos-buscar" class="scan-button" type="button" title="Escanear código con cámara">▣</button></div></label><label>Rotación<select id="filtro-rotacion"><option value="">Todas</option><option>ALTA</option><option>MEDIA</option><option>BAJA</option></select></label><label>Tipo<select id="filtro-tipo"><option value="">Todos</option>${tipos().map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select></label><label>Stock en ${esc(d.sites.find(s=>s.id===activeSiteId(d))?.name||activeSiteId(d))}<select id="filtro-stock-centro"><option value="">Todos los productos</option><option value="con-stock">Solo con stock en este centro</option><option value="sin-stock">Sin stock en este centro</option></select></label><label>Ordenar por<select id="orden-productos"><option value="codigo-asc">Código · menor a mayor</option><option value="codigo-desc">Código · mayor a menor</option><option value="descripcion-asc">Descripción · A a Z</option><option value="descripcion-desc">Descripción · Z a A</option><option value="cantidad-desc">Cantidad · mayor a menor</option><option value="cantidad-asc">Cantidad · menor a mayor</option><option value="rotacion-desc">Rotación · alta a baja</option><option value="rotacion-asc">Rotación · baja a alta</option><option value="tipo">Tipo</option></select></label></div></section>
++  <section class="panel stock-scope-panel"><div><span class="eyebrow">ALCANCE DEL INVENTARIO</span><h3>¿Qué stock quieres ver?</h3><small>La vista siempre queda limitada a ${esc(d.companies.find(c=>c.id===activeCompanyId(d))?.name||'la empresa activa')}.</small></div><label>Vista de stock<select id="alcance-stock"><option value="CENTRO">Solo ${esc(d.sites.find(s=>s.id===activeSiteId(d))?.name||'centro activo')}</option><option value="GLOBAL">Stock global de la empresa</option><option value="TODOS">Todos los productos y centros</option></select></label></section>
++  <section id="panel-filtros" class="panel filtros-productos oculto"><div class="filtros-grid"><label>Buscar<div class="entrada-con-camara"><input id="productos-buscar" placeholder="Código, descripción o palabra"><button id="camara-productos-buscar" class="scan-button" type="button" title="Escanear código con cámara">▣</button></div></label><label>Rotación<select id="filtro-rotacion"><option value="">Todas</option><option>ALTA</option><option>MEDIA</option><option>BAJA</option></select></label><label>Tipo<select id="filtro-tipo"><option value="">Todos</option>${tipos().map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select></label><label>Stock en ${esc(d.sites.find(s=>s.id===activeSiteId(d))?.name||activeSiteId(d))}<select id="filtro-stock-centro"><option value="">Sin filtro adicional</option><option value="con-stock">Solo con stock en este centro</option><option value="sin-stock">Sin stock en este centro</option></select></label><label>Ordenar por<select id="orden-productos"><option value="codigo-asc">Código · menor a mayor</option><option value="codigo-desc">Código · mayor a menor</option><option value="descripcion-asc">Descripción · A a Z</option><option value="descripcion-desc">Descripción · Z a A</option><option value="cantidad-desc">Cantidad · mayor a menor</option><option value="cantidad-asc">Cantidad · menor a mayor</option><option value="rotacion-desc">Rotación · alta a baja</option><option value="rotacion-asc">Rotación · baja a alta</option><option value="tipo">Tipo</option></select></label></div></section>
+   <div class="tabla-resumen"><span id="contador-productos">${d.products.length} productos</span><small><b>Preparación rápida (Picking):</b> ubicación destinada a tener el producto accesible para preparar pedidos con mayor velocidad.</small></div>
+   <div class="table-wrap"><table><thead><tr><th>Código</th><th>Descripción</th><th>Stock / Global WMS</th><th>Ubicación actual</th><th>Acciones</th></tr></thead><tbody id="cuerpo-productos">${d.products.map(filaProducto).join('')}</tbody></table></div>`,'productos');
+   wireShell();
++  document.querySelector('#alcance-stock').value=alcanceStock;
++  document.querySelector('#alcance-stock').onchange=e=>{alcanceStock=e.target.value;pintarTabla();};
++  pintarTabla();
+   document.querySelector('#abrir-filtros').onclick=()=>document.querySelector('#panel-filtros').classList.toggle('oculto');
+   document.querySelector('#nuevo-producto').onclick=()=>openNewProductDialog(()=>pintarTabla());
+   enlazarBotonEscaner('camara-productos-buscar','productos-buscar',{titulo:'Escanear producto',ayuda:'Apunta al código de barras para buscarlo'});
+diff --git a/src/services/auth.js b/src/services/auth.js
+index add7d5f..abd538c 100644
+--- a/src/services/auth.js
++++ b/src/services/auth.js
+@@ -8,7 +8,7 @@ class AuthService{
+     const {auth:useAuth=true,...fetchOptions}=options;
+     const headers={'Content-Type':'application/json',...(fetchOptions.headers||{})};
+     const token=useAuth?this.token():'';
+-    if(token){headers.Authorization=`Bearer ${token}`;const site=localStorage.getItem('serco_wms_active_site');if(site)headers['X-WMS-Site']=site;}
++    if(token){headers.Authorization=`Bearer ${token}`;const site=localStorage.getItem('serco_wms_active_site'),company=localStorage.getItem('serco_wms_active_company');if(site)headers['X-WMS-Site']=site;if(company)headers['X-WMS-Company']=company;}
+     const res=await fetch(`${APP_CONFIG.apiBaseUrl}${path}`,{...fetchOptions,headers});
+     const data=res.status===204?null:await res.json().catch(()=>({}));
+     if(!res.ok)throw Object.assign(new Error(data?.error||`API ${res.status}`),{status:res.status,code:data?.code});
+diff --git a/src/services/company.js b/src/services/company.js
+index d1b12a9..0e27623 100644
+--- a/src/services/company.js
++++ b/src/services/company.js
+@@ -5,11 +5,13 @@ export const DEFAULT_COMPANY_ID='SERCO_RIEGO';
+ export function siteCompanyId(site,state=store.data){return site?.companyId||state?.companies?.[0]?.id||DEFAULT_COMPANY_ID;}
+ export function activeCompanyId(state=store.data){
+   const sites=state.sites||[],companies=state.companies||[];
++  const user=(state.users||[]).find(u=>u.id===state.session?.userId);
+   const stored=typeof localStorage!=='undefined'?localStorage.getItem('serco_wms_active_company'):'';
+   const activeSite=sites.find(s=>s.id===state.session?.activeSiteId);
+   const requested=stored||state.session?.activeCompanyId||siteCompanyId(activeSite,state);
+-  return companies.some(c=>c.id===requested&&c.active!==false)?requested:(companies.find(c=>c.active!==false)?.id||DEFAULT_COMPANY_ID);
++  const allowed=c=>c.active!==false&&userCanCompany(user,c.id);
++  return companies.some(c=>c.id===requested&&allowed(c))?requested:(companies.find(allowed)?.id||DEFAULT_COMPANY_ID);
+ }
+ export function companyName(id,state=store.data){return (state.companies||[]).find(c=>c.id===id)?.name||id||'Empresa';}
+ export function sitesForCompany(companyId,state=store.data){return (state.sites||[]).filter(s=>siteCompanyId(s,state)===companyId);}
+-export function userCanCompany(user,companyId){return user?.role==='ADMIN_GLOBAL'||!(user?.companyIds||[]).length||(user.companyIds||[]).includes(companyId);}
++export function userCanCompany(user,companyId){return user?.role==='ADMIN_GLOBAL'||(user?.companyIds||[]).includes(companyId);}
+diff --git a/styles/app.css b/styles/app.css
+index d1e051b..6cb76d4 100644
+--- a/styles/app.css
++++ b/styles/app.css
+@@ -619,3 +619,6 @@
+ @media(max-width:540px){.shipment-card-head,.putaway-task-head{display:grid}.shipment-manifest>span{grid-template-columns:85px minmax(0,1fr) 45px}.inbound-line{grid-template-columns:1fr 72px}.inbound-line input{grid-column:1/-1}.inbound-line.head{display:none!important}.task-metrics{grid-template-columns:1fr}.shipment-actions>*{width:100%}}
+ .shipment-assigned-confirmation{display:inline-flex;align-items:center;gap:4px;padding:11px 14px;border-radius:12px;background:#eaf8ef;color:#087333;font-weight:800}
+ .load-section-toggle>summary{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;list-style:none}.load-section-toggle>summary::-webkit-details-marker{display:none}.load-section-toggle>summary>span{display:flex;align-items:center;gap:10px}.load-section-toggle>summary>span:first-child{align-items:flex-start;flex-direction:column;gap:2px}.load-section-toggle>summary small{color:var(--muted)}.load-section-toggle>summary i{font-style:normal;transition:transform .2s}.load-section-toggle[open]>summary i{transform:rotate(180deg)}.load-section-toggle[open]>summary{padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:16px}@media(max-width:700px){.load-section-toggle>summary{align-items:flex-start}.load-section-toggle>summary>span:last-child{flex-shrink:0}}
++.stock-scope-panel{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:16px;background:linear-gradient(135deg,#f5fff8,#fff)}
++.stock-scope-panel h3{margin:4px 0}.stock-scope-panel label{min-width:min(100%,320px)}
++@media(max-width:720px){.stock-scope-panel{align-items:stretch;flex-direction:column;gap:14px}.stock-scope-panel label{min-width:0;width:100%}}
