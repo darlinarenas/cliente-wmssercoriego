@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23-vista-transportista-v22';
+const APP_VERSION = '2026.08.23-sesion-y-roles-v24';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

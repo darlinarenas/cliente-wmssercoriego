@@ -24,33 +24,41 @@ import { renderMap3d } from './modules/mapa3d/mapa3d.js';
 import { renderLoads } from './modules/cargas/cargas.js';
 import { renderTransferReceiving } from './modules/recepcion-traspasos/recepcion-traspasos.js';
 import { renderPutawayTasks } from './modules/tareas-ubicacion/tareas-ubicacion.js';
+import { activeSiteId } from './services/stock.js';
+import { effectiveRole,normalizeRouteForRole } from './services/access-routing.js';
+import { siteCompanyId } from './services/company.js';
 
 const root=document.querySelector('#app');
 let router;
 
+function sessionAccess(){const siteId=activeSiteId(store.data),user=(store.data.users||[]).find(u=>u.id===store.data.session?.userId)||auth.user;return {siteId,user,role:effectiveRole(user,siteId)};}
+function mobileViewport(){return window.matchMedia('(max-width: 760px)').matches;}
+function replaceHash(route){history.replaceState(null,'',`${location.pathname}${location.search}#/${route}`);}
+function secureRoute(id,render){return ()=>{const target=normalizeRouteForRole(id,sessionAccess().role,{mobile:mobileViewport()});if(target!==id){replaceHash(target);queueMicrotask(()=>buildRouter().render());return;}render();};}
+
 function buildRouter(){
   if(router)return router;
   router=new Router({
-    dashboard:()=>renderDashboard(root),
-    ordenes:()=>renderOrders(root),
-    conciliacion:()=>renderReconciliation(root),
-    racks:()=>renderRacks(root),
-    buscar:()=>renderSearch(root),
-    productos:()=>renderProducts(root),
-    estructura:()=>renderStructure(root),
-    movimientos:()=>renderMovements(root),
-    historial:()=>renderHistory(root),
-    recepciones:()=>renderReceipts(root),
-    transferencias:()=>renderTransfers(root),
-    cargas:()=>renderLoads(root),
-    'recepcion-traspasos':()=>renderTransferReceiving(root),
-    'tareas-ubicacion':()=>renderPutawayTasks(root),
-    palets:()=>renderPallets(root),
-    mapa3d:()=>renderMap3d(root),
-    centros:()=>renderCenters(root),
-    usuarios:()=>renderUsers(root),
-    importar:()=>renderImport(root),
-    movil:()=>renderMovil(root)
+    dashboard:secureRoute('dashboard',()=>renderDashboard(root)),
+    ordenes:secureRoute('ordenes',()=>renderOrders(root)),
+    conciliacion:secureRoute('conciliacion',()=>renderReconciliation(root)),
+    racks:secureRoute('racks',()=>renderRacks(root)),
+    buscar:secureRoute('buscar',()=>renderSearch(root)),
+    productos:secureRoute('productos',()=>renderProducts(root)),
+    estructura:secureRoute('estructura',()=>renderStructure(root)),
+    movimientos:secureRoute('movimientos',()=>renderMovements(root)),
+    historial:secureRoute('historial',()=>renderHistory(root)),
+    recepciones:secureRoute('recepciones',()=>renderReceipts(root)),
+    transferencias:secureRoute('transferencias',()=>renderTransfers(root)),
+    cargas:secureRoute('cargas',()=>renderLoads(root)),
+    'recepcion-traspasos':secureRoute('recepcion-traspasos',()=>renderTransferReceiving(root)),
+    'tareas-ubicacion':secureRoute('tareas-ubicacion',()=>renderPutawayTasks(root)),
+    palets:secureRoute('palets',()=>renderPallets(root)),
+    mapa3d:secureRoute('mapa3d',()=>renderMap3d(root)),
+    centros:secureRoute('centros',()=>renderCenters(root)),
+    usuarios:secureRoute('usuarios',()=>renderUsers(root)),
+    importar:secureRoute('importar',()=>renderImport(root)),
+    movil:secureRoute('movil',()=>renderMovil(root))
   });
   return router;
 }
@@ -78,7 +86,8 @@ async function enterApp(){
   try{
     await withTimeout(store.init(),20000,'El servidor está tardando demasiado en cargar la información.');
     solicitarPermisoSonidoGlobal();
-    if(!location.hash&&window.matchMedia('(max-width: 760px)').matches)location.hash='#/movil';
+    const access=sessionAccess();localStorage.setItem('serco_wms_active_site',access.siteId);const site=(store.data.sites||[]).find(s=>s.id===access.siteId);if(site)localStorage.setItem('serco_wms_active_company',siteCompanyId(site,store.data));
+    const requested=location.hash.replace('#/','');replaceHash(normalizeRouteForRole(requested,access.role,{mobile:mobileViewport()}));
     buildRouter().render();
     return true;
   }catch(error){

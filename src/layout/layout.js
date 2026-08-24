@@ -59,7 +59,7 @@ export function wireShell(){
   document.querySelector('#menu-btn')?.addEventListener('click',()=>document.body.classList.toggle('menu-open'));
   document.querySelectorAll('.nav-link').forEach(a=>a.addEventListener('click',()=>document.body.classList.remove('menu-open')));
   document.querySelector('#reset-demo')?.addEventListener('click',async()=>{if(confirm('¿Restablecer inventario, racks, palets y movimientos a los datos iniciales? Los usuarios creados se conservarán.')){await store.reset();location.hash='#/dashboard';location.reload();}});
-  document.querySelector('#logout-btn')?.addEventListener('click',()=>{if(!confirm('¿Cerrar sesión?'))return;auth.logout();localStorage.removeItem('serco_wms_active_company');localStorage.removeItem('serco_wms_active_site');location.hash='';location.reload();});
+  document.querySelector('#logout-btn')?.addEventListener('click',e=>{const button=e.currentTarget;button.disabled=true;button.textContent='Saliendo…';auth.logout();localStorage.removeItem('serco_wms_active_company');localStorage.removeItem('serco_wms_active_site');history.replaceState(null,'',location.pathname+location.search);location.reload();});
 }
 function globalToast(){let el=document.querySelector('#global-toast');if(!el){el=document.createElement('div');el.id='global-toast';el.className='toast global-toast';document.body.appendChild(el);}return el;}
 export function toast(msg,type='info'){const el=globalToast();el.textContent=msg;el.className=`toast global-toast show ${type||'info'}`;clearTimeout(el._timer);el._timer=setTimeout(()=>el.classList.remove('show'),3600);}

@@ -12,6 +12,8 @@ export function renderLogin(root,onSuccess){
    btn.disabled=true;
    try{
      await auth.login(document.querySelector('#login-user').value,document.querySelector('#login-password').value);
+     localStorage.removeItem('serco_wms_active_company');
+     localStorage.removeItem('serco_wms_active_site');
      await onSuccess();
    }catch(ex){
      error.textContent=ex.message;
