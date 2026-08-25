@@ -71,6 +71,14 @@ function withTimeout(promise,ms,message){
   return Promise.race([promise,timeout]).finally(()=>clearTimeout(timer));
 }
 
+async function retryTransient(task,{attempts=2,delay=1800}={}){
+  let lastError;
+  for(let attempt=1;attempt<=attempts;attempt++){
+    try{return await task();}catch(error){lastError=error;if(error?.status&&error.status<500)throw error;if(attempt<attempts)await new Promise(resolve=>setTimeout(resolve,delay));}
+  }
+  throw lastError;
+}
+
 function renderBoot(message='Conectando con el servidor…'){
   root.innerHTML=`<main style="min-height:100vh;display:grid;place-items:center;background:#f4f7fb;padding:24px;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"><section style="width:min(430px,100%);background:#fff;border:1px solid #dfe7f1;border-radius:20px;padding:28px;box-shadow:0 18px 50px rgba(15,23,42,.08);text-align:center"><div style="width:54px;height:54px;border-radius:16px;background:#16a34a;color:#fff;display:grid;place-items:center;margin:0 auto 16px;font-size:26px;font-weight:800">S</div><h1 style="font-size:21px;margin:0 0 8px;color:#0f172a">SercoRiego Lite WMS</h1><p style="margin:0;color:#64748b;font-size:14px">${message}</p></section></main>`;
 }
@@ -84,7 +92,7 @@ function renderBootError(error){
 async function enterApp(){
   renderBoot('Cargando información de la bodega…');
   try{
-    await withTimeout(store.init(),20000,'El servidor está tardando demasiado en cargar la información.');
+    await withTimeout(retryTransient(()=>store.init()),35000,'El servidor está iniciando o está tardando demasiado en cargar la información.');
     solicitarPermisoSonidoGlobal();
     const access=sessionAccess();localStorage.setItem('serco_wms_active_site',access.siteId);const site=(store.data.sites||[]).find(s=>s.id===access.siteId);if(site)localStorage.setItem('serco_wms_active_company',siteCompanyId(site,store.data));
     const requested=location.hash.replace('#/','');replaceHash(normalizeRouteForRole(requested,access.role,{mobile:mobileViewport()}));
