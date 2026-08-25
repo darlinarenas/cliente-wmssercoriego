@@ -26,7 +26,7 @@ function unknownCard(code,allowed){
 }
 
 function existingPicker(code){
-  return `<section class="code-association-box"><span class="eyebrow">BUSCAR PRODUCTO MAESTRO</span><h3>¿A qué producto asociamos ${esc(code)}?</h3><input id="existing-product-search" autocomplete="off" placeholder="Código, nombre o descripción"><div id="existing-product-results" class="code-product-picker"></div></section>`;
+  return `<dialog id="existing-product-dialog" class="code-picker-dialog"><div class="code-picker-dialog-card"><div class="dialog-head"><div><span class="eyebrow">BUSCAR PRODUCTO MAESTRO</span><h3>¿A qué producto asociamos ${esc(code)}?</h3><small>Busca manualmente o escanea cualquier código que ya identifique al producto.</small></div><button id="existing-product-close" class="ghost" type="button">×</button></div><div class="entrada-con-camara"><input id="existing-product-search" autocomplete="off" placeholder="Código, nombre o descripción"><button id="existing-product-camera" class="scan-button" type="button" title="Escanear producto existente">▣</button></div><div id="existing-product-results" class="code-product-picker"></div></div></dialog>`;
 }
 
 function pickerResults(query){
@@ -37,7 +37,7 @@ function pickerResults(query){
   box.querySelectorAll('.code-pick-product').forEach(button=>button.onclick=async()=>{
     if(!permissions().associate){toast('Tu rol no permite asociar códigos','warning');return;}
     const product=resolveProduct(button.dataset.code);if(!product)return;
-    try{await store.commit(state=>addProductCode(state,product.id,currentCode,'OTRO','Asociado desde consulta rápida'),`Código ${currentCode} asociado a ${product.code}`,{operations:['codesAssociate']});await notice('Código asociado',`${currentCode} ahora identifica a ${product.code} · ${product.name||'Producto'}.`,'success');showResult(currentCode);}catch(error){toast(error.message||'No fue posible asociar el código','warning');}
+    try{document.querySelector('#existing-product-dialog')?.close();await store.commit(state=>addProductCode(state,product.id,currentCode,'OTRO','Asociado desde consulta rápida'),`Código ${currentCode} asociado a ${product.code}`,{operations:['codesAssociate']});await notice('Código asociado',`${currentCode} ahora identifica a ${product.code} · ${product.name||'Producto'}.`,'success');showResult(currentCode);}catch(error){toast(error.message||'No fue posible asociar el código','warning');}
   });
 }
 
@@ -64,7 +64,7 @@ function showResult(raw){
     if(allowed.editInventory)document.querySelector('#code-edit-stock').onclick=()=>openProductEditor(product.code,{onSaved:newCode=>showResult(newCode)});
     document.querySelector('#code-scan-another').onclick=()=>{resetScan();document.querySelector('#code-query-camera')?.click();};
   }else{
-    if(allowed.associate)document.querySelector('#unknown-associate').onclick=()=>{document.querySelector('#unknown-action-slot').innerHTML=existingPicker(code);const input=document.querySelector('#existing-product-search');input.oninput=()=>pickerResults(input.value);input.focus();};
+    if(allowed.associate)document.querySelector('#unknown-associate').onclick=()=>{document.querySelector('#unknown-action-slot').innerHTML=existingPicker(code);const dialog=document.querySelector('#existing-product-dialog'),input=document.querySelector('#existing-product-search');input.oninput=()=>pickerResults(input.value);document.querySelector('#existing-product-close').onclick=()=>dialog.close();dialog.oncancel=()=>dialog.close();enlazarBotonEscaner('existing-product-camera','existing-product-search',{titulo:'Escanear producto existente',ayuda:'Escanea cualquier código ya asociado al producto',onDetectar:value=>pickerResults(value)});dialog.showModal();setTimeout(()=>input.focus(),0);};
     if(allowed.createProduct)document.querySelector('#unknown-create').onclick=()=>openNewProductDialog(newCode=>showResult(newCode),{initialCode:code});
     document.querySelector('#unknown-rescan').onclick=()=>{resetScan();document.querySelector('#code-query-camera')?.click();};
   }
