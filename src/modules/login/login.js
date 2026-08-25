@@ -22,8 +22,8 @@ export function renderLogin(root,onSuccess){
      const user=await auth.login(document.querySelector('#login-user').value,document.querySelector('#login-password').value);
      localStorage.removeItem('serco_wms_active_company');
      localStorage.removeItem('serco_wms_active_site');
-     const companies=auth.loginState?.companies||[];
-     const enter=async companyId=>{localStorage.setItem('serco_wms_active_company',companyId);localStorage.removeItem('serco_wms_active_site');auth.loginState=null;await onSuccess();};
+     const companies=auth.loginCompanies||[];
+     const enter=async companyId=>{localStorage.setItem('serco_wms_active_company',companyId);localStorage.removeItem('serco_wms_active_site');await onSuccess();};
      if(user.role==='ADMIN_GLOBAL'&&companies.filter(c=>c.active!==false).length>1){chooseCompany(companies,enter);return;}
      await enter((user.companyIds||[])[0]||companies[0]?.id||'SERCO_RIEGO');
    }catch(ex){

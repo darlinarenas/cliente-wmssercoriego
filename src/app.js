@@ -103,6 +103,11 @@ window.addEventListener('serco:logout',()=>{
   renderLogin(root,enterApp);
 });
 
+window.addEventListener('serco:context-changed',()=>{
+  if(!store.data)return;
+  buildRouter().render();
+});
+
 async function boot(){
   renderBoot();
   try{
