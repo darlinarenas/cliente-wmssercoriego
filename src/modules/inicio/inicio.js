@@ -3,6 +3,7 @@ import { shell,wireShell } from '../../layout/layout.js';
 import { metric,badge,esc,empty } from '../../components/ui.js';
 import { activeSiteId } from '../../services/stock.js';
 import { startSilentRefresh } from '../../services/silent-refresh.js';
+import { codePermissionsForUser } from '../../services/access-routing.js';
 
 function operatorDashboard(d,user,siteId){
  const orderTasks=(d.orders||[]).filter(o=>o.assignedTo===user.id&&!['CERRADA','EMITIDA','ENTREGADA_CONDUCTOR'].includes(o.status));
@@ -10,6 +11,7 @@ function operatorDashboard(d,user,siteId){
  const total=orderTasks.length+putaway.length;
  const actions=[
   ['buscar','⌕','Buscar','Localizar productos y ubicaciones'],
+  ...(codePermissionsForUser(user,siteId).consult?[["codigos","▣","Consultar / asociar códigos","Escanear, consultar y asociar etiquetas"]]:[]),
   ['recepciones','⇩','Recibir','Registrar mercadería que llega'],
   ['transferencias','⇄','Despachar','Preparar una salida o traspaso'],
   ['palets','▣','Organizar palets','Revisar y ubicar productos'],

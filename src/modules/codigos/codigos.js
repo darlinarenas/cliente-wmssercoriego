@@ -72,11 +72,14 @@ function showResult(raw){
 
 export function renderCodes(root){
   if(!permissions().consult){root.innerHTML=shell('Consultar / asociar códigos','<section class="panel"><h2>Acceso restringido</h2><p>Tu rol o permiso personalizado no autoriza consultar códigos en este centro.</p></section>','codigos');wireShell();return;}
-  root.innerHTML=shell('Consultar / asociar códigos',`<div class="page-intro"><div><span class="eyebrow">PRODUCTO MAESTRO · MULTICÓDIGO</span><h2>Consultar o asociar códigos</h2><p>Escanea cualquier etiqueta. Si existe, podrás trabajar con el producto; si no existe, podrás asociarla o crear un producto nuevo.</p></div></div><section class="panel code-query-panel"><div><h3>Escanea el primer código</h3><small>La consulta está limitada a la empresa activa y no mezcla información de otras empresas.</small></div><div class="code-query-controls"><div class="entrada-con-camara"><input id="code-query" autocomplete="off" placeholder="Código de unidad, caja, proveedor, Kame…"><button id="code-query-camera" class="scan-button" type="button" title="Abrir cámara">▣</button></div><button id="code-query-submit" class="primary" type="button">Consultar código</button></div></section><div id="code-query-result"></div>`,'codigos');
+  root.innerHTML=shell('Consultar / asociar códigos',`<div class="page-intro"><div><span class="eyebrow">PRODUCTO MAESTRO · MULTICÓDIGO</span><h2>Consultar o asociar códigos</h2><p>Escanea cualquier etiqueta. Si existe, podrás trabajar con el producto; si no existe, podrás asociarla o crear un producto nuevo.</p></div><div class="code-page-navigation"><a href="#/dashboard" class="ghost">← Inicio</a><a href="#/movil" class="secondary">Operación móvil</a></div></div><section class="panel code-query-panel"><div><h3>Escanea el primer código</h3><small>La consulta está limitada a la empresa activa y no mezcla información de otras empresas.</small></div><div class="code-query-controls"><div class="entrada-con-camara"><input id="code-query" autocomplete="off" placeholder="Código de unidad, caja, proveedor, Kame…"><button id="code-query-camera" class="scan-button" type="button" title="Abrir cámara">▣</button></div><button id="code-query-submit" class="primary" type="button">Consultar código</button></div></section><div id="code-query-result"></div>`,'codigos');
   wireShell();
   const input=document.querySelector('#code-query');
   document.querySelector('#code-query-submit').onclick=()=>showResult(input.value);
   input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();showResult(input.value);}};
   enlazarBotonEscaner('code-query-camera','code-query',{titulo:'Consultar código',ayuda:'Apunta a cualquier código del producto',onDetectar:value=>showResult(value)});
-  if(currentCode)showResult(currentCode);
+  const params=new URLSearchParams(location.hash.split('?')[1]||'');
+  const requestedCode=normalizeProductCode(params.get('code')||'');
+  if(requestedCode){input.value=requestedCode;showResult(requestedCode);if(params.get('associate')==='1')setTimeout(()=>document.querySelector('#unknown-associate')?.click(),0);}
+  else if(currentCode)showResult(currentCode);
 }
