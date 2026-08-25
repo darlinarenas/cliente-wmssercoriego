@@ -3,7 +3,7 @@ import { solicitarPermisoSonidoGlobal } from './services/sonidos.js';
 import { auth } from './services/auth.js';
 import { store } from './services/store.js';
 import { Router } from './core/router.js';
-import { renderLogin } from './modules/login/login.js';
+import { chooseCompany,renderLogin } from './modules/login/login.js';
 import { renderDashboard } from './modules/inicio/inicio.js';
 import { renderRacks } from './modules/racks/racks.js';
 import { renderSearch } from './modules/busqueda/busqueda.js';
@@ -80,7 +80,7 @@ async function retryTransient(task,{attempts=2,delay=1800}={}){
 }
 
 function renderBoot(message='Conectando con el servidor…'){
-  root.innerHTML=`<main style="min-height:100vh;display:grid;place-items:center;background:#f4f7fb;padding:24px;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"><section style="width:min(430px,100%);background:#fff;border:1px solid #dfe7f1;border-radius:20px;padding:28px;box-shadow:0 18px 50px rgba(15,23,42,.08);text-align:center"><div style="width:54px;height:54px;border-radius:16px;background:#16a34a;color:#fff;display:grid;place-items:center;margin:0 auto 16px;font-size:26px;font-weight:800">S</div><h1 style="font-size:21px;margin:0 0 8px;color:#0f172a">SercoRiego Lite WMS</h1><p style="margin:0;color:#64748b;font-size:14px">${message}</p></section></main>`;
+  root.innerHTML=`<main style="min-height:100vh;display:grid;place-items:center;background:#f4f7fb;padding:24px;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"><section style="width:min(430px,100%);background:#fff;border:1px solid #dfe7f1;border-radius:20px;padding:28px;box-shadow:0 18px 50px rgba(15,23,42,.08);text-align:center"><div style="width:54px;height:54px;border-radius:16px;background:#16a34a;color:#fff;display:grid;place-items:center;margin:0 auto 16px;font-size:26px;font-weight:800">S</div><h1 style="font-size:21px;margin:0 0 3px;color:#0f172a">WMS</h1><b style="display:block;margin:0 0 10px;color:#16a34a;font-size:13px">By Vexhora</b><p style="margin:0;color:#64748b;font-size:14px">${message}</p></section></main>`;
 }
 
 function renderBootError(error){
@@ -114,6 +114,13 @@ window.addEventListener('serco:logout',()=>{
 window.addEventListener('serco:context-changed',()=>{
   if(!store.data)return;
   buildRouter().render();
+});
+
+window.addEventListener('serco:choose-company',()=>{
+  if(!store.data||!auth.user)return;
+  const companies=(store.data.companies||[]).filter(c=>c.active!==false&&(auth.user.role==='ADMIN_GLOBAL'||(auth.user.companyIds||[]).includes(c.id)));
+  if(companies.length<=1)return;
+  chooseCompany(companies,async companyId=>{localStorage.setItem('serco_wms_active_company',companyId);localStorage.removeItem('serco_wms_active_site');await enterApp();},{authenticated:true,onBack:()=>buildRouter().render()});
 });
 
 async function boot(){
