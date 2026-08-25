@@ -582,9 +582,10 @@
 
 /* 2026-08-20 · UX consistente de destinos + mensajes siempre visibles */
 .pallet-destination-actions.compact{margin:6px 0 4px;gap:8px}.pallet-destination-actions.compact .pallet-action-button{min-height:38px;padding:8px 11px;font-size:12px}
-.global-toast{left:50%;right:auto;top:94px;bottom:auto;transform:translate(-50%,-10px);z-index:2147483000}.global-toast.show{transform:translate(-50%,0)}
+.global-toast{left:50%;right:auto;top:50%;bottom:auto;transform:translate(-50%,-50%) scale(.94);z-index:2147483000;width:min(560px,calc(100vw - 32px));min-height:88px;padding:22px 26px;border-radius:16px;font-size:18px;font-weight:850;line-height:1.35;text-align:center;display:grid;place-items:center;box-shadow:0 24px 70px rgba(2,8,23,.38);border:1px solid rgba(255,255,255,.16)}.global-toast.show{transform:translate(-50%,-50%) scale(1)}
+.field-needs-attention{border-color:#dc2626!important;outline:4px solid rgba(220,38,38,.18)!important;box-shadow:0 0 0 1px #dc2626!important;animation:fieldAttention 1s ease-in-out 2}@keyframes fieldAttention{50%{outline-color:rgba(220,38,38,.4)}}
 .operation-notice,.supercode-dialog,.pallet-map-dialog{z-index:2147483000}
-@media(max-width:760px){.global-toast{top:72px;max-width:calc(100vw - 24px);width:max-content}.pallet-destination-actions.compact>*{flex:1 1 auto}}
+@media(max-width:760px){.global-toast{top:50%;width:calc(100vw - 28px);min-height:82px;padding:19px;font-size:16px}.pallet-destination-actions.compact>*{flex:1 1 auto}}
 
 /* Selector visual consistente de ubicaciones / zonas */
 .location-simple-dialog{width:min(760px,calc(100vw - 28px))}

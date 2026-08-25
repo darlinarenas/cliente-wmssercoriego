@@ -28,9 +28,11 @@ import { renderCodes } from './modules/codigos/codigos.js';
 import { activeSiteId } from './services/stock.js';
 import { effectiveRole,normalizeRouteForRole } from './services/access-routing.js';
 import { siteCompanyId } from './services/company.js';
+import { installGlobalFormGuidance } from './layout/layout.js';
 
 const root=document.querySelector('#app');
 let router;
+installGlobalFormGuidance();
 
 function sessionAccess(){const siteId=activeSiteId(store.data),user=(store.data.users||[]).find(u=>u.id===store.data.session?.userId)||auth.user;return {siteId,user,role:effectiveRole(user,siteId)};}
 function mobileViewport(){return window.matchMedia('(max-width: 760px)').matches;}

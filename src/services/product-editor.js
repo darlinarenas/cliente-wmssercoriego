@@ -114,7 +114,7 @@ export function openProductEditor(code,{onSaved}={}){
     const subcategory=document.querySelector('#pe-subcategory').value.trim();
     const rotation=document.querySelector('#pe-rotation').value;
     const reason=document.querySelector('#pe-reason').value.trim();
-    if(!newCode||!name||!reason){toast('Completa código, nombre y motivo');return;}
+    if(!newCode||!name||!reason){const missing=!newCode?document.querySelector('#pe-code'):!name?document.querySelector('#pe-name'):document.querySelector('#pe-reason');toast(`Falta completar: ${!newCode?'Código de producto':!name?'Nombre':'Motivo de la corrección / inventario'}. Te llevamos al campo pendiente.`,'warning',missing);return;}
     if(newCode!==oldCode&&codeInUse(newCode,p.id)){toast('Ese código ya existe o está asociado a otro producto');return;}
     const qtyChanges=[];
     document.querySelectorAll('.inventory-edit-row.active-site-row').forEach(row=>{const id=row.dataset.invId,inv=store.data.inventory.find(i=>i.id===id);if(!inv||inventorySiteId(inv)!==activeSiteId())return;const before=Number(inv.qty||0),after=Number(row.querySelector('.pe-physical-qty').value||0);if(Number.isFinite(after)&&after>=0&&after!==before)qtyChanges.push({id,before,after,locationId:inv.locationId,palletId:inv.palletId||null});});

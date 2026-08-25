@@ -1,0 +1,117 @@
+From aea65a30f8e75c42c35b45282dc5e90c59673086 Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Tue, 25 Aug 2026 19:46:17 +0800
+Subject: [PATCH] avisos visibles y guia global de campos obligatorios
+
+---
+ src/app.js                        |  2 ++
+ src/layout/layout.js              |  7 +++++--
+ src/services/product-editor.js    |  2 +-
+ styles/app.css                    |  5 +++--
+ sw.js                             |  2 +-
+ test/global-form-guidance.test.js | 19 +++++++++++++++++++
+ 6 files changed, 31 insertions(+), 6 deletions(-)
+ create mode 100644 test/global-form-guidance.test.js
+
+diff --git a/src/app.js b/src/app.js
+index 99915f5..76c0ae5 100644
+--- a/src/app.js
++++ b/src/app.js
+@@ -28,9 +28,11 @@ import { renderCodes } from './modules/codigos/codigos.js';
+ import { activeSiteId } from './services/stock.js';
+ import { effectiveRole,normalizeRouteForRole } from './services/access-routing.js';
+ import { siteCompanyId } from './services/company.js';
++import { installGlobalFormGuidance } from './layout/layout.js';
+ 
+ const root=document.querySelector('#app');
+ let router;
++installGlobalFormGuidance();
+ 
+ function sessionAccess(){const siteId=activeSiteId(store.data),user=(store.data.users||[]).find(u=>u.id===store.data.session?.userId)||auth.user;return {siteId,user,role:effectiveRole(user,siteId)};}
+ function mobileViewport(){return window.matchMedia('(max-width: 760px)').matches;}
+diff --git a/src/layout/layout.js b/src/layout/layout.js
+index 29fc321..11cda2c 100644
+--- a/src/layout/layout.js
++++ b/src/layout/layout.js
+@@ -62,8 +62,11 @@ export function wireShell(){
+   document.querySelectorAll('.nav-link').forEach(a=>a.addEventListener('click',()=>document.body.classList.remove('menu-open')));
+   document.querySelector('#logout-btn')?.addEventListener('click',e=>{const button=e.currentTarget;button.disabled=true;button.textContent='Saliendo…';auth.logout();localStorage.removeItem('serco_wms_active_company');localStorage.removeItem('serco_wms_active_site');history.replaceState(null,'',location.pathname+location.search);location.reload();});
+ }
+-function globalToast(){let el=document.querySelector('#global-toast');if(!el){el=document.createElement('div');el.id='global-toast';el.className='toast global-toast';document.body.appendChild(el);}return el;}
+-export function toast(msg,type='info'){const el=globalToast();el.textContent=msg;el.className=`toast global-toast show ${type||'info'}`;clearTimeout(el._timer);el._timer=setTimeout(()=>el.classList.remove('show'),3600);}
++function globalToast(){let el=document.querySelector('#global-toast');if(!el){el=document.createElement('div');el.id='global-toast';el.className='toast global-toast';el.setAttribute('role','status');el.setAttribute('aria-live','assertive');document.body.appendChild(el);}const openDialogs=[...document.querySelectorAll('dialog[open]')].filter(d=>d.id!=='operation-notice-global');const host=openDialogs.at(-1)||document.body;if(el.parentElement!==host)host.appendChild(el);return el;}
++export function revealInvalidField(field,{message}={}){if(!field)return false;const container=field.closest('details,[hidden]');if(container?.tagName==='DETAILS')container.open=true;else if(container?.hidden)container.hidden=false;field.classList.add('field-needs-attention');field.setAttribute('aria-invalid','true');field.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});setTimeout(()=>{field.focus({preventScroll:true});field.select?.();},180);const clear=()=>{field.classList.remove('field-needs-attention');field.removeAttribute('aria-invalid');field.removeEventListener('input',clear);field.removeEventListener('change',clear);};field.addEventListener('input',clear);field.addEventListener('change',clear);if(message)toast(message,'warning');return true;}
++export function toast(msg,type='info',target=null){if(target)revealInvalidField(typeof target==='string'?document.querySelector(target):target);const el=globalToast();el.textContent=msg;el.className=`toast global-toast show ${type||'info'}`;clearTimeout(el._timer);el._timer=setTimeout(()=>el.classList.remove('show'),4200);}
++let formGuidanceInstalled=false,invalidGuidanceBusy=false;
++export function installGlobalFormGuidance(){if(formGuidanceInstalled)return;formGuidanceInstalled=true;document.addEventListener('invalid',event=>{const field=event.target;if(!(field instanceof HTMLElement))return;event.preventDefault();if(invalidGuidanceBusy)return;invalidGuidanceBusy=true;setTimeout(()=>invalidGuidanceBusy=false,120);const label=field.closest('label')?.childNodes?.[0]?.textContent?.trim()||field.getAttribute('aria-label')||field.getAttribute('placeholder')||'este campo';revealInvalidField(field,{message:`Falta completar: ${label}. Te llevamos al campo pendiente.`});},true);}
+ export function notice(title,message,type='success'){
+   return new Promise(resolve=>{let dlg=document.querySelector('#operation-notice-global');if(!dlg){document.body.insertAdjacentHTML('beforeend',`<dialog id="operation-notice-global" class="operation-notice"><div class="operation-notice-card"><div id="operation-notice-icon" class="operation-notice-icon">✓</div><h3 id="operation-notice-title"></h3><p id="operation-notice-message"></p><button id="operation-notice-ok" class="primary" type="button">Aceptar</button></div></dialog>`);dlg=document.querySelector('#operation-notice-global');}dlg.className=`operation-notice ${type}`;dlg.querySelector('#operation-notice-icon').textContent=type==='error'?'!':type==='warning'?'!':'✓';dlg.querySelector('#operation-notice-title').textContent=title;dlg.querySelector('#operation-notice-message').textContent=message;dlg.querySelector('#operation-notice-ok').onclick=()=>{dlg.close();resolve();};dlg.showModal();});
+ }
+diff --git a/src/services/product-editor.js b/src/services/product-editor.js
+index 466c317..ee5fbb1 100644
+--- a/src/services/product-editor.js
++++ b/src/services/product-editor.js
+@@ -114,7 +114,7 @@ export function openProductEditor(code,{onSaved}={}){
+     const subcategory=document.querySelector('#pe-subcategory').value.trim();
+     const rotation=document.querySelector('#pe-rotation').value;
+     const reason=document.querySelector('#pe-reason').value.trim();
+-    if(!newCode||!name||!reason){toast('Completa código, nombre y motivo');return;}
++    if(!newCode||!name||!reason){const missing=!newCode?document.querySelector('#pe-code'):!name?document.querySelector('#pe-name'):document.querySelector('#pe-reason');toast(`Falta completar: ${!newCode?'Código de producto':!name?'Nombre':'Motivo de la corrección / inventario'}. Te llevamos al campo pendiente.`,'warning',missing);return;}
+     if(newCode!==oldCode&&codeInUse(newCode,p.id)){toast('Ese código ya existe o está asociado a otro producto');return;}
+     const qtyChanges=[];
+     document.querySelectorAll('.inventory-edit-row.active-site-row').forEach(row=>{const id=row.dataset.invId,inv=store.data.inventory.find(i=>i.id===id);if(!inv||inventorySiteId(inv)!==activeSiteId())return;const before=Number(inv.qty||0),after=Number(row.querySelector('.pe-physical-qty').value||0);if(Number.isFinite(after)&&after>=0&&after!==before)qtyChanges.push({id,before,after,locationId:inv.locationId,palletId:inv.palletId||null});});
+diff --git a/styles/app.css b/styles/app.css
+index b7dfb4c..da7128b 100644
+--- a/styles/app.css
++++ b/styles/app.css
+@@ -582,9 +582,10 @@
+ 
+ /* 2026-08-20 · UX consistente de destinos + mensajes siempre visibles */
+ .pallet-destination-actions.compact{margin:6px 0 4px;gap:8px}.pallet-destination-actions.compact .pallet-action-button{min-height:38px;padding:8px 11px;font-size:12px}
+-.global-toast{left:50%;right:auto;top:94px;bottom:auto;transform:translate(-50%,-10px);z-index:2147483000}.global-toast.show{transform:translate(-50%,0)}
++.global-toast{left:50%;right:auto;top:50%;bottom:auto;transform:translate(-50%,-50%) scale(.94);z-index:2147483000;width:min(560px,calc(100vw - 32px));min-height:88px;padding:22px 26px;border-radius:16px;font-size:18px;font-weight:850;line-height:1.35;text-align:center;display:grid;place-items:center;box-shadow:0 24px 70px rgba(2,8,23,.38);border:1px solid rgba(255,255,255,.16)}.global-toast.show{transform:translate(-50%,-50%) scale(1)}
++.field-needs-attention{border-color:#dc2626!important;outline:4px solid rgba(220,38,38,.18)!important;box-shadow:0 0 0 1px #dc2626!important;animation:fieldAttention 1s ease-in-out 2}@keyframes fieldAttention{50%{outline-color:rgba(220,38,38,.4)}}
+ .operation-notice,.supercode-dialog,.pallet-map-dialog{z-index:2147483000}
+-@media(max-width:760px){.global-toast{top:72px;max-width:calc(100vw - 24px);width:max-content}.pallet-destination-actions.compact>*{flex:1 1 auto}}
++@media(max-width:760px){.global-toast{top:50%;width:calc(100vw - 28px);min-height:82px;padding:19px;font-size:16px}.pallet-destination-actions.compact>*{flex:1 1 auto}}
+ 
+ /* Selector visual consistente de ubicaciones / zonas */
+ .location-simple-dialog{width:min(760px,calc(100vw - 28px))}
+diff --git a/sw.js b/sw.js
+index 2feec85..87e31f4 100644
+--- a/sw.js
++++ b/sw.js
+@@ -1,4 +1,4 @@
+-const APP_VERSION = '2026.08.23-sesion-y-roles-v24';
++const APP_VERSION = '2026.08.25-avisos-y-validacion-global-v25';
+ const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
+ const CACHE_PREFIX = 'sercoriego-lite-wms-';
+ 
+diff --git a/test/global-form-guidance.test.js b/test/global-form-guidance.test.js
+new file mode 100644
+index 0000000..8d02011
+--- /dev/null
++++ b/test/global-form-guidance.test.js
+@@ -0,0 +1,19 @@
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++
++const layout=readFileSync(new URL('../src/layout/layout.js',import.meta.url),'utf8');
++const app=readFileSync(new URL('../src/app.js',import.meta.url),'utf8');
++const css=readFileSync(new URL('../styles/app.css',import.meta.url),'utf8');
++const editor=readFileSync(new URL('../src/services/product-editor.js',import.meta.url),'utf8');
++
++assert.match(app,/installGlobalFormGuidance\(\)/,'la guía global debe instalarse al iniciar');
++assert.match(layout,/addEventListener\('invalid',[\s\S]*?,true\)/,'debe capturar campos inválidos en todos los formularios');
++assert.match(layout,/if\(invalidGuidanceBusy\)return/,'debe guiar solamente al primer campo inválido');
++assert.match(layout,/scrollIntoView\(\{behavior:'smooth',block:'center'/,'debe llevar el campo pendiente al centro');
++assert.match(layout,/field\.focus\(\{preventScroll:true\}\)/,'debe enfocar el campo pendiente');
++assert.match(layout,/openDialogs\.at\(-1\)\|\|document\.body/,'el aviso debe entrar en la capa modal activa');
++assert.match(css,/\.global-toast\{[^}]*top:50%/,'el aviso debe mostrarse en el centro');
++assert.match(css,/\.field-needs-attention\{/,'el campo pendiente debe quedar resaltado');
++assert.match(editor,/toast\(`Falta completar:[\s\S]*?,'warning',missing\)/,'el editor de productos debe señalar su primer dato pendiente');
++
++console.log('OK · avisos globales visibles y navegación al primer campo pendiente');
+-- 
+2.51.1
+
