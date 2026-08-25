@@ -18,6 +18,14 @@ export function codePermissionsForRole(role){
  return {consult:manage||['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(role),associate:manage,editProduct:manage,editInventory:manage,createProduct:manage};
 }
 
+export function codePermissionsForUser(user,siteId){
+ if(user?.role==='ADMIN_GLOBAL')return codePermissionsForRole('ADMIN_GLOBAL');
+ const assignment=(user?.accessAssignments||[]).find(a=>a.siteId===siteId),defaults=codePermissionsForRole(assignment?.role||user?.role);
+ if(assignment?.customPermissions!==true)return defaults;
+ const custom=assignment.permissions||{};
+ return {consult:custom.codesConsult===true,associate:custom.codesAssociate===true,editProduct:custom.productsEdit===true,editInventory:custom.inventoryAdjust===true,createProduct:custom.productsEdit===true};
+}
+
 export function landingRouteForRole(role,{mobile=false}={}){
  if(role==='TRANSPORTISTA')return 'cargas';
  if(['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(role)&&mobile)return 'movil';

@@ -6,11 +6,11 @@ import { addProductCode,normalizeProductCode,productAliases,resolveProduct } fro
 import { activeSiteId,stockSitesOrdered,totalCompanyStock } from '../../services/stock.js';
 import { openProductEditor } from '../../services/product-editor.js';
 import { openNewProductDialog } from '../productos/productos.js';
-import { codePermissionsForRole,effectiveRole } from '../../services/access-routing.js';
+import { codePermissionsForUser } from '../../services/access-routing.js';
 
 let currentCode='';
 
-function permissions(){const user=(store.data.users||[]).find(u=>u.id===store.data.session?.userId),role=effectiveRole(user,activeSiteId(store.data));return codePermissionsForRole(role);}
+function permissions(){const user=(store.data.users||[]).find(u=>u.id===store.data.session?.userId);return codePermissionsForUser(user,activeSiteId(store.data));}
 
 function productCard(product,scanned,allowed){
   const sites=stockSitesOrdered(product.code),active=sites.find(s=>s.siteId===activeSiteId()),aliases=productAliases(product);
@@ -37,7 +37,7 @@ function pickerResults(query){
   box.querySelectorAll('.code-pick-product').forEach(button=>button.onclick=async()=>{
     if(!permissions().associate){toast('Tu rol no permite asociar códigos','warning');return;}
     const product=resolveProduct(button.dataset.code);if(!product)return;
-    try{await store.commit(state=>addProductCode(state,product.id,currentCode,'OTRO','Asociado desde consulta rápida'),`Código ${currentCode} asociado a ${product.code}`);await notice('Código asociado',`${currentCode} ahora identifica a ${product.code} · ${product.name||'Producto'}.`,'success');showResult(currentCode);}catch(error){toast(error.message||'No fue posible asociar el código','warning');}
+    try{await store.commit(state=>addProductCode(state,product.id,currentCode,'OTRO','Asociado desde consulta rápida'),`Código ${currentCode} asociado a ${product.code}`,{operations:['codesAssociate']});await notice('Código asociado',`${currentCode} ahora identifica a ${product.code} · ${product.name||'Producto'}.`,'success');showResult(currentCode);}catch(error){toast(error.message||'No fue posible asociar el código','warning');}
   });
 }
 
@@ -50,7 +50,7 @@ function wireAssociation(product){
   const validate=()=>{const code=normalizeProductCode(input.value),found=resolveProduct(code);status.className='code-inline-status';if(!code){status.textContent='';return null;}if(found){status.textContent=found.id===product.id?'Este código ya identifica a este mismo producto.':`Este código ya pertenece a ${found.code} · ${found.name||'Producto'}.`;status.classList.add('warning');return found;}status.textContent='Código disponible para asociar.';status.classList.add('success');return null;};
   input.oninput=validate;
   enlazarBotonEscaner('associate-code-camera','associate-code-value',{titulo:'Escanear código para asociar',ayuda:`Se asociará al producto ${product.code}`,onDetectar:validate});
-  document.querySelector('#associate-code-save').onclick=async()=>{const code=normalizeProductCode(input.value),found=resolveProduct(code);if(!code){toast('Escanea o escribe el código que vas a asociar','warning');return;}if(found){toast(found.id===product.id?'Ese código ya está asociado a este producto':`Ese código pertenece al producto ${found.code}`,'warning');return;}try{await store.commit(state=>addProductCode(state,product.id,code,document.querySelector('#associate-code-type').value,document.querySelector('#associate-code-label').value),`Código ${code} asociado a ${product.code}`);await notice('Código asociado',`${code} quedó asociado correctamente a ${product.code}.`,'success');showResult(code);}catch(error){toast(error.message||'No fue posible asociar el código','warning');}};
+  document.querySelector('#associate-code-save').onclick=async()=>{const code=normalizeProductCode(input.value),found=resolveProduct(code);if(!code){toast('Escanea o escribe el código que vas a asociar','warning');return;}if(found){toast(found.id===product.id?'Ese código ya está asociado a este producto':`Ese código pertenece al producto ${found.code}`,'warning');return;}try{await store.commit(state=>addProductCode(state,product.id,code,document.querySelector('#associate-code-type').value,document.querySelector('#associate-code-label').value),`Código ${code} asociado a ${product.code}`,{operations:['codesAssociate']});await notice('Código asociado',`${code} quedó asociado correctamente a ${product.code}.`,'success');showResult(code);}catch(error){toast(error.message||'No fue posible asociar el código','warning');}};
   setTimeout(()=>document.querySelector('#associate-code-camera')?.focus(),0);
 }
 
@@ -71,6 +71,7 @@ function showResult(raw){
 }
 
 export function renderCodes(root){
+  if(!permissions().consult){root.innerHTML=shell('Consultar / asociar códigos','<section class="panel"><h2>Acceso restringido</h2><p>Tu rol o permiso personalizado no autoriza consultar códigos en este centro.</p></section>','codigos');wireShell();return;}
   root.innerHTML=shell('Consultar / asociar códigos',`<div class="page-intro"><div><span class="eyebrow">PRODUCTO MAESTRO · MULTICÓDIGO</span><h2>Consultar o asociar códigos</h2><p>Escanea cualquier etiqueta. Si existe, podrás trabajar con el producto; si no existe, podrás asociarla o crear un producto nuevo.</p></div></div><section class="panel code-query-panel"><div><h3>Escanea el primer código</h3><small>La consulta está limitada a la empresa activa y no mezcla información de otras empresas.</small></div><div class="code-query-controls"><div class="entrada-con-camara"><input id="code-query" autocomplete="off" placeholder="Código de unidad, caja, proveedor, Kame…"><button id="code-query-camera" class="scan-button" type="button" title="Abrir cámara">▣</button></div><button id="code-query-submit" class="primary" type="button">Consultar código</button></div></section><div id="code-query-result"></div>`,'codigos');
   wireShell();
   const input=document.querySelector('#code-query');

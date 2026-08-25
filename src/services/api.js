@@ -9,12 +9,13 @@ export function stateSavePayload(data,collections){
 export class ApiRepository {
   request(path,options={}){return apiRequest(path,options);}
   load(){return this.request('/state');}
-  async save(data,{collections}={}){
+  async save(data,{collections,operations=[]}={}){
     // En las operaciones normales se envían únicamente las colecciones que
     // cambiaron. El backend conserva las tablas ausentes y evita reescribir todo
     // el catálogo al recibir una carga o realizar un movimiento.
     const payload=stateSavePayload(data,collections);
-    const saved=await this.request('/state',{method:'PUT',headers:{'X-WMS-Compact':'1'},body:JSON.stringify(payload)});
+    const headers={'X-WMS-Compact':'1'};if(operations.length)headers['X-WMS-Operation']=operations.join(',');
+    const saved=await this.request('/state',{method:'PUT',headers,body:JSON.stringify(payload)});
     if(saved?.compact&&saved.meta)return {...data,meta:saved.meta};
     return saved;
   }

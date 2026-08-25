@@ -6,12 +6,12 @@ import { enlazarBotonEscaner } from '../../services/camara-ui.js';
 import { productAliases,codeInUse,normalizeProductCode,addProductCode } from '../../services/product-codes.js';
 import { stockBySite,activeSiteId,stockSitesOrdered,totalCompanyStock,inventorySiteId } from '../../services/stock.js';
 import { activeCompanyId } from '../../services/company.js';
-import { effectiveRole } from '../../services/access-routing.js';
+import { codePermissionsForUser } from '../../services/access-routing.js';
 
 const pesoRotacion={ALTA:3,MEDIA:2,BAJA:1};
 let alcanceStock='CENTRO';
 function currentUser(){return store.data.users.find(u=>u.id===store.data.session.userId);}
-function canCreateProduct(){return ['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(effectiveRole(currentUser(),activeSiteId(store.data)));}
+function canCreateProduct(){return codePermissionsForUser(currentUser(),activeSiteId(store.data)).createProduct;}
 function stockCentroActivo(code){return Number(stockBySite(code)[activeSiteId()]||0);}
 function cleanNewCode(v){return normalizeProductCode(v).replaceAll('-','');}
 function totalProducto(code){return totalCompanyStock(code,store.data);}
@@ -124,7 +124,7 @@ export function openNewProductDialog(onCreated,{initialCode=''}={}){
     await store.commit(st=>{
       st.products.push({id,code,name,description,type,family:type,category,subcategory,rotation,previousCodes:[],pickingLocationId:null,createdAt:at,createdBy:st.session.userId});
       extras.forEach(([typeCode,value,label])=>addProductCode(st,id,value,typeCode,label));
-    },`Producto maestro ${code} creado`);
+    },`Producto maestro ${code} creado`,{operations:['productsEdit']});
     close();onCreated?.(code);await notice('Producto creado',`${code} · ${name} quedó creado con stock 0. Ya puede recibirse en bodega.`,'success');
   };
   dlg.showModal();

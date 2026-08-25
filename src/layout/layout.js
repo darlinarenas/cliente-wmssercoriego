@@ -4,6 +4,7 @@ import { auth } from '../services/auth.js';
 import { esc } from '../components/ui.js';
 import { activeSiteId,userAllowedSites } from '../services/stock.js';
 import { activeCompanyId,companyName,siteCompanyId } from '../services/company.js';
+import { codePermissionsForUser } from '../services/access-routing.js';
 
 const nav=[
  ['dashboard','Inicio','⌂'],
@@ -23,7 +24,7 @@ export function shell(title,content,active='dashboard'){
   const d=store.data; const activeSite=activeSiteId(d); const site=d.sites.find(s=>s.id===activeSite)||d.sites[0]||{name:'Centro sin definir',code:activeSite}; const currentUser=d.users.find(u=>u.id===d.session.userId)||auth.user; const activeCompany=activeCompanyId(d); const allowedSites=userAllowedSites(d); const allowedCompanies=(d.companies||[]).filter(c=>c.active!==false&&(currentUser?.role==='ADMIN_GLOBAL'||(currentUser?.companyIds||[]).includes(c.id))); const initials=(currentUser?.name||'Usuario').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
   const effectiveRole=(currentUser?.accessAssignments||[]).find(a=>a.siteId===activeSite)?.role||currentUser?.role;
   const operatorMenu=new Set(['dashboard','buscar','codigos','ordenes','recepciones','recepcion-traspasos','tareas-ubicacion','transferencias','cargas','palets','movimientos']);
-  const canSee=id=>effectiveRole==='TRANSPORTISTA'?['dashboard','cargas'].includes(id):['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(effectiveRole)?operatorMenu.has(id):(!['usuarios','centros'].includes(id)||['ADMIN_GLOBAL','ADMINISTRADOR'].includes(effectiveRole));
+  const canSee=id=>id==='codigos'&&!codePermissionsForUser(currentUser,activeSite).consult?false:effectiveRole==='TRANSPORTISTA'?['dashboard','cargas'].includes(id):['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(effectiveRole)?operatorMenu.has(id):(!['usuarios','centros'].includes(id)||['ADMIN_GLOBAL','ADMINISTRADOR'].includes(effectiveRole));
   const orderTasks=(d.orders||[]).filter(o=>o.assignedTo===currentUser?.id&&!['CERRADA','EMITIDA','ENTREGADA_CONDUCTOR'].includes(o.status)).length;
   const putawayTasks=(d.tasks||[]).filter(t=>t.assignedTo===currentUser?.id&&t.status!=='CERRADA').length;
   const taskCountFor=id=>id==='ordenes'?orderTasks+putawayTasks:id==='tareas-ubicacion'?putawayTasks:0;

@@ -5,10 +5,11 @@ import { addProductCode,codeInUse,normalizeProductCode } from './product-codes.j
 import { inventorySiteId,activeSiteId,stockSitesOrdered,totalCompanyStock } from './stock.js';
 import { activeCompanyId,siteCompanyId } from './company.js';
 import { enlazarBotonEscaner } from './camara-ui.js';
-import { effectiveRole } from './access-routing.js';
+import { codePermissionsForUser } from './access-routing.js';
 
 function currentUser(){ return store.data.users.find(u=>u.id===store.data.session.userId); }
-function canEdit(){ return ['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(effectiveRole(currentUser(),activeSiteId(store.data))); }
+function permissions(){return codePermissionsForUser(currentUser(),activeSiteId(store.data));}
+function canEdit(){ const p=permissions();return p.editProduct||p.editInventory; }
 function product(code){ return store.data.products.find(p=>p.code===code); }
 function inventory(code){ const company=activeCompanyId(store.data); return store.data.inventory.filter(i=>i.productCode===code&&siteCompanyId(store.data.sites.find(s=>s.id===inventorySiteId(i,store.data)),store.data)===company); }
 function locationLabel(inv){
@@ -83,21 +84,24 @@ function replaceCodeEverywhere(s,oldCode,newCode){
 }
 
 export function openProductEditor(code,{onSaved}={}){
-  const dlg=ensureDialog(), allowed=canEdit(), p=product(code); if(!p){toast('Producto no encontrado');return;}
+  const dlg=ensureDialog(), permission=permissions(),allowed=canEdit(), p=product(code); if(!p){toast('Producto no encontrado');return;}
   fill(code);
   const perm=document.querySelector('#product-editor-permission');
   perm.innerHTML=allowed?'':`<div class="warning-box"><b>Modo consulta.</b> El operador actual (${esc(currentUser()?.name||'sin usuario')}) no tiene permiso para corregir productos o inventario. Selecciona un Encargado o Administrador en Usuarios.</div>`;
   document.querySelectorAll('#product-editor-form input:not([type="hidden"]),#product-editor-form textarea,#product-editor-form select').forEach(el=>{if(el.classList.contains('pe-system-qty')||el.classList.contains('other-site-qty'))el.disabled=true;else el.disabled=!allowed;});
+  ['pe-code','pe-name','pe-description','pe-type','pe-category','pe-subcategory','pe-rotation'].forEach(id=>{const el=document.querySelector(`#${id}`);if(el)el.disabled=!permission.editProduct;});
+  document.querySelectorAll('.inventory-edit-row.active-site-row .pe-physical-qty').forEach(el=>el.disabled=!permission.editInventory);
+  ['pe-code-type','pe-alt-code','pe-code-label'].forEach(id=>{const el=document.querySelector(`#${id}`);if(el)el.disabled=!permission.associate;});
   document.querySelector('#save-product-editor').disabled=!allowed;
   document.querySelector('#copy-system-qty').disabled=!allowed;
-  document.querySelector('#pe-add-code').disabled=!allowed;
-  document.querySelectorAll('.remove-alt-code,.save-alt-code').forEach(b=>b.disabled=!allowed);
+  document.querySelector('#pe-add-code').disabled=!permission.associate;
+  document.querySelectorAll('.remove-alt-code,.save-alt-code').forEach(b=>b.disabled=!permission.associate);
   enlazarBotonEscaner('pe-code-camera','pe-code',{titulo:'Escanear código principal',ayuda:'Apunta al código principal del producto'});
   enlazarBotonEscaner('pe-alt-code-camera','pe-alt-code',{titulo:'Escanear código asociado',ayuda:`Se asociará al producto ${p.code}`});
   const close=()=>dlg.close();document.querySelector('#close-product-editor').onclick=close;document.querySelector('#cancel-product-editor').onclick=close;
-  document.querySelector('#pe-add-code').onclick=async()=>{if(!allowed)return;const code=normalizeProductCode(document.querySelector('#pe-alt-code').value);if(!code){toast('Escribe el código a asociar');return;}if(codeInUse(code,p.id)){toast('Ese código ya pertenece a otro producto');return;}try{await store.commit(st=>addProductCode(st,p.id,code,document.querySelector('#pe-code-type').value,document.querySelector('#pe-code-label').value),`Código ${code} asociado a ${p.code}`);close();openProductEditor(p.code,{onSaved});toast('Código asociado');}catch(err){toast(err.message);}};
-  document.querySelectorAll('.save-alt-code').forEach(b=>b.onclick=async()=>{if(!allowed)return;const row=b.closest('.editable-alt-code'),x=(store.data.product_codes||[]).find(c=>c.id===b.dataset.id);if(!x)return;const next=normalizeProductCode(row.querySelector('.alt-code-value').value),type=row.querySelector('.alt-code-type').value,label=row.querySelector('.alt-code-label').value.trim();if(!next){toast('El código no puede quedar vacío');return;}if(codeInUse(next,p.id)&&next!==normalizeProductCode(x.code)){toast('Ese código ya pertenece a otro producto');return;}await store.commit(st=>{const c=(st.product_codes||[]).find(v=>v.id===b.dataset.id);if(c){c.code=next;c.type=type;c.label=label;c.active=true;}},`Código asociado ${x.code} → ${next} actualizado en ${p.code}`);close();openProductEditor(p.code,{onSaved});toast('Código asociado actualizado');});
-  document.querySelectorAll('.remove-alt-code').forEach(b=>b.onclick=async()=>{if(!allowed)return;if(!confirm('¿Quitar este código alternativo del producto?'))return;await store.commit(st=>{const x=(st.product_codes||[]).find(c=>c.id===b.dataset.id);if(x)x.active=false;},`Código alternativo retirado de ${p.code}`);close();openProductEditor(p.code,{onSaved});toast('Código retirado');});
+  document.querySelector('#pe-add-code').onclick=async()=>{if(!permission.associate)return;const code=normalizeProductCode(document.querySelector('#pe-alt-code').value);if(!code){toast('Escribe el código a asociar');return;}if(codeInUse(code,p.id)){toast('Ese código ya pertenece a otro producto');return;}try{await store.commit(st=>addProductCode(st,p.id,code,document.querySelector('#pe-code-type').value,document.querySelector('#pe-code-label').value),`Código ${code} asociado a ${p.code}`,{operations:['codesAssociate']});close();openProductEditor(p.code,{onSaved});toast('Código asociado');}catch(err){toast(err.message);}};
+  document.querySelectorAll('.save-alt-code').forEach(b=>b.onclick=async()=>{if(!permission.associate)return;const row=b.closest('.editable-alt-code'),x=(store.data.product_codes||[]).find(c=>c.id===b.dataset.id);if(!x)return;const next=normalizeProductCode(row.querySelector('.alt-code-value').value),type=row.querySelector('.alt-code-type').value,label=row.querySelector('.alt-code-label').value.trim();if(!next){toast('El código no puede quedar vacío');return;}if(codeInUse(next,p.id)&&next!==normalizeProductCode(x.code)){toast('Ese código ya pertenece a otro producto');return;}await store.commit(st=>{const c=(st.product_codes||[]).find(v=>v.id===b.dataset.id);if(c){c.code=next;c.type=type;c.label=label;c.active=true;}},`Código asociado ${x.code} → ${next} actualizado en ${p.code}`,{operations:['codesAssociate']});close();openProductEditor(p.code,{onSaved});toast('Código asociado actualizado');});
+  document.querySelectorAll('.remove-alt-code').forEach(b=>b.onclick=async()=>{if(!permission.associate)return;if(!confirm('¿Quitar este código alternativo del producto?'))return;await store.commit(st=>{const x=(st.product_codes||[]).find(c=>c.id===b.dataset.id);if(x)x.active=false;},`Código alternativo retirado de ${p.code}`,{operations:['codesAssociate']});close();openProductEditor(p.code,{onSaved});toast('Código retirado');});
   document.querySelector('#copy-system-qty').onclick=()=>{document.querySelectorAll('.inventory-edit-row.active-site-row').forEach(row=>{const sys=row.querySelector('.pe-system-qty').value,phy=row.querySelector('.pe-physical-qty');phy.value=sys;phy.dispatchEvent(new Event('input',{bubbles:true}));});};
   document.querySelector('#product-editor-form').onsubmit=async e=>{
     e.preventDefault(); if(!allowed)return;
@@ -115,8 +119,11 @@ export function openProductEditor(code,{onSaved}={}){
     const qtyChanges=[];
     document.querySelectorAll('.inventory-edit-row.active-site-row').forEach(row=>{const id=row.dataset.invId,inv=store.data.inventory.find(i=>i.id===id);if(!inv||inventorySiteId(inv)!==activeSiteId())return;const before=Number(inv.qty||0),after=Number(row.querySelector('.pe-physical-qty').value||0);if(Number.isFinite(after)&&after>=0&&after!==before)qtyChanges.push({id,before,after,locationId:inv.locationId,palletId:inv.palletId||null});});
     const masterChanged=(()=>{const pp=product(oldCode);return newCode!==oldCode||name!==(pp.name||'')||description!==(pp.description||'')||type!==(pp.type||pp.family||'')||category!==(pp.category||'')||subcategory!==(pp.subcategory||'')||rotation!==(pp.rotation||'MEDIA');})();
+    if(masterChanged&&!permission.editProduct){toast('Tu permiso no autoriza editar productos');return;}
+    if(qtyChanges.length&&!permission.editInventory){toast('Tu permiso no autoriza modificar inventario');return;}
     if(!masterChanged&&!qtyChanges.length){toast('No hay cambios para guardar');return;}
     const at=new Date().toISOString();
+    const operations=[];if(masterChanged)operations.push('productsEdit');if(qtyChanges.length)operations.push('inventoryAdjust');
     await store.commit(s=>{
       const pp=s.products.find(x=>x.code===oldCode); if(!pp)return;
       if(newCode!==oldCode){pp.previousCodes=Array.from(new Set([...(pp.previousCodes||[]),oldCode]));replaceCodeEverywhere(s,oldCode,newCode);}
@@ -125,7 +132,7 @@ export function openProductEditor(code,{onSaved}={}){
       s.inventory=s.inventory.filter(i=>Number(i.qty)>0);
       qtyChanges.forEach(ch=>{const loc=s.locations.find(l=>l.id===ch.locationId);if(loc&&!['BLOQUEADA','RESERVADA','INHABILITADA'].includes(loc.status)){loc.status=s.inventory.some(i=>i.locationId===ch.locationId&&Number(i.qty)>0)?'OCUPADA':'LIBRE';}});
       if(masterChanged)s.audit.unshift({id:`AUD-PROD-${Date.now()}`,type:'PRODUCT_CORRECTION',message:`Producto ${oldCode}${newCode!==oldCode?` → ${newCode}`:''} corregido. Motivo: ${reason}`,userId:s.session.userId,at});
-    },`Edición controlada de producto ${oldCode}${newCode!==oldCode?` → ${newCode}`:''}`);
+    },`Edición controlada de producto ${oldCode}${newCode!==oldCode?` → ${newCode}`:''}`,{operations});
     close();onSaved?.(newCode);await notice('Cambios guardados',`El producto ${newCode} y su inventario se actualizaron correctamente.`,'success');
   };
   dlg.showModal();
