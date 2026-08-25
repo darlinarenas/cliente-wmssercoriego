@@ -24,6 +24,7 @@ import { renderMap3d } from './modules/mapa3d/mapa3d.js';
 import { renderLoads } from './modules/cargas/cargas.js';
 import { renderTransferReceiving } from './modules/recepcion-traspasos/recepcion-traspasos.js';
 import { renderPutawayTasks } from './modules/tareas-ubicacion/tareas-ubicacion.js';
+import { renderCodes } from './modules/codigos/codigos.js';
 import { activeSiteId } from './services/stock.js';
 import { effectiveRole,normalizeRouteForRole } from './services/access-routing.js';
 import { siteCompanyId } from './services/company.js';
@@ -44,6 +45,7 @@ function buildRouter(){
     conciliacion:secureRoute('conciliacion',()=>renderReconciliation(root)),
     racks:secureRoute('racks',()=>renderRacks(root)),
     buscar:secureRoute('buscar',()=>renderSearch(root)),
+    codigos:secureRoute('codigos',()=>renderCodes(root)),
     productos:secureRoute('productos',()=>renderProducts(root)),
     estructura:secureRoute('estructura',()=>renderStructure(root)),
     movimientos:secureRoute('movimientos',()=>renderMovements(root)),

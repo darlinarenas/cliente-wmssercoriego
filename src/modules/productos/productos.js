@@ -70,7 +70,7 @@ function newProductDialogHtml(){
   return `<dialog id="new-product-dialog" class="new-product-dialog"><form id="new-product-form" class="new-product-card">
     <div class="dialog-head"><div><span class="eyebrow">MAESTRO DE PRODUCTOS</span><h3>Crear nuevo producto</h3><small>Crear la ficha no agrega stock. Las existencias se incorporan únicamente desde Recepción.</small></div><button type="button" id="close-new-product" class="ghost">×</button></div>
     <div class="new-product-grid">
-      <label>SKU / código principal<input id="np-code" required autocomplete="off" placeholder="Ej. 448160"></label>
+      <label>SKU / código principal<div class="entrada-con-camara"><input id="np-code" required autocomplete="off" placeholder="Ej. 448160"><button id="np-code-camera" class="scan-button" type="button">▣</button></div></label>
       <label>Nombre del producto<input id="np-name" required maxlength="120" placeholder="Nombre claro del producto"></label>
       <label class="full">Descripción<textarea id="np-description" rows="2" maxlength="300" placeholder="Descripción del producto"></textarea></label>
       <label>Tipo<input id="np-type" maxlength="100" placeholder="Ej. PVC, PPR, Orbit"></label>
@@ -80,10 +80,10 @@ function newProductDialogHtml(){
     </div>
     <section class="new-product-codes"><div class="section-mini-head"><div><b>Códigos adicionales opcionales</b><small>Todos resolverán al mismo producto maestro.</small></div></div>
       <div class="new-product-code-grid">
-        <label>Importación / caja<input id="np-import-code" autocomplete="off" placeholder="Opcional"></label>
-        <label>Tienda / sucursal<input id="np-store-code" autocomplete="off" placeholder="Opcional"></label>
-        <label>Kame<input id="np-kame-code" autocomplete="off" placeholder="Opcional"></label>
-        <label>Shopify / web<input id="np-shopify-code" autocomplete="off" placeholder="Opcional"></label>
+        <label>Importación / caja<div class="entrada-con-camara"><input id="np-import-code" autocomplete="off" placeholder="Opcional"><button id="np-import-camera" class="scan-button" type="button">▣</button></div></label>
+        <label>Tienda / sucursal<div class="entrada-con-camara"><input id="np-store-code" autocomplete="off" placeholder="Opcional"><button id="np-store-camera" class="scan-button" type="button">▣</button></div></label>
+        <label>Kame<div class="entrada-con-camara"><input id="np-kame-code" autocomplete="off" placeholder="Opcional"><button id="np-kame-camera" class="scan-button" type="button">▣</button></div></label>
+        <label>Shopify / web<div class="entrada-con-camara"><input id="np-shopify-code" autocomplete="off" placeholder="Opcional"><button id="np-shopify-camera" class="scan-button" type="button">▣</button></div></label>
       </div>
     </section>
     <div class="info-box"><b>Stock inicial: 0 unidades.</b> Después de guardar, el producto quedará disponible para buscarlo y recibirlo en cualquier centro autorizado.</div>
@@ -95,10 +95,12 @@ function ensureNewProductDialog(){
   if(!dlg){document.body.insertAdjacentHTML('beforeend',newProductDialogHtml());dlg=document.querySelector('#new-product-dialog');}
   return dlg;
 }
-function openNewProductDialog(onCreated){
+export function openNewProductDialog(onCreated,{initialCode=''}={}){
   if(!canCreateProduct()){toast('Tu rol no tiene permiso para crear productos');return;}
   const dlg=ensureNewProductDialog(),form=dlg.querySelector('#new-product-form');
   form.reset();
+  dlg.querySelector('#np-code').value=initialCode;
+  [['np-code-camera','np-code','Código principal'],['np-import-camera','np-import-code','Código de importación o caja'],['np-store-camera','np-store-code','Código de tienda'],['np-kame-camera','np-kame-code','Código Kame'],['np-shopify-camera','np-shopify-code','Código Shopify o web']].forEach(([button,input,title])=>enlazarBotonEscaner(button,input,{titulo:`Escanear ${title}`,ayuda:'Apunta al código de barras'}));
   dlg.querySelector('#np-rotation').value='MEDIA';
   const close=()=>dlg.close();
   dlg.querySelector('#close-new-product').onclick=close;

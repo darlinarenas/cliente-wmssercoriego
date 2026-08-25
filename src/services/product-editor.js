@@ -4,6 +4,7 @@ import { toast,notice } from '../layout/layout.js';
 import { addProductCode,codeInUse,normalizeProductCode } from './product-codes.js';
 import { inventorySiteId,activeSiteId,stockSitesOrdered,totalCompanyStock } from './stock.js';
 import { activeCompanyId,siteCompanyId } from './company.js';
+import { enlazarBotonEscaner } from './camara-ui.js';
 
 function currentUser(){ return store.data.users.find(u=>u.id===store.data.session.userId); }
 function canEdit(){ return ['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(currentUser()?.role); }
@@ -22,7 +23,7 @@ function dialogHtml(){
     <input type="hidden" id="pe-original-code">
     <section class="product-editor-section"><div class="section-mini-head"><div><b>Ficha del producto</b><small>Corrige datos maestros si existe un error.</small></div><span class="edit-lock-pill">🔒 Cambio auditado</span></div>
       <div class="product-editor-grid">
-        <label>Código de producto<input id="pe-code" required inputmode="numeric" autocomplete="off"></label>
+        <label>Código de producto<div class="entrada-con-camara"><input id="pe-code" required inputmode="numeric" autocomplete="off"><button id="pe-code-camera" class="scan-button" type="button" title="Escanear código principal">▣</button></div></label>
         <label>Nombre<input id="pe-name" required maxlength="120" placeholder="Nombre del producto"></label>
         <label class="full">Descripción<textarea id="pe-description" rows="2" maxlength="300" placeholder="Descripción real del producto"></textarea></label>
         <label>Tipo<input id="pe-type" maxlength="100" placeholder="Ej. PVC, PPR, Orbit"></label><label>Categoría<input id="pe-category" maxlength="100" placeholder="Ej. Conexiones, Riego"></label><label>Subcategoría<input id="pe-subcategory" maxlength="100" placeholder="Ej. Codos, Válvulas"></label>
@@ -31,7 +32,7 @@ function dialogHtml(){
     </section>
     <section class="product-editor-section"><div class="section-mini-head"><div><b>Códigos asociados</b><small>Un solo producto maestro puede responder a SKU, código de importación, tienda, Shopify u otros códigos.</small></div></div>
       <div id="pe-codes-list" class="product-codes-list"></div>
-      <div class="product-code-add"><label>Tipo<select id="pe-code-type"><option value="SKU">SKU</option><option value="IMPORTACION">Importación / caja</option><option value="TIENDA">Tienda / sucursal</option><option value="KAME">Kame</option><option value="SHOPIFY">Shopify / web</option><option value="CONTROL">Control interno</option><option value="OTRO">Otro</option></select></label><label>Código<input id="pe-alt-code" autocomplete="off" placeholder="Escanea o escribe el código"></label><label>Etiqueta opcional<input id="pe-code-label" placeholder="Ej. SKU Vitacura"></label><button type="button" id="pe-add-code" class="secondary">+ Asociar código</button></div>
+      <div class="product-code-add"><label>Tipo<select id="pe-code-type"><option value="SKU">SKU</option><option value="IMPORTACION">Importación / caja</option><option value="TIENDA">Tienda / sucursal</option><option value="KAME">Kame</option><option value="SHOPIFY">Shopify / web</option><option value="CONTROL">Control interno</option><option value="OTRO">Otro</option></select></label><label>Código<div class="entrada-con-camara"><input id="pe-alt-code" autocomplete="off" placeholder="Escanea o escribe el código"><button id="pe-alt-code-camera" class="scan-button" type="button" title="Escanear código asociado">▣</button></div></label><label>Etiqueta opcional<input id="pe-code-label" placeholder="Ej. SKU Vitacura"></label><button type="button" id="pe-add-code" class="secondary">+ Asociar código</button></div>
     </section>
     <section class="product-editor-section product-site-stock-section"><div class="section-mini-head"><div><b>Stock por centro / sucursal</b><small>El centro operativo actual aparece primero. Las demás sedes son información de consulta.</small></div></div><div id="pe-site-stock" class="product-site-stock"></div></section>
     <section class="product-editor-section"><div class="section-mini-head"><div><b>Inventario físico por ubicación</b><small>El centro activo se muestra primero. Escribe lo que realmente contaste; cualquier diferencia queda como AJUSTE DE INVENTARIO.</small></div><button type="button" id="copy-system-qty" class="ghost small">Mantener cantidades</button></div>
@@ -90,6 +91,8 @@ export function openProductEditor(code,{onSaved}={}){
   document.querySelector('#copy-system-qty').disabled=!allowed;
   document.querySelector('#pe-add-code').disabled=!allowed;
   document.querySelectorAll('.remove-alt-code,.save-alt-code').forEach(b=>b.disabled=!allowed);
+  enlazarBotonEscaner('pe-code-camera','pe-code',{titulo:'Escanear código principal',ayuda:'Apunta al código principal del producto'});
+  enlazarBotonEscaner('pe-alt-code-camera','pe-alt-code',{titulo:'Escanear código asociado',ayuda:`Se asociará al producto ${p.code}`});
   const close=()=>dlg.close();document.querySelector('#close-product-editor').onclick=close;document.querySelector('#cancel-product-editor').onclick=close;
   document.querySelector('#pe-add-code').onclick=async()=>{if(!allowed)return;const code=normalizeProductCode(document.querySelector('#pe-alt-code').value);if(!code){toast('Escribe el código a asociar');return;}if(codeInUse(code,p.id)){toast('Ese código ya pertenece a otro producto');return;}try{await store.commit(st=>addProductCode(st,p.id,code,document.querySelector('#pe-code-type').value,document.querySelector('#pe-code-label').value),`Código ${code} asociado a ${p.code}`);close();openProductEditor(p.code,{onSaved});toast('Código asociado');}catch(err){toast(err.message);}};
   document.querySelectorAll('.save-alt-code').forEach(b=>b.onclick=async()=>{if(!allowed)return;const row=b.closest('.editable-alt-code'),x=(store.data.product_codes||[]).find(c=>c.id===b.dataset.id);if(!x)return;const next=normalizeProductCode(row.querySelector('.alt-code-value').value),type=row.querySelector('.alt-code-type').value,label=row.querySelector('.alt-code-label').value.trim();if(!next){toast('El código no puede quedar vacío');return;}if(codeInUse(next,p.id)&&next!==normalizeProductCode(x.code)){toast('Ese código ya pertenece a otro producto');return;}await store.commit(st=>{const c=(st.product_codes||[]).find(v=>v.id===b.dataset.id);if(c){c.code=next;c.type=type;c.label=label;c.active=true;}},`Código asociado ${x.code} → ${next} actualizado en ${p.code}`);close();openProductEditor(p.code,{onSaved});toast('Código asociado actualizado');});
