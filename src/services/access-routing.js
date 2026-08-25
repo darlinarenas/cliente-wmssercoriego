@@ -1,4 +1,4 @@
-const OPERATOR_ROUTES=new Set(['dashboard','buscar','ordenes','recepciones','recepcion-traspasos','tareas-ubicacion','transferencias','cargas','palets','movimientos','movil']);
+const OPERATOR_ROUTES=new Set(['dashboard','buscar','codigos','ordenes','recepciones','recepcion-traspasos','tareas-ubicacion','transferencias','cargas','palets','movimientos','movil']);
 const MANAGER_BLOCKED=new Set(['usuarios','centros']);
 
 export function effectiveRole(user,siteId){
@@ -11,6 +11,11 @@ export function routeAllowedForRole(route,role){
  if(role==='TRANSPORTISTA')return route==='cargas';
  if(['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(role))return OPERATOR_ROUTES.has(route);
  return route==='dashboard';
+}
+
+export function codePermissionsForRole(role){
+ const manage=['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role);
+ return {consult:manage||['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(role),associate:manage,editProduct:manage,editInventory:manage,createProduct:manage};
 }
 
 export function landingRouteForRole(role,{mobile=false}={}){

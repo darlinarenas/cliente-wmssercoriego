@@ -6,11 +6,12 @@ import { enlazarBotonEscaner } from '../../services/camara-ui.js';
 import { productAliases,codeInUse,normalizeProductCode,addProductCode } from '../../services/product-codes.js';
 import { stockBySite,activeSiteId,stockSitesOrdered,totalCompanyStock,inventorySiteId } from '../../services/stock.js';
 import { activeCompanyId } from '../../services/company.js';
+import { effectiveRole } from '../../services/access-routing.js';
 
 const pesoRotacion={ALTA:3,MEDIA:2,BAJA:1};
 let alcanceStock='CENTRO';
 function currentUser(){return store.data.users.find(u=>u.id===store.data.session.userId);}
-function canCreateProduct(){return ['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(currentUser()?.role);}
+function canCreateProduct(){return ['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(effectiveRole(currentUser(),activeSiteId(store.data)));}
 function stockCentroActivo(code){return Number(stockBySite(code)[activeSiteId()]||0);}
 function cleanNewCode(v){return normalizeProductCode(v).replaceAll('-','');}
 function totalProducto(code){return totalCompanyStock(code,store.data);}

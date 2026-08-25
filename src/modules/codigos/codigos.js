@@ -6,20 +6,23 @@ import { addProductCode,normalizeProductCode,productAliases,resolveProduct } fro
 import { activeSiteId,stockSitesOrdered,totalCompanyStock } from '../../services/stock.js';
 import { openProductEditor } from '../../services/product-editor.js';
 import { openNewProductDialog } from '../productos/productos.js';
+import { codePermissionsForRole,effectiveRole } from '../../services/access-routing.js';
 
 let currentCode='';
 
-function productCard(product,scanned){
+function permissions(){const user=(store.data.users||[]).find(u=>u.id===store.data.session?.userId),role=effectiveRole(user,activeSiteId(store.data));return codePermissionsForRole(role);}
+
+function productCard(product,scanned,allowed){
   const sites=stockSitesOrdered(product.code),active=sites.find(s=>s.siteId===activeSiteId()),aliases=productAliases(product);
-  return `<section class="panel code-result-card found"><div class="code-result-head"><div><span class="eyebrow">CÓDIGO ENCONTRADO</span><h2>${esc(product.name||'Producto sin nombre')}</h2><p><b>${esc(scanned)}</b> corresponde al producto maestro <b>${esc(product.code)}</b>.</p></div><span class="badge ok">REGISTRADO</span></div><div class="code-result-metrics"><span><small>Centro activo</small><b>${Number(active?.qty||0)} un.</b></span><span><small>Stock global empresa</small><b>${totalCompanyStock(product.code)} un.</b></span><span><small>Códigos reconocidos</small><b>${aliases.length}</b></span></div><div class="code-alias-list">${aliases.map(code=>`<span class="${code===normalizeProductCode(scanned)?'active':''}">${esc(code)}</span>`).join('')}</div><div class="code-action-grid"><button id="code-associate-another" class="primary" type="button">▣ Asociar otro código</button><button id="code-edit-product" class="secondary" type="button">Editar producto / código</button><button id="code-edit-stock" class="secondary" type="button">Modificar inventario</button><button id="code-scan-another" class="ghost" type="button">Escanear otro producto</button></div><div id="code-association-slot"></div></section>`;
+  return `<section class="panel code-result-card found"><div class="code-result-head"><div><span class="eyebrow">CÓDIGO ENCONTRADO</span><h2>${esc(product.name||'Producto sin nombre')}</h2><p><b>${esc(scanned)}</b> corresponde al producto maestro <b>${esc(product.code)}</b>.</p></div><span class="badge ok">REGISTRADO</span></div><div class="code-result-metrics"><span><small>Centro activo</small><b>${Number(active?.qty||0)} un.</b></span><span><small>Stock global empresa</small><b>${totalCompanyStock(product.code)} un.</b></span><span><small>Códigos reconocidos</small><b>${aliases.length}</b></span></div><div class="code-alias-list">${aliases.map(code=>`<span class="${code===normalizeProductCode(scanned)?'active':''}">${esc(code)}</span>`).join('')}</div>${allowed.associate?'':`<div class="info-box"><b>Modo consulta.</b> Tu rol puede identificar productos, pero las asociaciones y correcciones requieren un Encargado o Administrador.</div>`}<div class="code-action-grid">${allowed.associate?'<button id="code-associate-another" class="primary" type="button">▣ Asociar otro código</button>':''}${allowed.editProduct?'<button id="code-edit-product" class="secondary" type="button">Editar producto / código</button>':''}${allowed.editInventory?'<button id="code-edit-stock" class="secondary" type="button">Modificar inventario</button>':''}<button id="code-scan-another" class="ghost" type="button">Escanear otro producto</button></div><div id="code-association-slot"></div></section>`;
 }
 
 function associationForm(product){
   return `<section class="code-association-box"><div><span class="eyebrow">NUEVO CÓDIGO ASOCIADO</span><h3>Asociar a ${esc(product.code)}</h3><small>Escanea la caja, etiqueta o presentación adicional. Todo seguirá apuntando al mismo producto maestro.</small></div><div class="code-association-grid"><label>Tipo<select id="associate-code-type"><option value="IMPORTACION">Importación / caja</option><option value="SKU">SKU</option><option value="TIENDA">Tienda / sucursal</option><option value="KAME">Kame</option><option value="SHOPIFY">Shopify / web</option><option value="CONTROL">Control interno</option><option value="OTRO">Otro</option></select></label><label>Código<div class="entrada-con-camara"><input id="associate-code-value" autocomplete="off" placeholder="Escanea o escribe"><button id="associate-code-camera" class="scan-button" type="button" title="Escanear código">▣</button></div></label><label>Etiqueta opcional<input id="associate-code-label" maxlength="80" placeholder="Ej. Caja proveedor"></label><button id="associate-code-save" class="primary" type="button">Confirmar asociación</button></div><div id="associate-code-status" class="code-inline-status"></div></section>`;
 }
 
-function unknownCard(code){
-  return `<section class="panel code-result-card unknown"><div class="code-result-head"><div><span class="eyebrow">CÓDIGO NO REGISTRADO</span><h2>${esc(code)}</h2><p>Este código no pertenece a ningún producto de la empresa activa. Elige qué deseas hacer.</p></div><span class="badge warn">NUEVO</span></div><div class="code-action-grid"><button id="unknown-associate" class="primary" type="button">Asociar a producto existente</button><button id="unknown-create" class="secondary" type="button">Crear producto nuevo</button><button id="unknown-rescan" class="ghost" type="button">Escanear otro código</button></div><div id="unknown-action-slot"></div></section>`;
+function unknownCard(code,allowed){
+  return `<section class="panel code-result-card unknown"><div class="code-result-head"><div><span class="eyebrow">CÓDIGO NO REGISTRADO</span><h2>${esc(code)}</h2><p>Este código no pertenece a ningún producto de la empresa activa.</p></div><span class="badge warn">NUEVO</span></div>${allowed.associate?'':`<div class="warning-box"><b>Requiere autorización.</b> Informa este código a un Encargado o Administrador para asociarlo o crear el producto.</div>`}<div class="code-action-grid">${allowed.associate?'<button id="unknown-associate" class="primary" type="button">Asociar a producto existente</button>':''}${allowed.createProduct?'<button id="unknown-create" class="secondary" type="button">Crear producto nuevo</button>':''}<button id="unknown-rescan" class="ghost" type="button">Escanear otro código</button></div><div id="unknown-action-slot"></div></section>`;
 }
 
 function existingPicker(code){
@@ -32,6 +35,7 @@ function pickerResults(query){
   const box=document.querySelector('#existing-product-results');if(!box)return;
   box.innerHTML=list.length?list.map(p=>`<button class="code-pick-product" data-code="${esc(p.code)}" type="button"><span><b>${esc(p.code)}</b><small>${esc(p.name||p.description||'Producto')}</small></span><strong>Asociar aquí →</strong></button>`).join(''):(q?'<div class="empty-inline"><b>Sin coincidencias</b><small>Prueba con otro código o palabra.</small></div>':'');
   box.querySelectorAll('.code-pick-product').forEach(button=>button.onclick=async()=>{
+    if(!permissions().associate){toast('Tu rol no permite asociar códigos','warning');return;}
     const product=resolveProduct(button.dataset.code);if(!product)return;
     try{await store.commit(state=>addProductCode(state,product.id,currentCode,'OTRO','Asociado desde consulta rápida'),`Código ${currentCode} asociado a ${product.code}`);await notice('Código asociado',`${currentCode} ahora identifica a ${product.code} · ${product.name||'Producto'}.`,'success');showResult(currentCode);}catch(error){toast(error.message||'No fue posible asociar el código','warning');}
   });
@@ -40,6 +44,7 @@ function pickerResults(query){
 function resetScan(){currentCode='';const input=document.querySelector('#code-query');if(input){input.value='';input.focus();}const result=document.querySelector('#code-query-result');if(result)result.innerHTML='';}
 
 function wireAssociation(product){
+  if(!permissions().associate){toast('Tu rol no permite asociar códigos','warning');return;}
   const slot=document.querySelector('#code-association-slot');slot.innerHTML=associationForm(product);
   const input=document.querySelector('#associate-code-value'),status=document.querySelector('#associate-code-status');
   const validate=()=>{const code=normalizeProductCode(input.value),found=resolveProduct(code);status.className='code-inline-status';if(!code){status.textContent='';return null;}if(found){status.textContent=found.id===product.id?'Este código ya identifica a este mismo producto.':`Este código ya pertenece a ${found.code} · ${found.name||'Producto'}.`;status.classList.add('warning');return found;}status.textContent='Código disponible para asociar.';status.classList.add('success');return null;};
@@ -52,15 +57,15 @@ function wireAssociation(product){
 function showResult(raw){
   const code=normalizeProductCode(raw),result=document.querySelector('#code-query-result');if(!code){toast('Escanea o escribe un código','warning');return;}
   currentCode=code;const product=resolveProduct(code);
-  result.innerHTML=product?productCard(product,code):unknownCard(code);
+  const allowed=permissions();result.innerHTML=product?productCard(product,code,allowed):unknownCard(code,allowed);
   if(product){
-    document.querySelector('#code-associate-another').onclick=()=>wireAssociation(product);
-    document.querySelector('#code-edit-product').onclick=()=>openProductEditor(product.code,{onSaved:newCode=>showResult(newCode)});
-    document.querySelector('#code-edit-stock').onclick=()=>openProductEditor(product.code,{onSaved:newCode=>showResult(newCode)});
+    if(allowed.associate)document.querySelector('#code-associate-another').onclick=()=>wireAssociation(product);
+    if(allowed.editProduct)document.querySelector('#code-edit-product').onclick=()=>openProductEditor(product.code,{onSaved:newCode=>showResult(newCode)});
+    if(allowed.editInventory)document.querySelector('#code-edit-stock').onclick=()=>openProductEditor(product.code,{onSaved:newCode=>showResult(newCode)});
     document.querySelector('#code-scan-another').onclick=()=>{resetScan();document.querySelector('#code-query-camera')?.click();};
   }else{
-    document.querySelector('#unknown-associate').onclick=()=>{document.querySelector('#unknown-action-slot').innerHTML=existingPicker(code);const input=document.querySelector('#existing-product-search');input.oninput=()=>pickerResults(input.value);input.focus();};
-    document.querySelector('#unknown-create').onclick=()=>openNewProductDialog(newCode=>showResult(newCode),{initialCode:code});
+    if(allowed.associate)document.querySelector('#unknown-associate').onclick=()=>{document.querySelector('#unknown-action-slot').innerHTML=existingPicker(code);const input=document.querySelector('#existing-product-search');input.oninput=()=>pickerResults(input.value);input.focus();};
+    if(allowed.createProduct)document.querySelector('#unknown-create').onclick=()=>openNewProductDialog(newCode=>showResult(newCode),{initialCode:code});
     document.querySelector('#unknown-rescan').onclick=()=>{resetScan();document.querySelector('#code-query-camera')?.click();};
   }
 }
