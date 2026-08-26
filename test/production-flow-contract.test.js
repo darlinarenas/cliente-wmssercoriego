@@ -6,6 +6,9 @@ const receiving=await readFile(new URL('../src/modules/recepcion-traspasos/recep
 const orders=await readFile(new URL('../src/modules/ordenes/ordenes.js',import.meta.url),'utf8');
 const tasks=await readFile(new URL('../src/modules/tareas-ubicacion/tareas-ubicacion.js',import.meta.url),'utf8');
 const pallets=await readFile(new URL('../src/modules/palets/palets.js',import.meta.url),'utf8');
+const receipts=await readFile(new URL('../src/modules/recepciones/recepciones.js',import.meta.url),'utf8');
+const movements=await readFile(new URL('../src/modules/movimientos/movimientos.js',import.meta.url),'utf8');
+const layout=await readFile(new URL('../src/layout/layout.js',import.meta.url),'utf8');
 const silent=await readFile(new URL('../src/services/silent-refresh.js',import.meta.url),'utf8');
 
 assert.ok(loads.includes("canConfirmExternalDelivery(s)?"),'la confirmación final debe limitarse a entregas externas');
@@ -30,5 +33,10 @@ assert.ok(pallets.includes('pallet-list-camera'),'la búsqueda de pallet o ubica
 assert.ok(pallets.includes('cancel-register-pallet')&&pallets.includes('close-register-pallet'),'Cancelar y X deben cerrar el registro sin validar el campo');
 assert.ok(pallets.includes("operations:['palletsEdit']"),'editar el nombre visible debe exigir permiso también en backend');
 assert.ok(pallets.includes('códigos incorporados viajarán juntos'),'la interfaz debe explicar que la posición pertenece al pallet completo');
+assert.ok(receipts.includes('Ubicar / pasar a pallet'),'cada producto de una recepción reciente debe abrir su organización con origen trazable');
+assert.ok(receipts.includes('camera-temp-location-code')&&receipts.includes('camera-new-pallet-id'),'los identificadores de recepción deben poder escanearse');
+assert.ok(movements.includes('mv-destination-type')&&movements.includes('camara-mv-pallet'),'Mover debe admitir destino en rack o en otro pallet con cámara');
+assert.ok(movements.includes("initialParams.get('source')"),'el atajo desde recepción debe conservar el origen exacto');
+assert.ok(layout.includes('Organizar productos recibidos'),'el menú lateral debe incluir el atajo de organización');
 assert.ok(silent.includes("collections.map(name=>apiRequest(`/${name}`))"),'los demás módulos deben actualizar solo sus colecciones');
 console.log('OK · contratos de vista compacta, actualización silenciosa y flujo intercentro verificados');

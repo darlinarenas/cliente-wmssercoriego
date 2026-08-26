@@ -53,6 +53,7 @@ function buildRouter(){
     movimientos:secureRoute('movimientos',()=>renderMovements(root)),
     historial:secureRoute('historial',()=>renderHistory(root)),
     recepciones:secureRoute('recepciones',()=>renderReceipts(root)),
+    'organizar-recibidos':secureRoute('organizar-recibidos',()=>renderReceipts(root)),
     transferencias:secureRoute('transferencias',()=>renderTransfers(root)),
     cargas:secureRoute('cargas',()=>renderLoads(root)),
     'recepcion-traspasos':secureRoute('recepcion-traspasos',()=>renderTransferReceiving(root)),
