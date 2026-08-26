@@ -21,6 +21,10 @@ for(const text of ['<h1>CARGA</h1>','Bodega Recoleta','CG-001','Traspaso:','Paqu
 assert.equal(label.includes('P399'),false,'la etiqueta no debe imprimir líneas de productos');
 assert.equal(label.includes('CARGA INTERCENTRO'),false,'el título debe decir solo CARGA');
 const {tasksForInbox}=await import('../src/modules/tareas-ubicacion/tareas-ubicacion.js');
+const {palletPermissionsForUser}=await import('../src/services/access-routing.js');
+assert.deepEqual(palletPermissionsForUser(base.users[0],'S1'),{view:true,operate:true,register:false},'el operario de bodega debe consultar y operar pallets, pero no registrarlos');
+const customOperator={...base.users[0],accessAssignments:[{siteId:'S1',companyId:'C1',role:'OPERADOR_BODEGA',customPermissions:true,permissions:{palletsView:true,palletsOperate:false,palletsRegister:false}}]};
+assert.deepEqual(palletPermissionsForUser(customOperator,'S1'),{view:true,operate:false,register:false},'la administración debe poder dejar al operario en modo consulta');
 const tasks=[{id:'LIBRE'},{id:'OP1',assignedTo:'OP1'},{id:'OP2',assignedTo:'OP2'}];
 assert.deepEqual(tasksForInbox(tasks,'ADMIN',true).map(t=>t.id),['LIBRE'],'el encargado solo debe conservar tareas sin asignar');
 assert.deepEqual(tasksForInbox(tasks,'OP1',false).map(t=>t.id),['LIBRE','OP1'],'el operario debe ver las libres y las suyas, nunca las de otro');

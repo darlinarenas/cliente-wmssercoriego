@@ -50,6 +50,16 @@ if(!data.session.activeSiteId){const u=(data.users||[]).find(x=>x.id===data.sess
  for(const r of data.racks||[]){if(!r.siteId){r.siteId=fallbackSite;changed=true;}}
  for(const l of data.locations||[]){if(!l.siteId){l.siteId=(data.racks||[]).find(r=>r.id===l.rackId)?.siteId||fallbackSite;changed=true;}}
  for(const p of data.pallets||[]){if(!p.siteId){p.siteId=siteFromLocation(p.locationId)||fallbackSite;changed=true;}}
+ // V17 · el pallet es la unidad física permanente que contiene uno o varios SKU
+ // y ocupa una sola ubicación. Se agregan metadatos sin renombrar IDs heredados
+ // ni modificar cantidades o ubicaciones de inventario existentes.
+ for(const p of data.pallets||[]){
+   const permanent=!p.sourceShipmentId;
+   if(!p.type){p.type=permanent?'FISICO_PERMANENTE':'TRANSFERENCIA';changed=true;}
+   if(typeof p.permanent!=='boolean'){p.permanent=permanent;changed=true;}
+   if(typeof p.reusable!=='boolean'){p.reusable=permanent;changed=true;}
+   if(!p.physicalCode){const raw=String(p.id||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/^PAL(?:ET)?[-\s]*/,'').replace(/[^A-Z0-9]+/g,'-').replace(/^-|-$/g,'');p.physicalCode=String(p.id||'').startsWith('PAL-')?String(p.id):`PAL-${raw}`;changed=true;}
+ }
  for(const r of data.receipts||[]){if(!r.siteId){r.siteId=siteFromPallet(r.palletId)||fallbackSite;changed=true;}}
  for(const i of data.inventory||[]){const sid=i.siteId||siteFromLocation(i.locationId)||siteFromPallet(i.palletId)||fallbackSite;if(i.siteId!==sid){i.siteId=sid;changed=true;}}
  for(const m of data.movements||[]){if(!m.siteId){m.siteId=siteFromLocation(m.to)||siteFromLocation(m.from)||siteFromPallet(m.palletId)||siteFromPallet(m.sourcePalletId)||fallbackSite;changed=true;}}
@@ -57,6 +67,6 @@ if(!data.session.activeSiteId){const u=(data.users||[]).find(x=>x.id===data.sess
  for(const o of data.orders||[]){if(!o.sourceSiteId){o.sourceSiteId=fallbackSite;changed=true;}}
  // Cierra tareas antiguas que quedaron abiertas aunque su pallet ya fue ubicado.
  for(const task of data.tasks||[]){const pallet=(data.pallets||[]).find(p=>p.id===task.palletId);if(task.type==='UBICAR_CARGA'&&task.status!=='CERRADA'&&pallet&&['UBICADO','VACÍO'].includes(pallet.status)){const at=pallet.updatedAt||new Date().toISOString();task.status='CERRADA';task.closedAt=task.closedAt||at;task.closedBy=task.closedBy||'SISTEMA';task.events=task.events||[];task.events.push({at,userId:'SISTEMA',message:'Tarea cerrada automáticamente: el pallet ya estaba ubicado'});const shipment=(data.shipments||[]).find(s=>s.id===task.shipmentId);if(shipment&&shipment.status!=='CERRADA'){shipment.status='CERRADA';shipment.closedAt=shipment.closedAt||at;}changed=true;}}
- if((data.meta?.version||0)<16){data.meta=data.meta||{};data.meta.version=16;changed=true;}
+ if((data.meta?.version||0)<17){data.meta=data.meta||{};data.meta.version=17;changed=true;}
  return changed;
 }

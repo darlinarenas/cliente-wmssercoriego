@@ -1,7 +1,49 @@
-import { refreshInventoryStatuses } from './inventory-ops.js';
+import { addStock, deductStock, refreshInventoryStatuses } from './inventory-ops.js';
 
 function n(v){ const x=Number(v); return Number.isFinite(x)?x:0; }
-function isStaging(location){ return ['POR_UBICAR','RECEPCION_TRANSFERENCIA'].includes(location?.kind); }
+function isStaging(location){ return ['POR_UBICAR','RECEPCION_TRANSFERENCIA','PALLET_STAGING'].includes(location?.kind); }
+function cleanCode(value=''){return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim().replace(/^PAL(?:ET)?[-\s]*/,'').replace(/[^A-Z0-9]+/g,'-').replace(/^-|-$/g,'');}
+export function permanentPalletCode(value=''){const clean=cleanCode(value);return clean?`PAL-${clean}`:'';}
+
+export function ensurePalletStagingLocation(data,siteId){
+  data.locations=data.locations||[];
+  const id=`${siteId}-PALLETS-SIN-UBICAR`;
+  let location=data.locations.find(l=>l.id===id);
+  if(!location){location={id,siteId,rackId:null,label:'Pallets sin ubicación definitiva',scanCode:id,status:'LIBRE',access:'DIRECTO',kind:'PALLET_STAGING',active:true,capacity:null,notes:'Zona lógica temporal para pallets físicos registrados antes de asignar una posición.'};data.locations.push(location);}
+  return location;
+}
+
+export function registerPermanentPallet(data,{identifier,siteId,userId,at=new Date().toISOString()}={}){
+  const id=permanentPalletCode(identifier);
+  if(!id)return {ok:false,message:'Escribe el número o letra física del pallet'};
+  const site=(data.sites||[]).find(s=>s.id===siteId&&s.active!==false);
+  if(!site)return {ok:false,message:'El centro activo no existe o está inhabilitado'};
+  const duplicate=(data.pallets||[]).find(p=>String(p.id).toUpperCase()===id||String(p.physicalCode||'').toUpperCase()===id);
+  if(duplicate)return {ok:false,message:`El pallet físico ${id} ya existe`};
+  const staging=ensurePalletStagingLocation(data,siteId);
+  const pallet={id,physicalCode:id,type:'FISICO_PERMANENTE',permanent:true,reusable:true,siteId,companyId:site.companyId||null,status:'VACÍO',locationId:staging.id,origin:'Registro de pallet físico permanente',createdAt:at,createdBy:userId||data.session?.userId||null,updatedAt:at};
+  data.pallets=data.pallets||[];data.pallets.unshift(pallet);
+  return {ok:true,pallet,location:staging,message:`Pallet físico ${id} registrado`};
+}
+
+export function assignProductToPallet(data,{palletId,siteId,code,qty,sourceKey,userId,at=new Date().toISOString()}={}){
+  const pallet=(data.pallets||[]).find(p=>p.id===palletId);
+  if(!pallet)return {ok:false,message:'El pallet no existe'};
+  if(pallet.siteId!==siteId)return {ok:false,message:'El pallet pertenece a otro centro'};
+  if(!pallet.locationId)return {ok:false,message:'El pallet no tiene una ubicación física o temporal asignada'};
+  if(!code||!sourceKey)return {ok:false,message:'Selecciona el producto y su ubicación de origen'};
+  if(String(sourceKey).endsWith(`@@${palletId}`))return {ok:false,message:'Ese producto ya está dentro de este pallet'};
+  const deducted=deductStock(data,{code,qty,sourceKey,siteId});
+  if(!deducted.ok)return deducted;
+  const added=addStock(data,{code,qty,locationId:pallet.locationId,palletId});
+  if(!added.ok)return added;
+  const location=(data.locations||[]).find(l=>l.id===pallet.locationId);
+  pallet.status=isStaging(location)?'POR_UBICAR':'UBICADO';pallet.updatedAt=at;
+  data.movements=data.movements||[];data.movements.unshift({id:`MOV-CARGA-PAL-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,siteId,type:'ASIGNACION_PRODUCTO_A_PALET',productCode:String(code),qty:Number(qty),from:sourceKey.split('@@')[0],to:pallet.locationId,palletId,reason:`Producto incorporado al pallet físico ${pallet.physicalCode||pallet.id}`,userId:userId||data.session?.userId||null,at,allocations:deducted.allocations,beforeQty:added.beforeQty,afterQty:added.afterQty});
+  refreshInventoryStatuses(data,siteId);
+  pallet.status=isStaging(location)?'POR_UBICAR':'UBICADO';
+  return {ok:true,pallet,qty:Number(qty),message:`${qty} un. de ${code} agregadas a ${pallet.physicalCode||pallet.id}`};
+}
 function closePutawayTask(data,palletId,{userId,at,locationId}={}){
   const task=(data.tasks||[]).find(t=>t.type==='UBICAR_CARGA'&&t.palletId===palletId&&t.status!=='CERRADA');
   if(!task)return;

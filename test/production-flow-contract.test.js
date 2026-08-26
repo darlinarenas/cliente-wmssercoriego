@@ -5,6 +5,7 @@ const loads=await readFile(new URL('../src/modules/cargas/cargas.js',import.meta
 const receiving=await readFile(new URL('../src/modules/recepcion-traspasos/recepcion-traspasos.js',import.meta.url),'utf8');
 const orders=await readFile(new URL('../src/modules/ordenes/ordenes.js',import.meta.url),'utf8');
 const tasks=await readFile(new URL('../src/modules/tareas-ubicacion/tareas-ubicacion.js',import.meta.url),'utf8');
+const pallets=await readFile(new URL('../src/modules/palets/palets.js',import.meta.url),'utf8');
 const silent=await readFile(new URL('../src/services/silent-refresh.js',import.meta.url),'utf8');
 
 assert.ok(loads.includes("canConfirmExternalDelivery(s)?"),'la confirmación final debe limitarse a entregas externas');
@@ -16,5 +17,11 @@ assert.ok(tasks.includes("t.siteId===site||t.assignedTo===userId"),'el operario 
 assert.ok(orders.includes("apiRequest('/orders')"),'el progreso debe consultarse con una petición pequeña de órdenes');
 assert.ok(orders.includes('setInterval(()=>{refreshOrdersSilently(root);refreshAssignedPutawaySilently(root);},5000)'),'órdenes y tareas de ubicación deben refrescarse automáticamente');
 assert.ok(orders.includes("t.type==='UBICAR_CARGA'&&t.assignedTo===me()?.id"),'Mis tareas debe incluir la ubicación asignada al operario');
+assert.ok(pallets.includes('Registrar pallet físico'),'debe existir el registro de pallets físicos permanentes');
+assert.ok(pallets.includes('Agregar al pallet'),'debe ser posible incorporar productos al pallet seleccionado');
+assert.ok(pallets.includes('scan-register-pallet'),'el identificador numérico o alfanumérico del pallet debe poder escanearse');
+assert.ok(pallets.includes('pallet-operation-dialog'),'mover y cargar pallets debe abrirse en ventanas compactas');
+assert.ok(pallets.includes("operations:['palletsOperate']"),'las operaciones de pallet deben validarse también en el backend');
+assert.ok(pallets.includes('códigos incorporados viajarán juntos'),'la interfaz debe explicar que la posición pertenece al pallet completo');
 assert.ok(silent.includes("collections.map(name=>apiRequest(`/${name}`))"),'los demás módulos deben actualizar solo sus colecciones');
 console.log('OK · contratos de vista compacta, actualización silenciosa y flujo intercentro verificados');
