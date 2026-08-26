@@ -9,6 +9,7 @@ const pallets=await readFile(new URL('../src/modules/palets/palets.js',import.me
 const receipts=await readFile(new URL('../src/modules/recepciones/recepciones.js',import.meta.url),'utf8');
 const movements=await readFile(new URL('../src/modules/movimientos/movimientos.js',import.meta.url),'utf8');
 const layout=await readFile(new URL('../src/layout/layout.js',import.meta.url),'utf8');
+const search=await readFile(new URL('../src/modules/busqueda/busqueda.js',import.meta.url),'utf8');
 const silent=await readFile(new URL('../src/services/silent-refresh.js',import.meta.url),'utf8');
 
 assert.ok(loads.includes("canConfirmExternalDelivery(s)?"),'la confirmación final debe limitarse a entregas externas');
@@ -38,5 +39,10 @@ assert.ok(receipts.includes('camera-temp-location-code')&&receipts.includes('cam
 assert.ok(movements.includes('mv-destination-type')&&movements.includes('camara-mv-pallet'),'Mover debe admitir destino en rack o en otro pallet con cámara');
 assert.ok(movements.includes("initialParams.get('source')"),'el atajo desde recepción debe conservar el origen exacto');
 assert.ok(layout.includes('Organizar productos recibidos'),'el menú lateral debe incluir el atajo de organización');
+assert.ok(receipts.includes('receipt-organize-dialog')&&receipts.includes('Confirmar movimiento'),'la organización debe completarse dentro de un popup');
+assert.equal(receipts.includes('Abrir pallet completo'),false,'el detalle no debe abrir pallets vacíos ni crear atajos confusos');
+assert.equal(receipts.includes('Organizar otro producto'),false,'el detalle debe concentrarse solo en sus productos pendientes');
+assert.equal(receipts.includes('no tiene saldo pendiente'),false,'los productos ya organizados no deben seguir apareciendo en el detalle');
+assert.ok(search.includes('PENDIENTE DE UBICAR · ZONA DE RECEPCIÓN'),'Buscar debe distinguir claramente el stock recibido todavía no ubicado');
 assert.ok(silent.includes("collections.map(name=>apiRequest(`/${name}`))"),'los demás módulos deben actualizar solo sus colecciones');
 console.log('OK · contratos de vista compacta, actualización silenciosa y flujo intercentro verificados');
