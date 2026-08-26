@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 global.window={SERCO_WMS_API_BASE_URL:'/api'};
 global.localStorage={getItem(){return null;},setItem(){},removeItem(){}};
 
-const { stateSavePayload }=await import('../src/services/api.js');
+const { stateSavePayload }=await import('./src/services/api.js');
 const state={meta:{revision:7},settings:{theme:'x'},planning:{},session:{userId:'U'},products:[{id:'P1'}],inventory:[{id:'I1'}],shipments:[{id:'S1'}],audit:[{id:'A1'}]};
 const payload=stateSavePayload(state,['inventory','shipments','audit']);
 
