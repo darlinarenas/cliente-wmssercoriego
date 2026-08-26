@@ -4,6 +4,26 @@ function n(v){ const x=Number(v); return Number.isFinite(x)?x:0; }
 function isStaging(location){ return ['POR_UBICAR','RECEPCION_TRANSFERENCIA','PALLET_STAGING'].includes(location?.kind); }
 function cleanCode(value=''){return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim().replace(/^PAL(?:ET)?[-\s]*/,'').replace(/[^A-Z0-9]+/g,'-').replace(/^-|-$/g,'');}
 export function permanentPalletCode(value=''){const clean=cleanCode(value);return clean?`PAL-${clean}`:'';}
+export function palletDisplayName(pallet){
+  if(!pallet)return 'Pallet sin identificar';
+  if(String(pallet.displayName||'').trim())return String(pallet.displayName).trim();
+  const code=String(pallet.physicalCode||pallet.id||'').replace(/^PAL-/i,'');
+  return `Pallet ${code||'sin nombre'}`;
+}
+
+export function editPalletDisplayName(data,{palletId,siteId,displayName,userId,at=new Date().toISOString()}={}){
+  const pallet=(data.pallets||[]).find(p=>p.id===palletId);
+  if(!pallet)return {ok:false,message:'El pallet no existe'};
+  if(pallet.siteId!==siteId)return {ok:false,message:'El pallet pertenece a otro centro'};
+  const clean=String(displayName||'').replace(/\s+/g,' ').trim();
+  if(clean.length<2)return {ok:false,message:'Escribe un nombre visible de al menos 2 caracteres'};
+  if(clean.length>60)return {ok:false,message:'El nombre visible no puede superar 60 caracteres'};
+  const duplicate=(data.pallets||[]).find(p=>p.id!==palletId&&p.siteId===siteId&&String(p.displayName||'').trim().toLowerCase()===clean.toLowerCase());
+  if(duplicate)return {ok:false,message:'Ya existe otro pallet con ese nombre visible en este centro'};
+  const before=palletDisplayName(pallet);pallet.displayName=clean;pallet.updatedAt=at;pallet.updatedBy=userId||data.session?.userId||null;
+  data.movements=data.movements||[];data.movements.unshift({id:`MOV-NOMBRE-PAL-${Date.now()}`,siteId,type:'EDICION_NOMBRE_PALET',palletId,from:before,to:clean,reason:'Corrección del nombre visible del pallet',userId:userId||data.session?.userId||null,at});
+  return {ok:true,pallet,message:`Nombre actualizado a ${clean}`};
+}
 
 export function ensurePalletStagingLocation(data,siteId){
   data.locations=data.locations||[];
@@ -21,7 +41,7 @@ export function registerPermanentPallet(data,{identifier,siteId,userId,at=new Da
   const duplicate=(data.pallets||[]).find(p=>String(p.id).toUpperCase()===id||String(p.physicalCode||'').toUpperCase()===id);
   if(duplicate)return {ok:false,message:`El pallet físico ${id} ya existe`};
   const staging=ensurePalletStagingLocation(data,siteId);
-  const pallet={id,physicalCode:id,type:'FISICO_PERMANENTE',permanent:true,reusable:true,siteId,companyId:site.companyId||null,status:'VACÍO',locationId:staging.id,origin:'Registro de pallet físico permanente',createdAt:at,createdBy:userId||data.session?.userId||null,updatedAt:at};
+  const pallet={id,physicalCode:id,displayName:`Pallet ${id.replace(/^PAL-/,'')}`,type:'FISICO_PERMANENTE',permanent:true,reusable:true,siteId,companyId:site.companyId||null,status:'VACÍO',locationId:staging.id,origin:'Registro de pallet físico permanente',createdAt:at,createdBy:userId||data.session?.userId||null,updatedAt:at};
   data.pallets=data.pallets||[];data.pallets.unshift(pallet);
   return {ok:true,pallet,location:staging,message:`Pallet físico ${id} registrado`};
 }
