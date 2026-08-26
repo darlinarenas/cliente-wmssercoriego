@@ -22,6 +22,9 @@ assert.ok(pallets.includes('Agregar al pallet'),'debe ser posible incorporar pro
 assert.ok(pallets.includes('scan-register-pallet'),'el identificador numérico o alfanumérico del pallet debe poder escanearse');
 assert.ok(pallets.includes('pallet-operation-dialog'),'mover y cargar pallets debe abrirse en ventanas compactas');
 assert.ok(pallets.includes("operations:['palletsOperate']"),'las operaciones de pallet deben validarse también en el backend');
+assert.equal(pallets.includes('Sacar productos a picking'),false,'Organizar pallets no debe iniciar el picking de pedidos');
+assert.equal(pallets.includes('activar-modo-rapido'),false,'el acceso rápido de picking no debe existir dentro del detalle del pallet');
+assert.ok(orders.includes('PICKING GUIADO'),'el picking debe seguir disponible exclusivamente desde Órdenes / Mis tareas');
 assert.ok(pallets.includes('códigos incorporados viajarán juntos'),'la interfaz debe explicar que la posición pertenece al pallet completo');
 assert.ok(silent.includes("collections.map(name=>apiRequest(`/${name}`))"),'los demás módulos deben actualizar solo sus colecciones');
 console.log('OK · contratos de vista compacta, actualización silenciosa y flujo intercentro verificados');
