@@ -3,7 +3,7 @@ import { store } from './store.js';
 export function normalizeProductCode(v){ return String(v??'').trim().replace(/\s+/g,'').toUpperCase(); }
 export function productAliases(product,state=store.data){
   if(!product)return [];
-  const extra=(state.product_codes||[]).filter(x=>x.productId===product.id).map(x=>x.code);
+  const extra=(state.product_codes||[]).filter(x=>x.productId===product.id&&x.active!==false).map(x=>x.code);
   return [...new Set([product.code,...(product.previousCodes||[]),...extra].map(normalizeProductCode).filter(Boolean))];
 }
 export function resolveProduct(input,state=store.data){
