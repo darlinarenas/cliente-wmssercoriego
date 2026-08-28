@@ -167,3 +167,5 @@ self.addEventListener('fetch', event => {
 // productos-por-ordenar-2026-08-27-v1
 
 // pallets-ux-compacta-final-2026-08-27
+
+// popup-asignar-pallet-centrado-2026-08-27

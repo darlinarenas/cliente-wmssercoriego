@@ -773,3 +773,84 @@
   .pending-inline-controls{display:grid;grid-template-columns:110px 1fr}
   .pending-inline-controls button{min-height:42px}
 }
+
+
+/* Asignar producto pendiente -> pallet: modal centrado también en móvil */
+#pending-sort-assign-dialog{
+  position:fixed;
+  inset:0;
+  width:min(520px,calc(100vw - 28px));
+  max-width:520px;
+  max-height:min(680px,calc(100dvh - 32px));
+  margin:auto;
+  border-radius:20px;
+  overflow:hidden;
+}
+#pending-sort-assign-dialog .pending-assign-card{
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  max-width:none;
+  max-height:min(680px,calc(100dvh - 32px));
+  overflow:auto;
+  display:grid;
+  gap:12px;
+  padding:16px;
+  background:#fff;
+}
+#pending-sort-assign-dialog .dialog-head{
+  position:sticky;
+  top:-16px;
+  z-index:2;
+  margin:-16px -16px 2px;
+  padding:14px 16px 10px;
+  background:#fff;
+  border-bottom:1px solid var(--line);
+}
+#pending-sort-assign-dialog .dialog-head h3{
+  margin:2px 0;
+  font-size:1rem;
+  line-height:1.2;
+}
+#pending-sort-assign-dialog label{margin:0}
+#pending-sort-assign-dialog select,
+#pending-sort-assign-dialog input{min-height:42px}
+#pending-sort-assign-dialog .dialog-actions{
+  position:sticky;
+  bottom:-16px;
+  z-index:2;
+  margin:2px -16px -16px;
+  padding:10px 16px 14px;
+  background:#fff;
+  border-top:1px solid var(--line);
+  display:grid;
+  grid-template-columns:1fr 1fr;
+}
+#pending-sort-assign-dialog .dialog-actions button{
+  width:100%;
+  min-height:44px;
+}
+@media(max-width:760px){
+  #pending-sort-assign-dialog{
+    inset:0;
+    width:calc(100vw - 22px);
+    max-width:520px;
+    max-height:calc(100dvh - 24px);
+    margin:auto;
+    border-radius:18px;
+  }
+  #pending-sort-assign-dialog .pending-assign-card{
+    max-height:calc(100dvh - 24px);
+    padding:14px;
+  }
+  #pending-sort-assign-dialog .dialog-head{
+    top:-14px;
+    margin:-14px -14px 0;
+    padding:12px 14px 9px;
+  }
+  #pending-sort-assign-dialog .dialog-actions{
+    bottom:-14px;
+    margin:0 -14px -14px;
+    padding:9px 14px 12px;
+  }
+}
