@@ -64,6 +64,39 @@ export function assignProductToPallet(data,{palletId,siteId,code,qty,sourceKey,u
   pallet.status=isStaging(location)?'POR_UBICAR':'UBICADO';
   return {ok:true,pallet,qty:Number(qty),message:`${qty} un. de ${code} agregadas a ${pallet.physicalCode||pallet.id}`};
 }
+
+export function ensurePendingSortLocation(data,siteId){
+  data.locations=data.locations||[];
+  const id=`${siteId}-PRODUCTOS-POR-ORDENAR`;
+  let location=data.locations.find(l=>l.id===id);
+  if(!location){
+    location={id,siteId,rackId:null,label:'Productos por ordenar',scanCode:id,status:'LIBRE',access:'DIRECTO',kind:'PRODUCT_SORT_STAGING',active:true,capacity:null,notes:'Zona lógica temporal. Producto retirado de un pallet porque su ubicación física real aún debe confirmarse.'};
+    data.locations.push(location);
+  }
+  return location;
+}
+export function moveProductToPendingSort(data,{code,qty,sourcePalletId,siteId,userId,at=new Date().toISOString()}={}){
+  qty=n(qty);
+  const source=(data.pallets||[]).find(p=>p.id===sourcePalletId);
+  if(!source)return {ok:false,message:'No se encontró el pallet de origen'};
+  if(source.siteId!==siteId)return {ok:false,message:'El pallet pertenece a otro centro'};
+  if(qty<=0)return {ok:false,message:'La cantidad debe ser mayor que cero'};
+  const available=(data.inventory||[]).filter(i=>String(i.productCode)===String(code)&&i.palletId===source.id&&n(i.qty)>0&&i.siteId===siteId).reduce((sum,i)=>sum+n(i.qty),0);
+  if(available<qty)return {ok:false,message:`En ${palletDisplayName(source)} hay ${available} unidad(es) disponibles`};
+  const sourceKey=`${source.locationId}@@${source.id}`;
+  const deducted=deductStock(data,{code,qty,sourceKey,siteId});if(!deducted.ok)return deducted;
+  const pending=ensurePendingSortLocation(data,siteId);
+  const added=addStock(data,{code,qty,locationId:pending.id,palletId:null});if(!added.ok)return added;
+  const sourceLocation=(data.locations||[]).find(l=>l.id===source.locationId);
+  const sourceRemains=(data.inventory||[]).some(i=>i.palletId===source.id&&n(i.qty)>0);
+  source.status=sourceRemains?(isStaging(sourceLocation)?'POR_UBICAR':'UBICADO'):'VACÍO';source.updatedAt=at;source.updatedBy=userId||data.session?.userId||null;
+  pending.status='OCUPADA';
+  refreshInventoryStatuses(data,siteId);
+  data.movements=data.movements||[];
+  data.movements.unshift({id:`MOV-POR-ORDENAR-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,siteId,type:'PRODUCTO_POR_ORDENAR',productCode:String(code),qty,from:`${source.id} / ${source.locationId}`,to:pending.id,sourcePalletId:source.id,palletId:null,destinationPalletId:null,reason:'Retirado temporalmente del pallet para confirmar su ubicación física real',userId:userId||data.session?.userId||null,at,allocations:deducted.allocations,beforeQty:available,afterQty:available-qty,pendingBeforeQty:added.beforeQty,pendingAfterQty:added.afterQty});
+  return {ok:true,qty,source,location:pending,message:`${qty} un. de ${code} pasaron a Productos por ordenar. El stock global no cambió.`};
+}
+
 export function moveProductToPallet(data,{code,qty,sourcePalletId,destinationPalletId,siteId,userId,at=new Date().toISOString()}={}){
   qty=n(qty);const source=(data.pallets||[]).find(p=>p.id===sourcePalletId),destination=(data.pallets||[]).find(p=>p.id===destinationPalletId);
   if(!source||!destination)return {ok:false,message:'No se encontró el pallet de origen o destino'};

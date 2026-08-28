@@ -28,7 +28,7 @@ export function codePermissionsForUser(user,siteId){
 
 export function palletPermissionsForRole(role){
  const manage=['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role),operator=manage||['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(role);
- return {view:operator,operate:operator,register:manage,edit:manage};
+ return {view:operator,operate:operator,register:manage,edit:manage||role==='OPERADOR_BODEGA'};
 }
 
 export function palletPermissionsForUser(user,siteId){
