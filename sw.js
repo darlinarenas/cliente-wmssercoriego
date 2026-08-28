@@ -169,3 +169,5 @@ self.addEventListener('fetch', event => {
 // pallets-ux-compacta-final-2026-08-27
 
 // popup-asignar-pallet-centrado-2026-08-27
+
+// popups-operativos-globales-centrados-2026-08-27

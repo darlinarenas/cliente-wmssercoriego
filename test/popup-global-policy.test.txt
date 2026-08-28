@@ -1,0 +1,6 @@
+OK
+- Pop-ups operativos centrados
+- Cabecera sticky
+- Acciones sticky
+- Cámara/escáner excluidos
+- Diálogos encontrados en snapshot auditado: 37

@@ -854,3 +854,108 @@
     padding:9px 14px 12px;
   }
 }
+
+
+/* =========================================================
+   POLÍTICA GLOBAL DE POP-UPS OPERATIVOS WMS
+   - Centrados y compactos
+   - Acciones siempre visibles
+   - No afecta cámara / lectores / vistas fullscreen
+   ========================================================= */
+dialog.pallet-operation-dialog,
+dialog:not(.dialogo-camara):not(.camera-dialog):not(.scanner-dialog):has(> .dialog-card){
+  position:fixed;
+  inset:0;
+  width:min(620px,calc(100vw - 30px));
+  max-width:620px;
+  max-height:min(760px,calc(100dvh - 30px));
+  margin:auto;
+  padding:0;
+  border-radius:20px;
+  overflow:hidden;
+}
+
+dialog.pallet-operation-dialog > .dialog-card,
+dialog.pallet-operation-dialog > .pallet-operation-card,
+dialog:not(.dialogo-camara):not(.camera-dialog):not(.scanner-dialog):has(> .dialog-card) > .dialog-card{
+  box-sizing:border-box;
+  width:100%;
+  max-width:none;
+  min-width:0;
+  max-height:min(760px,calc(100dvh - 30px));
+  overflow:auto;
+  overscroll-behavior:contain;
+  padding:16px;
+  background:#fff;
+}
+
+dialog.pallet-operation-dialog .dialog-head,
+dialog:not(.dialogo-camara):not(.camera-dialog):not(.scanner-dialog):has(> .dialog-card) .dialog-head{
+  position:sticky;
+  top:-16px;
+  z-index:5;
+  margin:-16px -16px 4px;
+  padding:14px 16px 10px;
+  background:#fff;
+  border-bottom:1px solid var(--line);
+}
+
+dialog.pallet-operation-dialog .dialog-actions,
+dialog:not(.dialogo-camara):not(.camera-dialog):not(.scanner-dialog):has(> .dialog-card) .dialog-actions{
+  position:sticky;
+  bottom:-16px;
+  z-index:5;
+  margin:4px -16px -16px;
+  padding:10px 16px 14px;
+  background:#fff;
+  border-top:1px solid var(--line);
+  display:flex;
+  gap:8px;
+}
+
+dialog.pallet-operation-dialog .dialog-actions > button,
+dialog:not(.dialogo-camara):not(.camera-dialog):not(.scanner-dialog):has(> .dialog-card) .dialog-actions > button{
+  flex:1 1 0;
+  min-height:44px;
+}
+
+/* En móvil siguen siendo modales centrados, no hojas pegadas abajo. */
+@media(max-width:760px){
+  dialog.pallet-operation-dialog,
+  dialog:not(.dialogo-camara):not(.camera-dialog):not(.scanner-dialog):has(> .dialog-card){
+    inset:0;
+    width:calc(100vw - 22px);
+    max-width:600px;
+    max-height:calc(100dvh - 24px);
+    margin:auto;
+    border-radius:18px;
+  }
+
+  dialog.pallet-operation-dialog > .dialog-card,
+  dialog.pallet-operation-dialog > .pallet-operation-card,
+  dialog:not(.dialogo-camara):not(.camera-dialog):not(.scanner-dialog):has(> .dialog-card) > .dialog-card{
+    max-height:calc(100dvh - 24px);
+    padding:14px;
+  }
+
+  dialog.pallet-operation-dialog .dialog-head,
+  dialog:not(.dialogo-camara):not(.camera-dialog):not(.scanner-dialog):has(> .dialog-card) .dialog-head{
+    top:-14px;
+    margin:-14px -14px 2px;
+    padding:12px 14px 9px;
+  }
+
+  dialog.pallet-operation-dialog .dialog-actions,
+  dialog:not(.dialogo-camara):not(.camera-dialog):not(.scanner-dialog):has(> .dialog-card) .dialog-actions{
+    bottom:-14px;
+    margin:2px -14px -14px;
+    padding:9px 14px 12px;
+  }
+}
+
+/* No modificar nunca diálogos de cámara/escáner con esta política. */
+dialog.dialogo-camara,
+dialog.camera-dialog,
+dialog.scanner-dialog{
+  margin:revert;
+}
