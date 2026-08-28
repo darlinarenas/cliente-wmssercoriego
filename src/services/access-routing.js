@@ -7,7 +7,7 @@ export function effectiveRole(user,siteId){
 
 export function routeAllowedForRole(route,role){
  if(['ADMIN_GLOBAL','ADMINISTRADOR'].includes(role))return true;
- if(role==='ENCARGADO')return !MANAGER_BLOCKED.has(route);
+ if(role==='ENCARGADO')return !MANAGER_BLOCKED.has(route)&&route!=='conciliacion';
  if(role==='TRANSPORTISTA')return route==='cargas';
  if(['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(role))return OPERATOR_ROUTES.has(route);
  return route==='dashboard';
@@ -15,7 +15,7 @@ export function routeAllowedForRole(route,role){
 
 export function codePermissionsForRole(role){
  const manage=['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role);
- return {consult:manage||['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(role),associate:manage,editProduct:manage,editInventory:manage,createProduct:manage};
+ return {consult:manage||['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(role),associate:manage,editProduct:manage,editInventory:manage,createProduct:manage,changeSku:['ADMIN_GLOBAL','ADMINISTRADOR'].includes(role),reconcileErp:['ADMIN_GLOBAL','ADMINISTRADOR'].includes(role),applyErpStock:['ADMIN_GLOBAL','ADMINISTRADOR'].includes(role)};
 }
 
 export function codePermissionsForUser(user,siteId){
@@ -23,7 +23,7 @@ export function codePermissionsForUser(user,siteId){
  const assignment=(user?.accessAssignments||[]).find(a=>a.siteId===siteId),defaults=codePermissionsForRole(assignment?.role||user?.role);
  if(assignment?.customPermissions!==true)return defaults;
  const custom=assignment.permissions||{};
- return {consult:custom.codesConsult===true,associate:custom.codesAssociate===true,editProduct:custom.productsEdit===true,editInventory:custom.inventoryAdjust===true,createProduct:custom.productsEdit===true};
+ return {consult:custom.codesConsult===true,associate:custom.codesAssociate===true,editProduct:custom.productsEdit===true,editInventory:custom.inventoryAdjust===true,createProduct:custom.productsEdit===true,changeSku:custom.changeSku===true,reconcileErp:custom.reconcileErp===true,applyErpStock:custom.applyErpStock===true};
 }
 
 export function palletPermissionsForRole(role){

@@ -95,9 +95,9 @@ export function openProductEditor(code,{onSaved}={}){
   document.querySelectorAll('#product-editor-form input:not([type="hidden"]),#product-editor-form textarea,#product-editor-form select').forEach(el=>{if(el.classList.contains('pe-system-qty')||el.classList.contains('other-site-qty'))el.disabled=true;else el.disabled=!allowed;});
   ['pe-name','pe-description','pe-type','pe-category','pe-subcategory','pe-rotation'].forEach(id=>{const el=document.querySelector(`#${id}`);if(el)el.disabled=!permission.editProduct;});
   const primaryCodeInput=document.querySelector('#pe-code'),primaryCodeCamera=document.querySelector('#pe-code-camera'),unlockPrimaryCode=document.querySelector('#pe-unlock-code'),primaryCodeHelp=document.querySelector('#pe-code-lock-help');
-  primaryCodeInput.disabled=!permission.editProduct; primaryCodeInput.readOnly=true; primaryCodeCamera.disabled=true; unlockPrimaryCode.disabled=!permission.editProduct;
+  primaryCodeInput.disabled=!permission.editProduct; primaryCodeInput.readOnly=true; primaryCodeCamera.disabled=true; unlockPrimaryCode.disabled=!permission.changeSku; unlockPrimaryCode.hidden=!permission.changeSku; primaryCodeHelp.textContent=permission.changeSku?'El SKU principal está protegido por permiso y supercódigo.':'No tienes permiso para cambiar el SKU principal.';
   unlockPrimaryCode.onclick=async()=>{
-    if(!permission.editProduct)return;
+    if(!permission.changeSku)return;
     const ok=await requireAdminSupercode(`Vas a habilitar la edición del SKU principal ${p.code}. El cambio actualizará las referencias internas del producto y quedará auditado.`,{title:'Autorizar cambio de SKU',buttonLabel:'Autorizar edición'});
     if(!ok)return;
     primaryCodeAuthorized=true; primaryCodeInput.readOnly=false; primaryCodeCamera.disabled=false; unlockPrimaryCode.textContent='✓ SKU habilitado'; primaryCodeHelp.textContent='Edición autorizada. Revisa el nuevo SKU antes de guardar.'; primaryCodeInput.focus(); primaryCodeInput.select();
@@ -128,7 +128,7 @@ export function openProductEditor(code,{onSaved}={}){
     const reason=document.querySelector('#pe-reason').value.trim();
     if(!newCode||!name||!reason){const missing=!newCode?document.querySelector('#pe-code'):!name?document.querySelector('#pe-name'):document.querySelector('#pe-reason');toast(`Falta completar: ${!newCode?'Código de producto':!name?'Nombre':'Motivo de la corrección / inventario'}. Te llevamos al campo pendiente.`,'warning',missing);return;}
     if(newCode!==oldCode&&codeInUse(newCode,p.id)){toast('Ese código ya existe o está asociado a otro producto');return;}
-    if(newCode!==oldCode&&!primaryCodeAuthorized){const ok=await requireAdminSupercode(`Vas a cambiar el SKU principal ${oldCode} por ${newCode}. Esta acción actualizará las referencias internas del producto y quedará auditada.`,{title:'Confirmar cambio de SKU',buttonLabel:'Cambiar SKU'});if(!ok)return;primaryCodeAuthorized=true;}
+    if(newCode!==oldCode&&!permission.changeSku){toast('No tienes permiso para cambiar el SKU principal.','warning');return;}if(newCode!==oldCode&&!primaryCodeAuthorized){const ok=await requireAdminSupercode(`Vas a cambiar el SKU principal ${oldCode} por ${newCode}. Esta acción actualizará las referencias internas del producto y quedará auditada.`,{title:'Confirmar cambio de SKU',buttonLabel:'Cambiar SKU'});if(!ok)return;primaryCodeAuthorized=true;}
     const qtyChanges=[];
     document.querySelectorAll('.inventory-edit-row.active-site-row').forEach(row=>{const id=row.dataset.invId,inv=store.data.inventory.find(i=>i.id===id);if(!inv||inventorySiteId(inv)!==activeSiteId())return;const before=Number(inv.qty||0),after=Number(row.querySelector('.pe-physical-qty').value||0);if(Number.isFinite(after)&&after>=0&&after!==before)qtyChanges.push({id,before,after,locationId:inv.locationId,palletId:inv.palletId||null});});
     const masterChanged=(()=>{const pp=product(oldCode);return newCode!==oldCode||name!==(pp.name||'')||description!==(pp.description||'')||type!==(pp.type||pp.family||'')||category!==(pp.category||'')||subcategory!==(pp.subcategory||'')||rotation!==(pp.rotation||'MEDIA');})();

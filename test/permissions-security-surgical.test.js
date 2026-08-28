@@ -1,0 +1,12 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const access=fs.readFileSync(new URL('../src/services/access-routing.js',import.meta.url),'utf8');
+const layout=fs.readFileSync(new URL('../src/layout/layout.js',import.meta.url),'utf8');
+const recon=fs.readFileSync(new URL('../src/modules/conciliacion/conciliacion.js',import.meta.url),'utf8');
+const editor=fs.readFileSync(new URL('../src/services/product-editor.js',import.meta.url),'utf8');
+const users=fs.readFileSync(new URL('../src/modules/usuarios/usuarios.js',import.meta.url),'utf8');
+assert.match(access,/changeSku/);assert.match(access,/reconcileErp/);assert.match(access,/applyErpStock/);
+assert.match(layout,/id==='conciliacion'.*!codePermissionsForUser/);
+assert.match(recon,/Autorizar conciliación ERP/);assert.match(recon,/!access\.reconcileErp/);assert.match(recon,/!access\.applyErpStock/);
+assert.match(editor,/!permission\.changeSku/);assert.match(editor,/No tienes permiso para cambiar el SKU principal/);
+assert.match(users,/Cambiar SKU principal \(requiere supercódigo\)/);assert.match(users,/Actualizar stock desde ERP \(requiere supercódigo\)/);
+console.log('OK permisos sensibles: menú oculto + permiso + supercódigo');
