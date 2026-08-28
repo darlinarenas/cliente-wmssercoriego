@@ -59,11 +59,31 @@ export function assignProductToPallet(data,{palletId,siteId,code,qty,sourceKey,u
   if(!added.ok)return added;
   const location=(data.locations||[]).find(l=>l.id===pallet.locationId);
   pallet.status=isStaging(location)?'POR_UBICAR':'UBICADO';pallet.updatedAt=at;
-  data.movements=data.movements||[];data.movements.unshift({id:`MOV-CARGA-PAL-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,siteId,type:'ASIGNACION_PRODUCTO_A_PALET',productCode:String(code),qty:Number(qty),from:sourceKey.split('@@')[0],to:pallet.locationId,palletId,reason:`Producto incorporado al pallet físico ${pallet.physicalCode||pallet.id}`,userId:userId||data.session?.userId||null,at,allocations:deducted.allocations,beforeQty:added.beforeQty,afterQty:added.afterQty});
+  const [sourceLocationId,sourcePalletId='']=String(sourceKey).split('@@');data.movements=data.movements||[];data.movements.unshift({id:`MOV-CARGA-PAL-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,siteId,type:'ASIGNACION_PRODUCTO_A_PALET',productCode:String(code),qty:Number(qty),from:sourcePalletId?`${sourcePalletId} / ${sourceLocationId}`:sourceLocationId,to:`${pallet.id} / ${pallet.locationId}`,sourcePalletId:sourcePalletId||null,palletId,destinationPalletId:palletId,reason:`Producto incorporado al pallet físico ${pallet.physicalCode||pallet.id}`,userId:userId||data.session?.userId||null,at,allocations:deducted.allocations,beforeQty:added.beforeQty,afterQty:added.afterQty});
   refreshInventoryStatuses(data,siteId);
   pallet.status=isStaging(location)?'POR_UBICAR':'UBICADO';
   return {ok:true,pallet,qty:Number(qty),message:`${qty} un. de ${code} agregadas a ${pallet.physicalCode||pallet.id}`};
 }
+export function moveProductToPallet(data,{code,qty,sourcePalletId,destinationPalletId,siteId,userId,at=new Date().toISOString()}={}){
+  qty=n(qty);const source=(data.pallets||[]).find(p=>p.id===sourcePalletId),destination=(data.pallets||[]).find(p=>p.id===destinationPalletId);
+  if(!source||!destination)return {ok:false,message:'No se encontró el pallet de origen o destino'};
+  if(source.id===destination.id)return {ok:false,message:'El pallet de destino debe ser distinto al pallet actual'};
+  if(source.siteId!==siteId||destination.siteId!==siteId)return {ok:false,message:'Ambos pallets deben pertenecer al centro activo'};
+  if(destination.status==='CERRADO')return {ok:false,message:'El pallet de destino está cerrado'};
+  if(!source.locationId||!destination.locationId)return {ok:false,message:'Los pallets deben tener una ubicación física o temporal registrada'};
+  if(qty<=0)return {ok:false,message:'La cantidad debe ser mayor que cero'};
+  const sourceKey=`${source.locationId}@@${source.id}`,available=(data.inventory||[]).filter(i=>String(i.productCode)===String(code)&&i.palletId===source.id&&n(i.qty)>0).reduce((sum,i)=>sum+n(i.qty),0);
+  if(available<qty)return {ok:false,message:`En ${palletDisplayName(source)} hay ${available} unidad(es) disponibles`};
+  const deducted=deductStock(data,{code,qty,sourceKey,siteId});if(!deducted.ok)return deducted;
+  const added=addStock(data,{code,qty,locationId:destination.locationId,palletId:destination.id});if(!added.ok)return added;
+  const sourceLocation=(data.locations||[]).find(l=>l.id===source.locationId),destinationLocation=(data.locations||[]).find(l=>l.id===destination.locationId);
+  const sourceRemains=(data.inventory||[]).some(i=>i.palletId===source.id&&n(i.qty)>0);source.status=sourceRemains?(isStaging(sourceLocation)?'POR_UBICAR':'UBICADO'):'VACÍO';source.updatedAt=at;source.updatedBy=userId||data.session?.userId||null;
+  destination.status=isStaging(destinationLocation)?'POR_UBICAR':'UBICADO';destination.updatedAt=at;destination.updatedBy=userId||data.session?.userId||null;
+  refreshInventoryStatuses(data,siteId);source.status=sourceRemains?(isStaging(sourceLocation)?'POR_UBICAR':'UBICADO'):'VACÍO';destination.status=isStaging(destinationLocation)?'POR_UBICAR':'UBICADO';
+  data.movements=data.movements||[];data.movements.unshift({id:`MOV-PAL-PROD-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,siteId,type:'CAMBIO_PRODUCTO_DE_PALET',productCode:String(code),qty,from:`${source.id} / ${source.locationId}`,to:`${destination.id} / ${destination.locationId}`,sourcePalletId:source.id,palletId:destination.id,destinationPalletId:destination.id,reason:'Reorganización física entre pallets',userId:userId||data.session?.userId||null,at,beforeQty:available,afterQty:available-qty,destinationBeforeQty:added.beforeQty,destinationAfterQty:added.afterQty,allocations:deducted.allocations});
+  return {ok:true,qty,source,destination,message:`${qty} un. de ${code} cambiadas de ${palletDisplayName(source)} a ${palletDisplayName(destination)}. El stock global no cambió.`};
+}
+
 function closePutawayTask(data,palletId,{userId,at,locationId}={}){
   const task=(data.tasks||[]).find(t=>t.type==='UBICAR_CARGA'&&t.palletId===palletId&&t.status!=='CERRADA');
   if(!task)return;
