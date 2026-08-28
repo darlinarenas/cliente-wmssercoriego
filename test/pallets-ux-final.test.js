@@ -1,0 +1,11 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const s=fs.readFileSync(new URL('../src/modules/palets/palets.js',import.meta.url),'utf8');
+assert.doesNotMatch(s,/id="ppm-pending-open"/);
+assert.match(s,/Pasar a productos por ordenar/);
+assert.match(s,/pending-sort-pallet-code/);
+assert.match(s,/pending-sort-pallet-scan/);
+assert.match(s,/pending-sort-pallet-keyboard/);
+assert.match(s,/wmsReturnAfterProductEditor/);
+assert.match(s,/params\(\)\.get\('product'\)/);
+assert.match(s,/Ver información/);
+console.log('OK: UX compacta, asignación pendiente y retorno de ficha');
