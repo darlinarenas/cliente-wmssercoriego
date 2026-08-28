@@ -16,7 +16,7 @@ const nav=[
  ['palets','Organizar palets','▣'],
  ['movimientos','Mover / reubicar','↔'],
  {id:'inventario',label:'Inventario y estructura',ico:'▦',items:[['productos','Productos','◫'],['racks','Racks','▦'],['mapa3d','Mapa 3D','◈']]},
- {id:'control',label:'Control y trazabilidad',ico:'◷',items:[['conciliacion','Conciliación Kame','≋'],['historial','Historial','◷']]},
+ {id:'control',label:'Control y trazabilidad',ico:'◷',items:[['conciliacion','Conciliación ERP','≋'],['historial','Historial','◷']]},
  {id:'administracion',label:'Administración',ico:'⚙',items:[['importar','Importar Excel','⇧'],['centros','Centros y Sucursales','⌂'],['usuarios','Usuarios','♙'],['estructura','Estructura','⚙']]}
 ];
 

@@ -22,11 +22,15 @@ test('SKU principal queda bloqueado y exige supercodigo antes de cambiar',()=>{
 test('Mis tareas permite teclado numerico y abrir item sin navegar a Productos',()=>{
   assert.match(orders,/id="pick-keyboard-mode"/);
   assert.match(orders,/wireInputModeToggle/);
-  assert.match(orders,/class="product-link order-item-open"/);
-  assert.match(orders,/openPickItemDialog\(root,o,b\.dataset\.code\)/);
+  assert.match(orders,/class="pick-item pick-item-open-card/);
+  assert.match(orders,/data-open-code=/);
+  assert.match(orders,/openPickItemDialog\(root,o,card\.dataset\.openCode\)/);
   assert.match(orders,/id="pick-item-camera"/);
   assert.match(orders,/id="pick-item-qty"/);
   assert.match(orders,/Ver mapa 3D/);
   assert.match(orders,/Ver stock global/);
+  assert.match(orders,/numeric-mode-icon/);
+  assert.match(orders,/samePalletSuggestionHtml/);
+  assert.match(orders,/APROVECHA ESTE PALLET/);
   assert.doesNotMatch(orders,/document\.querySelectorAll\('\.product-link'\)\.forEach\(b=>b\.onclick=\(\)=>location\.hash=`#\/productos/);
 });
