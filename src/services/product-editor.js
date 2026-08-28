@@ -6,6 +6,7 @@ import { inventorySiteId,activeSiteId,stockSitesOrdered,totalCompanyStock } from
 import { activeCompanyId,siteCompanyId } from './company.js';
 import { enlazarBotonEscaner } from './camara-ui.js';
 import { codePermissionsForUser } from './access-routing.js';
+import { requireAdminSupercode } from './security.js';
 
 function currentUser(){ return store.data.users.find(u=>u.id===store.data.session.userId); }
 function permissions(){return codePermissionsForUser(currentUser(),activeSiteId(store.data));}
@@ -25,7 +26,7 @@ function dialogHtml(){
     <input type="hidden" id="pe-original-code">
     <section class="product-editor-section"><div class="section-mini-head"><div><b>Ficha del producto</b><small>Corrige datos maestros si existe un error.</small></div><span class="edit-lock-pill">🔒 Cambio auditado</span></div>
       <div class="product-editor-grid">
-        <label>Código de producto<div class="entrada-con-camara"><input id="pe-code" required inputmode="numeric" autocomplete="off"><button id="pe-code-camera" class="scan-button" type="button" title="Escanear código principal">▣</button></div></label>
+        <label>SKU / código principal<div class="entrada-con-camara pe-primary-code-control"><input id="pe-code" required inputmode="text" autocomplete="off" readonly><button id="pe-code-camera" class="scan-button" type="button" title="Escanear código principal" disabled>▣</button><button id="pe-unlock-code" class="secondary small" type="button">🔒 Editar SKU</button></div><small id="pe-code-lock-help">El SKU principal está protegido por supercódigo.</small></label>
         <label>Nombre<input id="pe-name" required maxlength="120" placeholder="Nombre del producto"></label>
         <label class="full">Descripción<textarea id="pe-description" rows="2" maxlength="300" placeholder="Descripción real del producto"></textarea></label>
         <label>Tipo<input id="pe-type" maxlength="100" placeholder="Ej. PVC, PPR, Orbit"></label><label>Categoría<input id="pe-category" maxlength="100" placeholder="Ej. Conexiones, Riego"></label><label>Subcategoría<input id="pe-subcategory" maxlength="100" placeholder="Ej. Codos, Válvulas"></label>
@@ -77,19 +78,30 @@ function fill(code){
 }
 
 function replaceCodeEverywhere(s,oldCode,newCode){
-  s.inventory.forEach(i=>{if(i.productCode===oldCode)i.productCode=newCode;});
-  s.receipts.forEach(r=>(r.items||[]).forEach(i=>{if(i.code===oldCode)i.code=newCode;}));
-  s.transfers.forEach(t=>(t.items||[]).forEach(i=>{if(i.code===oldCode)i.code=newCode;}));
-  s.movements.forEach(m=>{if(m.productCode===oldCode)m.productCode=newCode;});
+  (s.inventory||[]).forEach(i=>{if(i.productCode===oldCode)i.productCode=newCode;});
+  (s.receipts||[]).forEach(r=>(r.items||[]).forEach(i=>{if(i.code===oldCode)i.code=newCode;if(i.productCode===oldCode)i.productCode=newCode;}));
+  (s.transfers||[]).forEach(t=>(t.items||[]).forEach(i=>{if(i.code===oldCode)i.code=newCode;if(i.productCode===oldCode)i.productCode=newCode;}));
+  (s.orders||[]).forEach(o=>(o.items||[]).forEach(i=>{if(i.productCode===oldCode)i.productCode=newCode;}));
+  (s.tasks||[]).forEach(t=>{if(t.productCode===oldCode)t.productCode=newCode;});
+  (s.movements||[]).forEach(m=>{if(m.productCode===oldCode)m.productCode=newCode;});
 }
 
 export function openProductEditor(code,{onSaved}={}){
   const dlg=ensureDialog(), permission=permissions(),allowed=canEdit(), p=product(code); if(!p){toast('Producto no encontrado');return;}
+  let primaryCodeAuthorized=false;
   fill(code);
   const perm=document.querySelector('#product-editor-permission');
   perm.innerHTML=allowed?'':`<div class="warning-box"><b>Modo consulta.</b> El operador actual (${esc(currentUser()?.name||'sin usuario')}) no tiene permiso para corregir productos o inventario. Selecciona un Encargado o Administrador en Usuarios.</div>`;
   document.querySelectorAll('#product-editor-form input:not([type="hidden"]),#product-editor-form textarea,#product-editor-form select').forEach(el=>{if(el.classList.contains('pe-system-qty')||el.classList.contains('other-site-qty'))el.disabled=true;else el.disabled=!allowed;});
-  ['pe-code','pe-name','pe-description','pe-type','pe-category','pe-subcategory','pe-rotation'].forEach(id=>{const el=document.querySelector(`#${id}`);if(el)el.disabled=!permission.editProduct;});
+  ['pe-name','pe-description','pe-type','pe-category','pe-subcategory','pe-rotation'].forEach(id=>{const el=document.querySelector(`#${id}`);if(el)el.disabled=!permission.editProduct;});
+  const primaryCodeInput=document.querySelector('#pe-code'),primaryCodeCamera=document.querySelector('#pe-code-camera'),unlockPrimaryCode=document.querySelector('#pe-unlock-code'),primaryCodeHelp=document.querySelector('#pe-code-lock-help');
+  primaryCodeInput.disabled=!permission.editProduct; primaryCodeInput.readOnly=true; primaryCodeCamera.disabled=true; unlockPrimaryCode.disabled=!permission.editProduct;
+  unlockPrimaryCode.onclick=async()=>{
+    if(!permission.editProduct)return;
+    const ok=await requireAdminSupercode(`Vas a habilitar la edición del SKU principal ${p.code}. El cambio actualizará las referencias internas del producto y quedará auditado.`,{title:'Autorizar cambio de SKU',buttonLabel:'Autorizar edición'});
+    if(!ok)return;
+    primaryCodeAuthorized=true; primaryCodeInput.readOnly=false; primaryCodeCamera.disabled=false; unlockPrimaryCode.textContent='✓ SKU habilitado'; primaryCodeHelp.textContent='Edición autorizada. Revisa el nuevo SKU antes de guardar.'; primaryCodeInput.focus(); primaryCodeInput.select();
+  };
   document.querySelectorAll('.inventory-edit-row.active-site-row .pe-physical-qty').forEach(el=>el.disabled=!permission.editInventory);
   ['pe-code-type','pe-alt-code','pe-code-label'].forEach(id=>{const el=document.querySelector(`#${id}`);if(el)el.disabled=!permission.associate;});
   document.querySelector('#save-product-editor').disabled=!allowed;
@@ -106,7 +118,7 @@ export function openProductEditor(code,{onSaved}={}){
   document.querySelector('#product-editor-form').onsubmit=async e=>{
     e.preventDefault(); if(!allowed)return;
     const oldCode=document.querySelector('#pe-original-code').value.trim();
-    const newCode=document.querySelector('#pe-code').value.trim().replace(/\s+/g,'');
+    const newCode=normalizeProductCode(document.querySelector('#pe-code').value);
     const name=document.querySelector('#pe-name').value.trim();
     const description=document.querySelector('#pe-description').value.trim();
     const type=document.querySelector('#pe-type').value.trim()||'Por clasificar';
@@ -116,6 +128,7 @@ export function openProductEditor(code,{onSaved}={}){
     const reason=document.querySelector('#pe-reason').value.trim();
     if(!newCode||!name||!reason){const missing=!newCode?document.querySelector('#pe-code'):!name?document.querySelector('#pe-name'):document.querySelector('#pe-reason');toast(`Falta completar: ${!newCode?'Código de producto':!name?'Nombre':'Motivo de la corrección / inventario'}. Te llevamos al campo pendiente.`,'warning',missing);return;}
     if(newCode!==oldCode&&codeInUse(newCode,p.id)){toast('Ese código ya existe o está asociado a otro producto');return;}
+    if(newCode!==oldCode&&!primaryCodeAuthorized){const ok=await requireAdminSupercode(`Vas a cambiar el SKU principal ${oldCode} por ${newCode}. Esta acción actualizará las referencias internas del producto y quedará auditada.`,{title:'Confirmar cambio de SKU',buttonLabel:'Cambiar SKU'});if(!ok)return;primaryCodeAuthorized=true;}
     const qtyChanges=[];
     document.querySelectorAll('.inventory-edit-row.active-site-row').forEach(row=>{const id=row.dataset.invId,inv=store.data.inventory.find(i=>i.id===id);if(!inv||inventorySiteId(inv)!==activeSiteId())return;const before=Number(inv.qty||0),after=Number(row.querySelector('.pe-physical-qty').value||0);if(Number.isFinite(after)&&after>=0&&after!==before)qtyChanges.push({id,before,after,locationId:inv.locationId,palletId:inv.palletId||null});});
     const masterChanged=(()=>{const pp=product(oldCode);return newCode!==oldCode||name!==(pp.name||'')||description!==(pp.description||'')||type!==(pp.type||pp.family||'')||category!==(pp.category||'')||subcategory!==(pp.subcategory||'')||rotation!==(pp.rotation||'MEDIA');})();
