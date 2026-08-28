@@ -7,7 +7,7 @@ export function effectiveRole(user,siteId){
 
 export function routeAllowedForRole(route,role){
  if(['ADMIN_GLOBAL','ADMINISTRADOR'].includes(role))return true;
- if(role==='ENCARGADO')return !MANAGER_BLOCKED.has(route)&&route!=='conciliacion';
+ if(role==='ENCARGADO')return !MANAGER_BLOCKED.has(route);
  if(role==='TRANSPORTISTA')return route==='cargas';
  if(['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(role))return OPERATOR_ROUTES.has(route);
  return route==='dashboard';
@@ -15,7 +15,7 @@ export function routeAllowedForRole(route,role){
 
 export function codePermissionsForRole(role){
  const manage=['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role);
- return {consult:manage||['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(role),associate:manage,editProduct:manage,editInventory:manage,createProduct:manage,changeSku:['ADMIN_GLOBAL','ADMINISTRADOR'].includes(role),reconcileErp:['ADMIN_GLOBAL','ADMINISTRADOR'].includes(role),applyErpStock:['ADMIN_GLOBAL','ADMINISTRADOR'].includes(role)};
+ return {consult:manage||['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(role),associate:manage,editProduct:manage,editInventory:manage,createProduct:manage,changeSku:['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role),reconcileErp:['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role),applyErpStock:['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role)};
 }
 
 export function codePermissionsForUser(user,siteId){
@@ -23,7 +23,7 @@ export function codePermissionsForUser(user,siteId){
  const assignment=(user?.accessAssignments||[]).find(a=>a.siteId===siteId),defaults=codePermissionsForRole(assignment?.role||user?.role);
  if(assignment?.customPermissions!==true)return defaults;
  const custom=assignment.permissions||{};
- return {consult:custom.codesConsult===true,associate:custom.codesAssociate===true,editProduct:custom.productsEdit===true,editInventory:custom.inventoryAdjust===true,createProduct:custom.productsEdit===true,changeSku:custom.changeSku===true,reconcileErp:custom.reconcileErp===true,applyErpStock:custom.applyErpStock===true};
+ return {consult:typeof custom.codesConsult==='boolean'?custom.codesConsult:defaults.consult,associate:typeof custom.codesAssociate==='boolean'?custom.codesAssociate:defaults.associate,editProduct:typeof custom.productsEdit==='boolean'?custom.productsEdit:defaults.editProduct,editInventory:typeof custom.inventoryAdjust==='boolean'?custom.inventoryAdjust:defaults.editInventory,createProduct:typeof custom.productsEdit==='boolean'?custom.productsEdit:defaults.createProduct,changeSku:typeof custom.changeSku==='boolean'?custom.changeSku:defaults.changeSku,reconcileErp:typeof custom.reconcileErp==='boolean'?custom.reconcileErp:defaults.reconcileErp,applyErpStock:typeof custom.applyErpStock==='boolean'?custom.applyErpStock:defaults.applyErpStock};
 }
 
 export function palletPermissionsForRole(role){
