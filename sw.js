@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.26-navegacion-movil-persistente-v26';
+const APP_VERSION = '2026.08.27-pallets-reorganizacion-v27';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
