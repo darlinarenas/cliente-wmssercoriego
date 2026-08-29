@@ -1134,3 +1134,90 @@ dialog.scanner-dialog{
 @media (max-width:760px){
   #manual-order-dialog .manual-size-toggle{display:none}
 }
+
+/* 2026-08-29 · Importación Excel de órdenes: vista escritorio y permisos coherentes */
+#order-dialog.excel-order-dialog{
+  width:min(1240px,calc(100vw - 36px));
+  max-width:1240px;
+  max-height:94vh;
+  border:1px solid rgba(22,163,74,.18);
+  border-radius:22px;
+  box-shadow:0 34px 90px rgba(2,8,23,.34),0 0 0 1px rgba(255,255,255,.6) inset;
+  overflow:hidden;
+}
+#order-dialog.excel-order-dialog>.excel-order-card{
+  width:100%;
+  max-height:94vh;
+  overflow:auto;
+  padding:0;
+  gap:0;
+  background:#fff;
+}
+#order-dialog.excel-order-dialog .dialog-head{
+  position:sticky;
+  top:0;
+  z-index:6;
+  padding:22px 26px 18px;
+  background:#fff;
+  border-bottom:1px solid var(--line);
+  box-shadow:0 6px 18px rgba(15,23,42,.035);
+}
+#order-dialog.excel-order-dialog .dialog-head>div:first-child{display:grid;gap:4px}
+#order-dialog.excel-order-dialog .dialog-head h3{font-size:22px;line-height:1.15}
+#order-dialog.excel-order-dialog .dialog-head small{font-size:13px;color:var(--muted);font-weight:500}
+#order-dialog .excel-window-actions{display:flex;gap:8px;align-items:center}
+#order-dialog .excel-window-actions>button{width:46px;height:46px;padding:0;font-size:20px;border-radius:12px;background:#fff}
+#order-dialog .excel-order-metadata{padding:22px 26px 18px}
+#order-dialog .excel-order-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+#order-dialog .excel-order-grid label>small{font-weight:500;color:var(--muted);line-height:1.35}
+#order-dialog .excel-order-grid input[readonly]{background:#f4f7fa;color:#22304a;font-weight:900}
+#order-dialog .manual-destination-panel{margin-top:14px;padding:16px;border:1px solid #dfe6ee;border-radius:14px;background:#f9fbfd}
+#order-dialog .manual-recipient-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+#order-dialog .excel-import-file-panel{margin:0 26px 18px;padding:16px;border:1px solid #bfe4cd;border-radius:16px;background:#f2fbf5;display:grid;grid-template-columns:1.15fr 1fr;gap:16px;align-items:end}
+#order-dialog .excel-template-box{display:flex;align-items:center;justify-content:space-between;gap:16px;min-width:0}
+#order-dialog .excel-template-box>div{display:grid;gap:4px;min-width:0}
+#order-dialog .excel-template-box b{font-size:15px;color:#125d31}
+#order-dialog .excel-template-box span{font-size:12px;color:#4c6757;line-height:1.4}
+#order-dialog .excel-template-button{white-space:nowrap;min-height:42px;padding-inline:14px;box-shadow:0 5px 14px rgba(15,23,42,.08);border:1px solid #d9e2eb;background:#fff}
+#order-dialog .excel-file-field{margin:0}
+#order-dialog #order-file{padding:8px;background:#fff}
+#order-dialog #order-preview{min-height:150px;max-height:none;overflow:visible;padding:0 26px 18px}
+#order-dialog .excel-import-empty{min-height:140px;display:grid;place-items:center;border:1px dashed #d9e2eb;border-radius:15px;color:var(--muted);background:#fbfcfe;font-size:15px}
+#order-dialog .excel-import-ready{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;margin-bottom:12px;border:1px solid #bfe4cd;border-radius:14px;background:#edf9f1}
+#order-dialog .excel-import-ready>div{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+#order-dialog .excel-import-ready b{font-size:16px}
+#order-dialog .excel-import-ready span,#order-dialog .excel-import-ready small{font-size:12px;color:#557064}
+#order-dialog .excel-import-table{border-radius:15px;overflow:hidden;box-shadow:0 5px 16px rgba(15,23,42,.04)}
+#order-dialog .excel-import-table table{min-width:0;table-layout:fixed}
+#order-dialog .excel-import-table th:nth-child(1){width:15%}
+#order-dialog .excel-import-table th:nth-child(2){width:43%}
+#order-dialog .excel-import-table th:nth-child(3),#order-dialog .excel-import-table th:nth-child(4){width:14%}
+#order-dialog .excel-import-table th:nth-child(5){width:14%}
+#order-dialog .excel-import-table td{vertical-align:middle;overflow-wrap:anywhere}
+#order-dialog .excel-import-table td:nth-child(n+3){white-space:nowrap}
+#order-dialog .excel-import-table td:nth-child(2) small{display:block;margin-top:4px;color:var(--muted);font-size:11px}
+#order-dialog .excel-requested-qty{font-size:18px;color:#0f7a39}
+#order-dialog.excel-order-dialog .dialog-actions{position:sticky;bottom:0;z-index:7;margin:0;padding:14px 26px 16px;background:#fff;border-top:1px solid var(--line);box-shadow:0 -8px 22px rgba(15,23,42,.05);display:grid;grid-template-columns:1fr 1.2fr;gap:10px}
+#order-dialog.excel-order-dialog .dialog-actions button{min-height:48px;font-size:15px}
+#order-dialog.excel-order-maximized{width:calc(100vw - 20px);max-width:none;height:calc(100vh - 20px);max-height:none}
+#order-dialog.excel-order-maximized>.excel-order-card{height:100%;max-height:none}
+@media(max-width:900px){
+  #order-dialog .excel-order-grid{grid-template-columns:1fr 1fr}
+  #order-dialog .manual-recipient-grid{grid-template-columns:1fr 1fr}
+  #order-dialog .excel-import-file-panel{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  #order-dialog.excel-order-dialog{width:calc(100vw - 12px);max-height:96vh;border-radius:16px}
+  #order-dialog.excel-order-dialog>.excel-order-card{max-height:96vh}
+  #order-dialog.excel-order-dialog .dialog-head{padding:17px 16px 14px}
+  #order-dialog.excel-order-dialog .dialog-head h3{font-size:19px}
+  #order-dialog .excel-order-metadata{padding:16px}
+  #order-dialog .excel-order-grid,#order-dialog .manual-recipient-grid{grid-template-columns:1fr}
+  #order-dialog .excel-import-file-panel{margin:0 16px 14px;padding:14px}
+  #order-dialog .excel-template-box{align-items:stretch;flex-direction:column}
+  #order-dialog .excel-template-button{width:100%}
+  #order-dialog #order-preview{padding:0 16px 14px;overflow-x:auto}
+  #order-dialog .excel-import-table table{min-width:760px}
+  #order-dialog .excel-size-toggle{display:none}
+  #order-dialog.excel-order-dialog .dialog-actions{padding:12px 16px;grid-template-columns:1fr 1fr}
+}
