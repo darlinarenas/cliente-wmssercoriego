@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.27-pallets-reorganizacion-v27';
+const APP_VERSION = '2026.08.29-orden-excel-template-v28';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
@@ -14,6 +14,7 @@ const PRECACHE = [
   './assets/icons/icon-maskable-512.png',
   './assets/vendor/jszip.min.js',
   './assets/templates/Plantilla_Carga_Inventario_SercoRiego.xlsx',
+  './assets/templates/Plantilla_Importar_Orden_WMS.xlsx',
   './manifest.webmanifest',
   './src/app.js',
   './src/modules/login/login.js',
