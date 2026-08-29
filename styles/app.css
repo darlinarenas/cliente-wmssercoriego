@@ -1043,3 +1043,94 @@ dialog.scanner-dialog{
   .pick-item-dialog-summary>span{padding:9px 10px}
   #pick-item-dialog .pick-item-dialog-actions{grid-template-columns:1fr}
 }
+
+/* Orden manual · escritorio amplio y cómodo · 2026-08-29 */
+@media (min-width:761px){
+  #manual-order-dialog.order-dialog-wide{
+    width:min(1180px,calc(100vw - 48px));
+    max-width:1180px;
+    max-height:calc(100dvh - 36px);
+    border-radius:20px;
+  }
+
+  #manual-order-dialog.order-dialog-wide > .order-create-card{
+    max-height:calc(100dvh - 36px);
+    padding:22px 24px;
+  }
+
+  #manual-order-dialog .dialog-head{
+    top:-22px;
+    margin:-22px -24px 8px;
+    padding:16px 24px 13px;
+  }
+
+  #manual-order-dialog .dialog-actions{
+    bottom:-22px;
+    margin:8px -24px -22px;
+    padding:12px 24px 16px;
+  }
+
+  #manual-order-dialog #manual-edit-step > .form-grid{
+    grid-template-columns:repeat(4,minmax(0,1fr));
+  }
+
+  #manual-order-dialog .manual-recipient-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+
+  #manual-order-dialog .manual-line-entry{
+    grid-template-columns:minmax(0,1fr) 140px 170px;
+    align-items:end;
+  }
+
+  #manual-order-dialog .manual-product-suggestions{
+    max-height:min(42vh,440px);
+    overflow-x:hidden;
+    overflow-y:auto;
+  }
+
+  #manual-order-dialog .manual-product-suggestions button{
+    width:100%;
+    min-width:0;
+  }
+
+  #manual-order-dialog .manual-product-suggestions button > div,
+  #manual-order-dialog .manual-product-suggestions button b,
+  #manual-order-dialog .manual-product-suggestions button small{
+    min-width:0;
+    overflow-wrap:anywhere;
+  }
+
+  #manual-order-dialog.manual-order-maximized{
+    width:calc(100vw - 20px);
+    max-width:none;
+    height:calc(100dvh - 20px);
+    max-height:none;
+    border-radius:14px;
+  }
+
+  #manual-order-dialog.manual-order-maximized > .order-create-card{
+    height:100%;
+    max-height:none;
+  }
+}
+
+#manual-order-dialog .manual-window-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:0 0 auto;
+}
+
+#manual-order-dialog .manual-window-actions > button{
+  width:44px;
+  min-width:44px;
+  height:44px;
+  padding:0;
+  font-size:20px;
+  line-height:1;
+}
+
+@media (max-width:760px){
+  #manual-order-dialog .manual-size-toggle{display:none}
+}
