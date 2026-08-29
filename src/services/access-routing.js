@@ -31,6 +31,20 @@ export function palletPermissionsForRole(role){
  return {view:operator,operate:operator,register:manage,edit:manage||role==='OPERADOR_BODEGA'};
 }
 
+export function orderPermissionsForRole(role){
+ return {cancel:['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role)};
+}
+
+export function orderPermissionsForUser(user,siteId){
+ if(user?.role==='ADMIN_GLOBAL')return orderPermissionsForRole('ADMIN_GLOBAL');
+ const assignments=Array.isArray(user?.accessAssignments)?user.accessAssignments:[],siteIds=Array.isArray(user?.siteIds)?user.siteIds:[],assignment=assignments.find(a=>a?.siteId===siteId),hasScopedAccess=assignments.length||siteIds.length;
+ if(hasScopedAccess&&!assignment&&!siteIds.includes(siteId))return {cancel:false};
+ const defaults=orderPermissionsForRole(assignment?.role||user?.role);
+ if(assignment?.customPermissions!==true)return defaults;
+ const custom=assignment.permissions||{};
+ return {cancel:typeof custom.ordersCancel==='boolean'?custom.ordersCancel:defaults.cancel};
+}
+
 export function palletPermissionsForUser(user,siteId){
  if(user?.role==='ADMIN_GLOBAL')return palletPermissionsForRole('ADMIN_GLOBAL');
  const assignment=(user?.accessAssignments||[]).find(a=>a.siteId===siteId),defaults=palletPermissionsForRole(assignment?.role||user?.role);
