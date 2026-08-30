@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.30-conciliacion-inventarios-v52';
+const APP_VERSION = '2026.08.30-inventarios-cierre-controlado-v53';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

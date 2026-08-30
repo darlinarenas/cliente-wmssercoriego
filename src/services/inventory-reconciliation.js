@@ -25,6 +25,9 @@ export function inventoryScopeSnapshot(state,session){
 export function inventoryPhysicalSnapshot(session){
   const out={};
   for(const line of session.lines||[]){const qty=Number(line.qty||0);if(qty<0)continue;out[line.productCode]=(out[line.productCode]||0)+qty;}
+  // Las correcciones de revisión no destruyen el conteo original del operario.
+  // Solo sustituyen el total físico consolidado que será usado al conciliar.
+  for(const [code,value] of Object.entries(session.reviewOverridesByProduct||{})){const qty=Number(value);if(Number.isFinite(qty)&&qty>=0)out[code]=qty;}
   return out;
 }
 export function inventoryReconciliationRows(state,session){
