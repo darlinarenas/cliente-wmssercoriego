@@ -6,7 +6,11 @@ import { startSilentRefresh } from '../../services/silent-refresh.js';
 import { codePermissionsForUser } from '../../services/access-routing.js';
 
 function operatorDashboard(d,user,siteId){
- const orderTasks=(d.orders||[]).filter(o=>o.assignedTo===user.id&&!['CERRADA','EMITIDA','ENTREGADA_CONDUCTOR'].includes(o.status));
+ const reviewStatuses=new Set(['PREPARADA','PENDIENTE_EMISION']);
+ const finishedStatuses=new Set(['EMITIDA','CERRADA','ENTREGADA_CONDUCTOR','ANULADA']);
+ const assignedOrders=(d.orders||[]).filter(o=>o.assignedTo===user.id&&o.status!=='BORRADOR');
+ const reviewOrders=assignedOrders.filter(o=>reviewStatuses.has(o.status));
+ const orderTasks=assignedOrders.filter(o=>!reviewStatuses.has(o.status)&&!finishedStatuses.has(o.status));
  const putaway=(d.tasks||[]).filter(t=>t.siteId===siteId&&t.assignedTo===user.id&&t.status!=='CERRADA');
  const total=orderTasks.length+putaway.length;
  const actions=[
@@ -18,7 +22,7 @@ function operatorDashboard(d,user,siteId){
   ['movimientos','↔','Mover','Reubicar producto o pallet'],
   ['ordenes','✓','Órdenes / Mis tareas',`${total} pendiente(s)`]
  ];
- const content=`<section class="operator-welcome"><div><span class="eyebrow">PANEL DEL OPERARIO</span><h2>¿Qué necesitas hacer?</h2><p>Accesos operativos del centro actual. Las opciones administrativas están ocultas.</p></div>${total?`<a class="operator-task-alert" href="#/ordenes"><b>${total}</b><span><strong>Tienes trabajo pendiente</strong><small>${orderTasks.length} orden(es) · ${putaway.length} tarea(s) de ubicación</small></span></a>`:'<span class="operator-task-clear">✓ No tienes tareas asignadas</span>'}</section><div class="operator-action-grid">${actions.map(([id,icon,label,help])=>`<a href="#/${id}" class="operator-action-card ${id==='ordenes'&&total?'has-tasks':''}"><span>${icon}</span><div><b>${label}</b><small>${help}</small></div>${id==='ordenes'&&total?`<em>${total}</em>`:''}</a>`).join('')}</div>${putaway.length?`<section class="panel operator-pending-panel"><div class="panel-head"><div><span class="eyebrow">TAREAS DE UBICACIÓN</span><h3>${putaway.length} asignada(s) a tu usuario</h3></div><a class="primary" href="#/tareas-ubicacion">Ver mis tareas</a></div></section>`:''}`;
+ const content=`<section class="operator-welcome"><div><span class="eyebrow">PANEL DEL OPERARIO</span><h2>¿Qué necesitas hacer?</h2><p>Accesos operativos del centro actual. Las opciones administrativas están ocultas.</p></div><a class="operator-task-alert ${total?'has-pending':'is-clear'}" href="#/ordenes"><b>${total}</b><span><strong>${total?'Tienes trabajo pendiente':'No tienes trabajos pendientes'}</strong><small>${orderTasks.length} orden(es) pendiente(s) · ${putaway.length} ubicación(es) · ${reviewOrders.length} culminada(s) en revisión</small></span></a></section><div class="operator-action-grid">${actions.map(([id,icon,label,help])=>`<a href="#/${id}" class="operator-action-card ${id==='ordenes'&&total?'has-tasks':''}"><span>${icon}</span><div><b>${label}</b><small>${id==='ordenes'?`${total} pendiente(s) · ${reviewOrders.length} en revisión`:help}</small></div>${id==='ordenes'&&total?`<em>${total}</em>`:''}</a>`).join('')}</div>${putaway.length?`<section class="panel operator-pending-panel"><div class="panel-head"><div><span class="eyebrow">TAREAS DE UBICACIÓN</span><h3>${putaway.length} asignada(s) a tu usuario</h3></div><a class="primary" href="#/tareas-ubicacion">Ver mis tareas</a></div></section>`:''}`;
  return content;
 }
 
