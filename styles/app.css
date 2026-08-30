@@ -1353,3 +1353,6 @@ dialog.scanner-dialog{
 .label-map-primary small{color:var(--muted,#64748b)}
 .label-size-row input:disabled,.label-size-row select:disabled{opacity:.55;cursor:not-allowed;background:#f1f5f9}
 @media(max-width:760px){.label-map-primary{align-items:stretch;flex-direction:column}.label-map-primary button{width:100%}}
+
+.label-map-primary{position:relative}
+.label-map-primary .primary{white-space:nowrap}
