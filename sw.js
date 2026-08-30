@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.29-ordenes-historial-filtros-v34';
+const APP_VERSION = '2026.08.29-ordenes-info-operador-v35';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
