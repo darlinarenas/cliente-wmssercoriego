@@ -1356,3 +1356,11 @@ dialog.scanner-dialog{
 
 .label-map-primary{position:relative}
 .label-map-primary .primary{white-space:nowrap}
+
+.label-source-row.is-added{opacity:.62;background:#f1f5f9;border-style:dashed}
+.label-source-row.is-added .label-add-one{cursor:not-allowed}
+.label-map-rack.is-selected{background:#047857!important;border:3px solid #064e3b!important;box-shadow:0 0 0 4px rgba(16,185,129,.28),0 8px 18px rgba(5,150,105,.28)!important;color:#fff!important;transform:scale(1.04);z-index:3}
+.label-map-rack.is-selected b,.label-map-rack.is-selected small{color:#fff!important}
+.label-map-rack.is-complete{background:#dbe4ee!important;border:2px solid #94a3b8!important;color:#64748b!important;opacity:.75;cursor:not-allowed}
+.label-map-position-row.is-in-queue{background:#e2e8f0;border-color:#cbd5e1;opacity:.72}
+.label-map-position-row.is-in-queue b{color:#475569}
