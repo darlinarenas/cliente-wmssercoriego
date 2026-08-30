@@ -1264,3 +1264,30 @@ dialog.scanner-dialog{
 /* Inventarios: cierre operativo y revision controlada */
 .inventory-submit-zone{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:12px;padding:13px 14px;border:1px solid #c4b5fd;border-radius:14px;background:#faf8ff}.inventory-submit-zone>div{display:grid;gap:3px}.inventory-submit-zone b{color:#312e81}.inventory-submit-zone small{color:#6b7280}.inventory-submit-zone .inventory-submit-count{min-width:220px;padding:12px 16px;font-weight:800}.inventory-manager-task{align-content:start}.inventory-manager-task.is-submitted{border-color:#bbf7d0!important;background:#f8fff9!important}.inventory-submitted-note{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px;padding:9px 10px;border-radius:10px;background:#ecfdf5;color:#166534}.inventory-submitted-note span{font-size:11px;color:#15803d}.inventory-manager-detail-actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.inventory-manager-detail-actions button{width:100%;min-height:40px}.inventory-manager-toggle.active{border-color:#7c3aed!important;background:#f5f3ff!important;color:#5b21b6!important}.inventory-manager-collapsible{grid-column:1/-1;border-top:1px solid #e2e8f0;padding-top:10px}.inventory-manager-detail-list{display:grid;gap:7px}.inventory-manager-detail-row{display:grid;grid-template-columns:minmax(180px,1.2fr) minmax(90px,.6fr) minmax(130px,.8fr) minmax(110px,.7fr) 70px minmax(130px,.8fr);gap:8px;align-items:center;padding:9px 10px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;font-size:12px}.inventory-manager-detail-row span:first-child b,.inventory-manager-detail-row span:first-child small{display:block}.inventory-manager-detail-row span:first-child small,.inventory-manager-detail-row>small{color:#64748b}.inventory-manager-detail-row>strong{text-align:right;font-size:16px;color:#0f172a}.inventory-lines-collapsed-note{padding:12px 14px;border:1px dashed #cbd5e1;border-radius:12px;background:#f8fafc;color:#64748b;font-size:13px}
 @media(max-width:760px){.inventory-submit-zone{align-items:stretch;flex-direction:column}.inventory-submit-zone .inventory-submit-count{width:100%;min-width:0}.inventory-manager-detail-actions{grid-template-columns:1fr}.inventory-manager-detail-row{grid-template-columns:1fr 1fr}.inventory-manager-detail-row span:first-child{grid-column:1/-1}.inventory-manager-detail-row>small{grid-column:1/-1}.inventory-manager-detail-row>strong{text-align:left}}
+
+/* Inventarios · revisión controlada jefe · 2026-08-30 */
+.inventory-manager-task-grid{grid-template-columns:1fr;gap:12px}
+.inventory-manager-task-grid article.inventory-manager-task{display:grid;gap:12px;padding:15px 16px;border-radius:15px;background:#fff;box-shadow:0 5px 18px rgba(15,23,42,.035)}
+.inventory-manager-task-grid article.inventory-manager-task>div{display:block}
+.inventory-manager-task-grid article.inventory-manager-task>.inventory-manager-task-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.inventory-manager-task-head>div{display:grid;gap:3px;min-width:0}
+.inventory-manager-person{font-size:15px;font-weight:900;color:#0f172a}
+.inventory-manager-task-head small{font-size:11px;color:#64748b}
+.inventory-manager-task.is-submitted{border-color:#bbf7d0!important;background:#fbfffc!important}
+.inventory-submitted-note{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px;padding:10px 12px;border:1px solid #bbf7d0;border-radius:11px;background:#ecfdf5;color:#166534}
+.inventory-pending-note{padding:10px 12px;border:1px solid #fde68a;border-radius:11px;background:#fffbeb;color:#92400e;font-size:12px}
+.inventory-manager-detail-actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.inventory-manager-detail-actions .inventory-manager-toggle{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"label count" "hint hint";gap:3px 10px;align-items:center;min-height:58px;padding:10px 13px;text-align:left;border:1px solid #dbe4ee;background:#fff;color:#0f172a}
+.inventory-manager-toggle span{grid-area:label;font-weight:900}
+.inventory-manager-toggle strong{grid-area:count;min-width:28px;height:28px;display:grid;place-items:center;border-radius:999px;background:#f1f5f9;color:#334155;font-size:12px}
+.inventory-manager-toggle em{grid-area:hint;font-style:normal;font-size:10px;color:#64748b}
+.inventory-manager-toggle.active{border-color:#7c3aed!important;background:#f7f5ff!important;color:#5b21b6!important;box-shadow:0 0 0 2px rgba(124,58,237,.08)}
+.inventory-manager-toggle.active strong{background:#ede9fe;color:#5b21b6}
+.inventory-manager-collapsible{grid-column:1/-1;padding:14px;border:1px solid #dbe4ee;border-radius:13px;background:#f8fafc}
+.inventory-manager-collapsible[hidden]{display:none!important}
+.inventory-manager-block-head{display:grid!important;gap:3px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #e2e8f0}
+.inventory-manager-block-head b{font-size:13px;color:#0f172a}
+.inventory-manager-block-head small{font-size:10px;color:#64748b}
+.inventory-manager-detail-list{display:grid!important;gap:8px}
+.inventory-manager-detail-row{background:#fff}
+@media(max-width:760px){.inventory-manager-detail-actions{grid-template-columns:1fr}.inventory-manager-task-grid article.inventory-manager-task>.inventory-manager-task-head{align-items:flex-start}.inventory-submitted-note{align-items:flex-start!important;flex-direction:column}.inventory-manager-collapsible{padding:10px}}
