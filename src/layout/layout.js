@@ -15,7 +15,8 @@ const nav=[
  {id:'despacho',label:'Despacho',ico:'⇄',items:[['transferencias','Preparar salida / tránsito','⇄'],['cargas','Cargas / Custodia','▤']]},
  ['palets','Organizar palets','▣'],
  ['movimientos','Mover / reubicar','↔'],
- {id:'inventario',label:'Inventario y estructura',ico:'▦',items:[['inventarios','Inventarios','☷'],['etiquetas','Etiquetas','▤'],['productos','Productos','◫'],['racks','Racks','▦'],['mapa3d','Mapa 3D','◈']]},
+ ['etiquetas','Etiquetas','▤'],
+ {id:'inventario',label:'Inventario y estructura',ico:'▦',items:[['inventarios','Inventarios','☷'],['productos','Productos','◫'],['racks','Racks','▦'],['mapa3d','Mapa 3D','◈']]},
  {id:'control',label:'Control y trazabilidad',ico:'◷',items:[['conciliacion-inventarios','Conciliación inventarios','✓'],['conciliacion','Conciliación ERP','≋'],['historial','Historial','◷']]},
  {id:'administracion',label:'Administración',ico:'⚙',items:[['importar','Importar Excel','⇧'],['centros','Centros y Sucursales','⌂'],['usuarios','Usuarios','♙'],['estructura','Estructura','⚙']]}
 ];

@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.30-etiquetas-bodega-v56';
+const APP_VERSION = '2026.08.30-etiquetas-posiciones-medidas-v57';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
