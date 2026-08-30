@@ -1247,3 +1247,11 @@ dialog.scanner-dialog{
 /* Inventarios: modalidad + alcance parcial por racks */
 .inventory-type-help{border:1px solid #dbeafe;border-radius:15px;background:#f8fbff;overflow:hidden}.inventory-type-help summary{cursor:pointer;padding:12px 14px;font-weight:900;color:#1e3a8a}.inventory-type-help-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:0 14px 14px}.inventory-type-help-grid>div{display:grid;gap:3px;padding:10px 11px;border:1px solid #dbeafe;border-radius:12px;background:#fff}.inventory-type-help-grid b{font-size:12px;color:#1e3a8a}.inventory-type-help-grid span{font-size:12px;line-height:1.4;color:#64748b}.inventory-zone-tools{display:flex;gap:8px;align-items:center}.inventory-rack-title{display:flex;align-items:center;gap:8px}.inventory-rack-title input{width:auto!important;margin:0}.inventory-rack-assignment.is-excluded{opacity:.52;background:#f8fafc;border-style:dashed}.inventory-rack-assignment.is-excluded .inventory-rack-user{pointer-events:none}.inventory-mini-rack.is-excluded{filter:grayscale(1);opacity:.38}.inventory-mini-rack.is-selected{outline:3px solid #7c3aed;outline-offset:1px;z-index:4}.inventory-zone-toggle[hidden]{display:none!important}
 @media(max-width:760px){.inventory-type-help-grid{grid-template-columns:1fr}.inventory-zone-tools{width:100%;display:grid;grid-template-columns:1fr}.inventory-zone-tools>button{width:100%}}
+
+
+/* Inventarios: ventana ampliable de nueva sesión */
+#inventory-create-dialog .inventory-window-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+#inventory-create-dialog .inventory-window-actions button{min-width:40px;min-height:40px;font-size:20px;line-height:1}
+#inventory-create-dialog.inventory-dialog-maximized{width:calc(100vw - 20px);height:calc(100dvh - 20px);max-width:none;max-height:none}
+#inventory-create-dialog.inventory-dialog-maximized>.inventory-dialog-card{min-height:100%;align-content:start}
+@media(max-width:760px){#inventory-create-dialog.inventory-dialog-maximized{width:calc(100vw - 8px);height:calc(100dvh - 8px);max-height:none}}
