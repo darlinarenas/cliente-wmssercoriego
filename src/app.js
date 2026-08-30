@@ -20,6 +20,7 @@ import { renderCenters } from './modules/centros/centros.js';
 import { renderImport } from './modules/importar/importar.js';
 import { renderOrders } from './modules/ordenes/ordenes.js';
 import { renderInventories } from './modules/inventarios/inventarios.js';
+import { renderLabels } from './modules/etiquetas/etiquetas.js';
 import { renderReconciliation } from './modules/conciliacion/conciliacion.js';
 import { renderInventoryReconciliation } from './modules/conciliacion/conciliacion-inventarios.js';
 import { renderMap3d } from './modules/mapa3d/mapa3d.js';
@@ -47,6 +48,7 @@ function buildRouter(){
     dashboard:secureRoute('dashboard',()=>renderDashboard(root)),
     ordenes:secureRoute('ordenes',()=>renderOrders(root)),
     inventarios:secureRoute('inventarios',()=>renderInventories(root)),
+    etiquetas:secureRoute('etiquetas',()=>renderLabels(root)),
     conciliacion:secureRoute('conciliacion',()=>renderReconciliation(root)),
     'conciliacion-inventarios':secureRoute('conciliacion-inventarios',()=>renderInventoryReconciliation(root)),
     racks:secureRoute('racks',()=>renderRacks(root)),
