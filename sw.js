@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.30-indicadores-economicos-v51';
+const APP_VERSION = '2026.08.30-conciliacion-inventarios-v52';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

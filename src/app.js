@@ -21,6 +21,7 @@ import { renderImport } from './modules/importar/importar.js';
 import { renderOrders } from './modules/ordenes/ordenes.js';
 import { renderInventories } from './modules/inventarios/inventarios.js';
 import { renderReconciliation } from './modules/conciliacion/conciliacion.js';
+import { renderInventoryReconciliation } from './modules/conciliacion/conciliacion-inventarios.js';
 import { renderMap3d } from './modules/mapa3d/mapa3d.js';
 import { renderLoads } from './modules/cargas/cargas.js';
 import { renderTransferReceiving } from './modules/recepcion-traspasos/recepcion-traspasos.js';
@@ -47,6 +48,7 @@ function buildRouter(){
     ordenes:secureRoute('ordenes',()=>renderOrders(root)),
     inventarios:secureRoute('inventarios',()=>renderInventories(root)),
     conciliacion:secureRoute('conciliacion',()=>renderReconciliation(root)),
+    'conciliacion-inventarios':secureRoute('conciliacion-inventarios',()=>renderInventoryReconciliation(root)),
     racks:secureRoute('racks',()=>renderRacks(root)),
     buscar:secureRoute('buscar',()=>renderSearch(root)),
     codigos:secureRoute('codigos',()=>renderCodes(root)),
