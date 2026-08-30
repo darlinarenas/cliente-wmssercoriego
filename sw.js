@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.29-inventarios-tareas-racks-v41';
+const APP_VERSION = '2026.08.29-inventarios-operarios-asignables-v42';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
