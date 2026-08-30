@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.30-etiquetas-diseno-marca-v58';
+const APP_VERSION = '2026.08.30-etiquetas-mapa-racks-v59';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
