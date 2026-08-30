@@ -4,6 +4,7 @@ function locationUsed(data,id){return (data.inventory||[]).some(i=>i.locationId=
 
 export function upgradeState(data){
  let changed=false;data.session=data.session||{};data.settings=data.settings||{};data.planning=data.planning||{};if(!Array.isArray(data.planning.inventorySessions)){data.planning.inventorySessions=[];changed=true;}
+ for(const inv of data.planning.inventorySessions){if(!Array.isArray(inv.assignments)&&inv.assignedUserId){const rackIds=(data.racks||[]).filter(r=>r.siteId===inv.siteId&&r.status!=='INACTIVO').map(r=>r.id);inv.assignments=[{id:`LEGACY-${inv.id||Date.now()}`,userId:inv.assignedUserId,rackIds,status:inv.status==='CERRADA'||inv.status==='EN_REVISION'?'ENVIADO_REVISION':'PENDIENTE',completedRackIds:[]}];inv.inventoryType=inv.inventoryType||(inv.blind===false?'CONTROLADO':'CIEGO');inv.scope='ALL_ACTIVE_RACKS';changed=true;}}
  if(!Array.isArray(data.companies)||!data.companies.length){data.companies=[{id:'SERCO_RIEGO',name:'Serco Riego',code:'SERCO_RIEGO',active:true,notes:'Empresa inicial migrada automáticamente.'}];changed=true;}
  const defaultCompany=data.companies[0]?.id||'SERCO_RIEGO';
  for(const site of data.sites||[]){if(!site.companyId){site.companyId=defaultCompany;changed=true;}if('parentSiteId' in site){delete site.parentSiteId;changed=true;}}

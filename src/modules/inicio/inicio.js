@@ -12,7 +12,10 @@ function operatorDashboard(d,user,siteId){
  const reviewOrders=assignedOrders.filter(o=>reviewStatuses.has(o.status));
  const orderTasks=assignedOrders.filter(o=>!reviewStatuses.has(o.status)&&!finishedStatuses.has(o.status));
  const putaway=(d.tasks||[]).filter(t=>t.siteId===siteId&&t.assignedTo===user.id&&t.status!=='CERRADA');
- const total=orderTasks.length+putaway.length;
+ const inventorySessions=(d.planning?.inventorySessions||[]).filter(s=>s.siteId===siteId);
+ const inventoryTasks=inventorySessions.flatMap(s=>(s.assignments||[]).filter(a=>a.userId===user.id&&s.status==='EN_CONTEO'&&a.status!=='ENVIADO_REVISION').map(a=>({session:s,assignment:a})));
+ const inventoryReview=inventorySessions.flatMap(s=>(s.assignments||[]).filter(a=>a.userId===user.id&&a.status==='ENVIADO_REVISION').map(a=>({session:s,assignment:a})));
+ const total=orderTasks.length+putaway.length+inventoryTasks.length;
  const actions=[
   ['buscar','⌕','Buscar','Localizar productos y ubicaciones'],
   ...(codePermissionsForUser(user,siteId).consult?[["codigos","▣","Consultar / asociar códigos","Escanear, consultar y asociar etiquetas"]]:[]),
@@ -20,9 +23,10 @@ function operatorDashboard(d,user,siteId){
   ['transferencias','⇄','Despachar','Preparar una salida o traspaso'],
   ['palets','▣','Organizar palets','Revisar y ubicar productos'],
   ['movimientos','↔','Mover','Reubicar producto o pallet'],
-  ['ordenes','✓','Órdenes / Mis tareas',`${total} pendiente(s)`]
+  ['ordenes','✓','Órdenes / Mis tareas',`${orderTasks.length+putaway.length} pendiente(s)`],
+  ...(inventoryTasks.length?[["inventarios","▦","Inventario asignado",`${inventoryTasks.length} tarea(s) · abrir conteo`]]:[])
  ];
- const content=`<section class="operator-welcome"><div><span class="eyebrow">PANEL DEL OPERARIO</span><h2>¿Qué necesitas hacer?</h2><p>Accesos operativos del centro actual. Las opciones administrativas están ocultas.</p></div><a class="operator-task-alert ${total?'has-pending':'is-clear'}" href="#/ordenes"><b>${total}</b><span><strong>${total?'Tienes trabajo pendiente':'No tienes trabajos pendientes'}</strong><small>${orderTasks.length} orden(es) pendiente(s) · ${putaway.length} ubicación(es) · ${reviewOrders.length} culminada(s) en revisión</small></span></a></section><div class="operator-action-grid">${actions.map(([id,icon,label,help])=>`<a href="#/${id}" class="operator-action-card ${id==='ordenes'&&total?'has-tasks':''}"><span>${icon}</span><div><b>${label}</b><small>${id==='ordenes'?`${total} pendiente(s) · ${reviewOrders.length} en revisión`:help}</small></div>${id==='ordenes'&&total?`<em>${total}</em>`:''}</a>`).join('')}</div>${putaway.length?`<section class="panel operator-pending-panel"><div class="panel-head"><div><span class="eyebrow">TAREAS DE UBICACIÓN</span><h3>${putaway.length} asignada(s) a tu usuario</h3></div><a class="primary" href="#/tareas-ubicacion">Ver mis tareas</a></div></section>`:''}`;
+ const content=`<section class="operator-welcome"><div><span class="eyebrow">PANEL DEL OPERARIO</span><h2>¿Qué necesitas hacer?</h2><p>Accesos operativos del centro actual. Las opciones administrativas están ocultas.</p></div><a class="operator-task-alert ${total?'has-pending':'is-clear'}" href="${orderTasks.length||putaway.length?'#/ordenes':inventoryTasks.length?'#/inventarios':'#/ordenes'}"><b>${total}</b><span><strong>${total?'Tienes trabajo pendiente':'No tienes trabajos pendientes'}</strong><small>${orderTasks.length} orden(es) · ${putaway.length} ubicación(es) · ${inventoryTasks.length} inventario(s) · ${reviewOrders.length+inventoryReview.length} en revisión</small></span></a></section>${inventoryTasks.length?`<a class="operator-inventory-alert" href="#/inventarios"><span>▦</span><div><small>TAREA DE INVENTARIO</small><b>Te asignaron un conteo de inventario</b><em>${inventoryTasks.map(t=>(t.assignment.rackIds||[]).join(', ')).join(' · ')}</em></div><strong>${inventoryTasks.length}</strong></a>`:''}<div class="operator-action-grid">${actions.map(([id,icon,label,help])=>`<a href="#/${id}" class="operator-action-card ${id==='ordenes'&&total?'has-tasks':''}"><span>${icon}</span><div><b>${label}</b><small>${id==='ordenes'?`${total} pendiente(s) · ${reviewOrders.length} en revisión`:help}</small></div>${id==='ordenes'&&total?`<em>${total}</em>`:''}</a>`).join('')}</div>${putaway.length?`<section class="panel operator-pending-panel"><div class="panel-head"><div><span class="eyebrow">TAREAS DE UBICACIÓN</span><h3>${putaway.length} asignada(s) a tu usuario</h3></div><a class="primary" href="#/tareas-ubicacion">Ver mis tareas</a></div></section>`:''}`;
  return content;
 }
 
