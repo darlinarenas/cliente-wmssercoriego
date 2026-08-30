@@ -1291,3 +1291,11 @@ dialog.scanner-dialog{
 .inventory-manager-detail-list{display:grid!important;gap:8px}
 .inventory-manager-detail-row{background:#fff}
 @media(max-width:760px){.inventory-manager-detail-actions{grid-template-columns:1fr}.inventory-manager-task-grid article.inventory-manager-task>.inventory-manager-task-head{align-items:flex-start}.inventory-submitted-note{align-items:flex-start!important;flex-direction:column}.inventory-manager-collapsible{padding:10px}}
+
+/* Inventarios: detalle exclusivo del encargado + exportaciones separadas */
+.inventory-lines-panel[hidden],.inventory-review-panel[hidden]{display:none!important}
+.inventory-manager-block-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px;margin-bottom:10px}
+.inventory-manager-block-head>div{display:grid;gap:2px}
+.inventory-manager-block-head small{color:#64748b}
+.inventory-manager-block-head button{flex:0 0 auto}
+@media(max-width:760px){.inventory-manager-block-head{align-items:stretch!important;flex-direction:column}.inventory-manager-block-head button{width:100%}}

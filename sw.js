@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.30-inventarios-revision-controlada-v47';
+const APP_VERSION = '2026.08.30-inventarios-excel-separado-v48';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
