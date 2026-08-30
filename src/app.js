@@ -19,6 +19,7 @@ import { renderUsers } from './modules/usuarios/usuarios.js';
 import { renderCenters } from './modules/centros/centros.js';
 import { renderImport } from './modules/importar/importar.js';
 import { renderOrders } from './modules/ordenes/ordenes.js';
+import { renderInventories } from './modules/inventarios/inventarios.js';
 import { renderReconciliation } from './modules/conciliacion/conciliacion.js';
 import { renderMap3d } from './modules/mapa3d/mapa3d.js';
 import { renderLoads } from './modules/cargas/cargas.js';
@@ -44,6 +45,7 @@ function buildRouter(){
   router=new Router({
     dashboard:secureRoute('dashboard',()=>renderDashboard(root)),
     ordenes:secureRoute('ordenes',()=>renderOrders(root)),
+    inventarios:secureRoute('inventarios',()=>renderInventories(root)),
     conciliacion:secureRoute('conciliacion',()=>renderReconciliation(root)),
     racks:secureRoute('racks',()=>renderRacks(root)),
     buscar:secureRoute('buscar',()=>renderSearch(root)),

@@ -1,4 +1,4 @@
-const OPERATOR_ROUTES=new Set(['dashboard','buscar','codigos','ordenes','recepciones','organizar-recibidos','recepcion-traspasos','tareas-ubicacion','transferencias','cargas','palets','movimientos','movil','mapa3d']);
+const OPERATOR_ROUTES=new Set(['dashboard','buscar','codigos','ordenes','recepciones','organizar-recibidos','recepcion-traspasos','tareas-ubicacion','transferencias','cargas','palets','movimientos','movil','mapa3d','inventarios']);
 const MANAGER_BLOCKED=new Set(['usuarios','centros']);
 
 export function effectiveRole(user,siteId){
@@ -24,6 +24,21 @@ export function codePermissionsForUser(user,siteId){
  if(assignment?.customPermissions!==true)return defaults;
  const custom=assignment.permissions||{};
  return {consult:typeof custom.codesConsult==='boolean'?custom.codesConsult:defaults.consult,associate:typeof custom.codesAssociate==='boolean'?custom.codesAssociate:defaults.associate,editProduct:typeof custom.productsEdit==='boolean'?custom.productsEdit:defaults.editProduct,editInventory:typeof custom.inventoryAdjust==='boolean'?custom.inventoryAdjust:defaults.editInventory,createProduct:typeof custom.productsEdit==='boolean'?custom.productsEdit:defaults.createProduct,changeSku:typeof custom.changeSku==='boolean'?custom.changeSku:defaults.changeSku,reconcileErp:typeof custom.reconcileErp==='boolean'?custom.reconcileErp:defaults.reconcileErp,applyErpStock:typeof custom.applyErpStock==='boolean'?custom.applyErpStock:defaults.applyErpStock};
+}
+
+
+export function inventoryPermissionsForRole(role){
+ const manage=['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role);
+ return {count:manage,manage,review:manage};
+}
+
+export function inventoryPermissionsForUser(user,siteId){
+ if(user?.role==='ADMIN_GLOBAL')return inventoryPermissionsForRole('ADMIN_GLOBAL');
+ const assignments=Array.isArray(user?.accessAssignments)?user.accessAssignments:[],siteIds=Array.isArray(user?.siteIds)?user.siteIds:[],assignment=assignments.find(a=>a?.siteId===siteId),hasScopedAccess=assignments.length||siteIds.length;
+ if(hasScopedAccess&&!assignment&&!siteIds.includes(siteId))return {count:false,manage:false,review:false};
+ const defaults=inventoryPermissionsForRole(assignment?.role||user?.role),custom=assignment?.permissions||{};
+ if(assignment?.customPermissions!==true)return defaults;
+ return {count:typeof custom.inventoryCount==='boolean'?custom.inventoryCount:defaults.count,manage:typeof custom.inventoryManage==='boolean'?custom.inventoryManage:defaults.manage,review:typeof custom.inventoryReview==='boolean'?custom.inventoryReview:defaults.review};
 }
 
 export function palletPermissionsForRole(role){

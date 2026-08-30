@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.29-archive-closed-cancelled-v39';
+const APP_VERSION = '2026.08.29-inventarios-v40';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
@@ -31,6 +31,7 @@ const PRECACHE = [
   './src/modules/estructura/estructura.js',
   './src/modules/historial/historial.js',
   './src/modules/importar/importar.js',
+  './src/modules/inventarios/inventarios.js',
   './src/modules/inicio/inicio.js',
   './src/modules/movil/movil.js',
   './src/modules/mapa3d/mapa3d.js',
