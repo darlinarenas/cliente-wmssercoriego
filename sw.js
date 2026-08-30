@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.29-movil-tareas-picking-v36';
+const APP_VERSION = '2026.08.29-picking-cantidad-mapa-v37';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

@@ -1,4 +1,4 @@
-const OPERATOR_ROUTES=new Set(['dashboard','buscar','codigos','ordenes','recepciones','organizar-recibidos','recepcion-traspasos','tareas-ubicacion','transferencias','cargas','palets','movimientos','movil']);
+const OPERATOR_ROUTES=new Set(['dashboard','buscar','codigos','ordenes','recepciones','organizar-recibidos','recepcion-traspasos','tareas-ubicacion','transferencias','cargas','palets','movimientos','movil','mapa3d']);
 const MANAGER_BLOCKED=new Set(['usuarios','centros']);
 
 export function effectiveRole(user,siteId){
