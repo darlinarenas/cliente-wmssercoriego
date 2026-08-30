@@ -34,6 +34,52 @@ const fmtDate=v=>v?new Date(v).toLocaleString('es-CL',{day:'2-digit',month:'2-di
 const sameDay=v=>{if(!v)return false;const a=new Date(v),b=new Date();return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();};
 const userName=(d,id)=>d.users?.find(u=>u.id===id)?.name||'Usuario';
 
+const ECON_CACHE_KEY='wms-economic-indicators-v1';
+const ECON_CACHE_MS=30*60*1000;
+function economicIndicatorsStrip(){
+ return `<section class="economic-strip" data-economic-strip aria-label="Indicadores económicos de Chile">
+  <div class="economic-strip-title"><span>INDICADORES CHILE</span><small data-economic-status>Actualizando…</small></div>
+  <div class="economic-items">
+   <article><small>UF</small><b data-economic-value="uf">—</b></article>
+   <article><small>UTM</small><b data-economic-value="utm">—</b></article>
+   <article><small>Dólar observado</small><b data-economic-value="dolar">—</b></article>
+   <article><small>Euro</small><b data-economic-value="euro">—</b></article>
+  </div>
+  <div class="economic-source"><span>Referencia: Banco Central de Chile (UF, dólar y euro) · SII (UTM) · consulta automática vía mindicador.cl</span><button type="button" data-economic-refresh>Actualizar</button></div>
+ </section>`;
+}
+function formatEconomicValue(key,value){
+ if(!Number.isFinite(Number(value)))return '—';
+ const decimals=key==='utm'?0:2;
+ return `$${Number(value).toLocaleString('es-CL',{minimumFractionDigits:decimals,maximumFractionDigits:decimals})}`;
+}
+function readEconomicCache(){
+ try{const item=JSON.parse(sessionStorage.getItem(ECON_CACHE_KEY)||'null');return item&&Date.now()-item.savedAt<ECON_CACHE_MS?item:null;}catch{return null;}
+}
+async function fetchEconomicIndicators(force=false){
+ if(!force){const cached=readEconomicCache();if(cached)return cached;}
+ const res=await fetch('https://mindicador.cl/api',{cache:'no-store',headers:{Accept:'application/json'}});
+ if(!res.ok)throw new Error(`Indicadores HTTP ${res.status}`);
+ const raw=await res.json();
+ const data={savedAt:Date.now(),uf:raw.uf?.valor,utm:raw.utm?.valor,dolar:raw.dolar?.valor,euro:raw.euro?.valor,dates:[raw.uf?.fecha,raw.utm?.fecha,raw.dolar?.fecha,raw.euro?.fecha].filter(Boolean)};
+ sessionStorage.setItem(ECON_CACHE_KEY,JSON.stringify(data));
+ return data;
+}
+function renderEconomicIndicators(data){
+ document.querySelectorAll('[data-economic-strip]').forEach(strip=>{
+  ['uf','utm','dolar','euro'].forEach(key=>{const el=strip.querySelector(`[data-economic-value="${key}"]`);if(el)el.textContent=formatEconomicValue(key,data?.[key]);});
+  const status=strip.querySelector('[data-economic-status]');
+  if(status){const dates=(data?.dates||[]).map(v=>new Date(v)).filter(v=>!Number.isNaN(v.getTime()));const latest=dates.length?new Date(Math.max(...dates.map(v=>v.getTime()))):null;status.textContent=latest?`Valores publicados · ${latest.toLocaleDateString('es-CL')}`:'Valores actualizados';}
+ });
+}
+function setEconomicUnavailable(){
+ document.querySelectorAll('[data-economic-strip]').forEach(strip=>{const status=strip.querySelector('[data-economic-status]');if(status)status.textContent='Temporalmente no disponible · el WMS continúa operativo';});
+}
+async function hydrateEconomicIndicators(){
+ try{renderEconomicIndicators(await fetchEconomicIndicators(false));}catch{setEconomicUnavailable();}
+ document.querySelectorAll('[data-economic-refresh]').forEach(btn=>btn.addEventListener('click',async()=>{btn.disabled=true;const strip=btn.closest('[data-economic-strip]'),status=strip?.querySelector('[data-economic-status]');if(status)status.textContent='Actualizando…';try{renderEconomicIndicators(await fetchEconomicIndicators(true));}catch{setEconomicUnavailable();}finally{btn.disabled=false;}}));
+}
+
 function adminExecutiveDashboard(d,user,siteId){
  const companyId=activeCompanyId(d),sites=(d.sites||[]).filter(s=>s.active!==false&&siteCompanyId(s,d)===companyId),siteIds=new Set(sites.map(s=>s.id));
  const site=d.sites.find(s=>s.id===siteId),orders=(d.orders||[]).filter(o=>siteIds.has(o.sourceSiteId)&&o.status!=='BORRADOR'),shipments=(d.shipments||[]).filter(s=>siteIds.has(s.sourceSiteId)||siteIds.has(s.destinationSiteId)),transfers=(d.transfers||[]).filter(t=>siteIds.has(t.sourceSiteId)||siteIds.has(t.destinationSiteId)),sessions=(d.planning?.inventorySessions||[]).filter(s=>siteIds.has(s.siteId));
@@ -64,6 +110,7 @@ function adminExecutiveDashboard(d,user,siteId){
  const centerCards=sites.map(s=>{const sid=s.id,so=orders.filter(o=>o.sourceSiteId===sid),si=sessions.filter(i=>i.siteId===sid),st=shipments.filter(x=>x.sourceSiteId===sid),active=so.filter(o=>!['EMITIDA','CERRADA','ANULADA'].includes(o.status)).length+si.filter(i=>['EN_CONTEO','EN_REVISION'].includes(i.status)).length;return `<article class="exec-center-card"><div><b>${esc(s.name||sid)}</b><span>● Activo</span></div><section><small>Órdenes<strong>${so.length}</strong></small><small>Inventarios<strong>${si.length}</strong></small><small>Despachos<strong>${st.length}</strong></small><small>En curso<strong>${active}</strong></small></section></article>`;}).join('');
  return `<div class="exec-dashboard">
   <section class="exec-heading"><div><span class="eyebrow">PANEL EJECUTIVO · ADMINISTRADOR</span><h2>Control total de la operación</h2><p>${esc(site?.name||siteId)} · información operativa de la empresa activa, sin mezclar datos entre empresas.</p></div><div class="exec-live"><span></span>Actualización automática</div></section>
+  ${economicIndicatorsStrip()}
   <div class="exec-kpis"><article class="exec-kpi green"><small>Centros activos</small><b>${sites.length}</b><span>${sites.length?'Operativos en la empresa':'Sin centros activos'}</span></article><article class="exec-kpi blue"><small>Usuarios habilitados</small><b>${enabledUsers}</b><span>Con acceso a la empresa</span></article><article class="exec-kpi violet"><small>Operaciones activas</small><b>${activeOrders.length+activeInv.length+inTransit}</b><span>Órdenes + inventarios + tránsito</span></article><article class="exec-kpi amber"><small>Pendientes administrativos</small><b>${pendingAdmin}</b><span>Requieren revisión</span></article><article class="exec-kpi red"><small>Alertas operativas</small><b>${alerts}</b><span>${alerts?'Requieren atención':'Sin alertas detectadas'}</span></article></div>
   <div class="exec-main-grid"><section class="exec-card"><div class="exec-card-head"><div><h3>Actividad en tiempo real</h3><small>Últimos eventos registrados</small></div><a href="#/historial">Ver todo</a></div><div class="exec-activity">${audit.length?audit.map(a=>`<div><i>◷</i><span><b>${esc(a.message)}</b><small>${esc(userName(d,a.userId))}</small></span><time>${fmtDate(a.at)}</time></div>`).join(''):empty('Sin actividad','Todavía no hay eventos registrados.')}</div></section>
   <section class="exec-card"><div class="exec-card-head"><div><h3>Pendientes que requieren tu atención</h3><small>Acciones administrativas y revisiones</small></div></div><div class="exec-pending">${pendingItems.length?pendingItems.map(([t,s,n,h])=>`<a href="${h}"><span><b>${esc(t)}</b><small>${esc(s)}</small></span><strong>${n}</strong></a>`).join(''):`<div class="exec-clear">✓ No hay pendientes administrativos</div>`}</div></section>
@@ -80,8 +127,8 @@ export function renderDashboard(root){
  const effectiveRole=(sessionUser?.accessAssignments||[]).find(a=>a.siteId===siteId)?.role||sessionUser?.role;
  if(['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(effectiveRole)){root.innerHTML=shell('Inicio',operatorDashboard(d,sessionUser,siteId),'dashboard');wireShell();startSilentRefresh('dashboard','#/dashboard',()=>renderDashboard(root),{collections:['orders','tasks']});return;}
  const isExecutiveAdmin=sessionUser?.role==='ADMIN_GLOBAL'||(sessionUser?.role==='ADMINISTRADOR'&&!(sessionUser?.siteIds||[]).length);
- if(isExecutiveAdmin){root.innerHTML=shell('Panel Ejecutivo',adminExecutiveDashboard(d,sessionUser,siteId),'dashboard');wireShell();startSilentRefresh('dashboard','#/dashboard',()=>renderDashboard(root),{collections:['orders','tasks','transfers','shipments','audit']});return;}
+ if(isExecutiveAdmin){root.innerHTML=shell('Panel Ejecutivo',adminExecutiveDashboard(d,sessionUser,siteId),'dashboard');wireShell();hydrateEconomicIndicators();startSilentRefresh('dashboard','#/dashboard',()=>renderDashboard(root),{collections:['orders','tasks','transfers','shipments','audit']});return;}
  const quick=activeLoc.filter(l=>l.kind==='PICKING_RACK').length,focus=racks.slice(0,4),recent=[...(d.audit||[])].sort((a,b)=>new Date(b.at||0)-new Date(a.at||0)).slice(0,5).map(a=>`<div class="activity"><span>◷</span><div><b>${esc(a.message)}</b><small>${new Date(a.at).toLocaleString('es-CL')}</small></div></div>`).join('');
- const content=`<div class="hero"><div><span class="eyebrow">OPERACIÓN ACTUAL · CENTRO ACTIVO</span><h2>Ubicar rápido. Mover con trazabilidad.</h2><p>${esc(site?.name||siteId)} está activo. Racks, palets, ubicaciones y operación física se administran de forma independiente para este centro.</p></div><a class="primary" href="#/buscar">Buscar producto</a></div><div class="metrics-grid">${metric('Racks activos',racks.filter(r=>r.status==='ACTIVO').length,`${racks.length} configurados en ${site?.name||siteId}`)}${metric('Ubicaciones configuradas',activeLoc.length,`${occupied} ocupadas/parciales`)}${metric('Ubicación rápida',quick,`${quick} posiciones rápidas configuradas`)}${metric('En tránsito',inTransit,`${temp} zonas temporales PU disponibles`)}</div><div class="two-col"><section class="panel"><div class="panel-head"><div><span class="eyebrow">ESTRUCTURA DEL CENTRO</span><h3>${esc(site?.name||siteId)}</h3></div>${racks.length?badge('CONFIGURADO','ok'):badge('SIN RACKS','warn')}</div><p>Esta estructura pertenece únicamente al centro activo. Cambiar de centro carga una distribución física independiente.</p><div class="rack-mini-grid">${focus.length?focus.map(r=>{const count=d.locations.filter(l=>l.rackId===r.id&&l.siteId===siteId&&l.active).length;return `<a href="#/estructura?rack=${encodeURIComponent(r.id)}" class="rack-mini"><b>${esc(r.name)}</b><span>${esc(String(r.status||'ACTIVO').replace('_',' '))}</span><small>${count} ubicaciones · ${esc(r.usage||'Sin descripción')}</small></a>`;}).join(''):empty('Centro sin estructura','Crea los racks de este centro desde Estructura.')}</div></section><section class="panel"><div class="panel-head"><div><span class="eyebrow">ÚLTIMA ACTIVIDAD</span><h3>Trazabilidad</h3></div><a href="#/historial">Ver todo</a></div>${recent}</section></div><section class="panel"><div class="panel-head"><div><span class="eyebrow">FLUJO OPERACIONAL</span><h3>Recepción sin frenar la descarga</h3></div></div><div class="flow"><div><b>1</b><span>Recibir</span></div><i>→</i><div><b>2</b><span>Palet temporal</span></div><i>→</i><div><b>3</b><span>POR UBICAR</span></div><i>→</i><div><b>4</b><span>Ubicar / consolidar</span></div><i>→</i><div><b>5</b><span>Encontrar siempre</span></div></div></section>`;
- root.innerHTML=shell('Inicio',content,'dashboard');wireShell();startSilentRefresh('dashboard','#/dashboard',()=>renderDashboard(root),{collections:['orders','tasks','transfers','audit']});
+ const content=`${economicIndicatorsStrip()}<div class="hero"><div><span class="eyebrow">OPERACIÓN ACTUAL · CENTRO ACTIVO</span><h2>Ubicar rápido. Mover con trazabilidad.</h2><p>${esc(site?.name||siteId)} está activo. Racks, palets, ubicaciones y operación física se administran de forma independiente para este centro.</p></div><a class="primary" href="#/buscar">Buscar producto</a></div><div class="metrics-grid">${metric('Racks activos',racks.filter(r=>r.status==='ACTIVO').length,`${racks.length} configurados en ${site?.name||siteId}`)}${metric('Ubicaciones configuradas',activeLoc.length,`${occupied} ocupadas/parciales`)}${metric('Ubicación rápida',quick,`${quick} posiciones rápidas configuradas`)}${metric('En tránsito',inTransit,`${temp} zonas temporales PU disponibles`)}</div><div class="two-col"><section class="panel"><div class="panel-head"><div><span class="eyebrow">ESTRUCTURA DEL CENTRO</span><h3>${esc(site?.name||siteId)}</h3></div>${racks.length?badge('CONFIGURADO','ok'):badge('SIN RACKS','warn')}</div><p>Esta estructura pertenece únicamente al centro activo. Cambiar de centro carga una distribución física independiente.</p><div class="rack-mini-grid">${focus.length?focus.map(r=>{const count=d.locations.filter(l=>l.rackId===r.id&&l.siteId===siteId&&l.active).length;return `<a href="#/estructura?rack=${encodeURIComponent(r.id)}" class="rack-mini"><b>${esc(r.name)}</b><span>${esc(String(r.status||'ACTIVO').replace('_',' '))}</span><small>${count} ubicaciones · ${esc(r.usage||'Sin descripción')}</small></a>`;}).join(''):empty('Centro sin estructura','Crea los racks de este centro desde Estructura.')}</div></section><section class="panel"><div class="panel-head"><div><span class="eyebrow">ÚLTIMA ACTIVIDAD</span><h3>Trazabilidad</h3></div><a href="#/historial">Ver todo</a></div>${recent}</section></div><section class="panel"><div class="panel-head"><div><span class="eyebrow">FLUJO OPERACIONAL</span><h3>Recepción sin frenar la descarga</h3></div></div><div class="flow"><div><b>1</b><span>Recibir</span></div><i>→</i><div><b>2</b><span>Palet temporal</span></div><i>→</i><div><b>3</b><span>POR UBICAR</span></div><i>→</i><div><b>4</b><span>Ubicar / consolidar</span></div><i>→</i><div><b>5</b><span>Encontrar siempre</span></div></div></section>`;
+ root.innerHTML=shell('Inicio',content,'dashboard');wireShell();hydrateEconomicIndicators();startSilentRefresh('dashboard','#/dashboard',()=>renderDashboard(root),{collections:['orders','tasks','transfers','audit']});
 }
