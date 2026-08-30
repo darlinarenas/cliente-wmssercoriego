@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.29-archive-closed-orders-v38';
+const APP_VERSION = '2026.08.29-archive-closed-cancelled-v39';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
