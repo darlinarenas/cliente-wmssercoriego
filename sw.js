@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.29-inventarios-responsables-racks-v43';
+const APP_VERSION = '2026.08.29-inventarios-mapa-eliminar-rotar-v44';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
