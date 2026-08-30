@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.30-etiquetas-mapa-formato-seguro-v60';
+const APP_VERSION = '2026.08.30-etiquetas-ubicacion-limpia-v61';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
