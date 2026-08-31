@@ -7,6 +7,7 @@ import { activeCompanyId,siteCompanyId } from './company.js';
 import { enlazarBotonEscaner } from './camara-ui.js';
 import { codePermissionsForUser } from './access-routing.js';
 import { requireAdminSupercode } from './security.js';
+import { openPhysicalStockEntry } from './physical-stock-entry.js';
 
 function currentUser(){ return store.data.users.find(u=>u.id===store.data.session.userId); }
 function permissions(){return codePermissionsForUser(currentUser(),activeSiteId(store.data));}
@@ -39,7 +40,7 @@ function dialogHtml(){
     </section>
     <section class="product-editor-section product-site-stock-section"><div class="section-mini-head"><div><b>Stock por centro / sucursal</b><small>El centro operativo actual aparece primero. Las demás sedes son información de consulta.</small></div></div><div id="pe-site-stock" class="product-site-stock"></div></section>
     <section class="product-editor-section"><div class="section-mini-head"><div><b>Inventario físico por ubicación</b><small>El centro activo se muestra primero. Escribe lo que realmente contaste; cualquier diferencia queda como AJUSTE DE INVENTARIO.</small></div><button type="button" id="copy-system-qty" class="ghost small">Mantener cantidades</button></div>
-      <div id="pe-inventory-list" class="inventory-edit-list"></div>
+      <div id="pe-inventory-list" class="inventory-edit-list"></div><button type="button" id="pe-found-stock" class="secondary">✓ Encontré stock en una nueva ubicación / pallet</button>
     </section>
     <label>Motivo de la corrección / inventario<textarea id="pe-reason" rows="2" maxlength="220" placeholder="Ej.: Conteo físico, corrección de código, error de digitación…" required></textarea></label>
     <div class="warning-box"><b>Importante:</b> ningún cambio elimina el historial anterior. Las correcciones quedan asociadas al operador actual, con fecha y hora.</div>
@@ -114,6 +115,7 @@ export function openProductEditor(code,{onSaved}={}){
   document.querySelector('#pe-add-code').onclick=async()=>{if(!permission.associate)return;const code=normalizeProductCode(document.querySelector('#pe-alt-code').value);if(!code){toast('Escribe el código a asociar');return;}if(codeInUse(code,p.id)){toast('Ese código ya pertenece a otro producto');return;}try{await store.commit(st=>addProductCode(st,p.id,code,document.querySelector('#pe-code-type').value,document.querySelector('#pe-code-label').value),`Código ${code} asociado a ${p.code}`,{operations:['codesAssociate']});close();openProductEditor(p.code,{onSaved});toast('Código asociado');}catch(err){toast(err.message);}};
   document.querySelectorAll('.save-alt-code').forEach(b=>b.onclick=async()=>{if(!permission.associate)return;const row=b.closest('.editable-alt-code'),x=(store.data.product_codes||[]).find(c=>c.id===b.dataset.id);if(!x)return;const next=normalizeProductCode(row.querySelector('.alt-code-value').value),type=row.querySelector('.alt-code-type').value,label=row.querySelector('.alt-code-label').value.trim();if(!next){toast('El código no puede quedar vacío');return;}if(codeInUse(next,p.id)&&next!==normalizeProductCode(x.code)){toast('Ese código ya pertenece a otro producto');return;}await store.commit(st=>{const c=(st.product_codes||[]).find(v=>v.id===b.dataset.id);if(c){c.code=next;c.type=type;c.label=label;c.active=true;}},`Código asociado ${x.code} → ${next} actualizado en ${p.code}`,{operations:['codesAssociate']});close();openProductEditor(p.code,{onSaved});toast('Código asociado actualizado');});
   document.querySelectorAll('.remove-alt-code').forEach(b=>b.onclick=async()=>{if(!permission.associate)return;if(!confirm('¿Quitar este código alternativo del producto?'))return;await store.commit(st=>{const x=(st.product_codes||[]).find(c=>c.id===b.dataset.id);if(x)x.active=false;},`Código alternativo retirado de ${p.code}`,{operations:['codesAssociate']});close();openProductEditor(p.code,{onSaved});toast('Código retirado');});
+  document.querySelector('#pe-found-stock').onclick=()=>{const current=document.querySelector('#pe-original-code').value;dlg.close();openPhysicalStockEntry(current,{onSaved:newCode=>openProductEditor(newCode,{onSaved})});};
   document.querySelector('#copy-system-qty').onclick=()=>{document.querySelectorAll('.inventory-edit-row.active-site-row').forEach(row=>{const sys=row.querySelector('.pe-system-qty').value,phy=row.querySelector('.pe-physical-qty');phy.value=sys;phy.dispatchEvent(new Event('input',{bubbles:true}));});};
   document.querySelector('#product-editor-form').onsubmit=async e=>{
     e.preventDefault(); if(!allowed)return;
