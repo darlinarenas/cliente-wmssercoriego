@@ -135,9 +135,21 @@ window.addEventListener('serco:navigate',event=>{
   if(!requested)return;
   const access=sessionAccess();
   const target=normalizeRouteForRole(requested,access.role,{mobile:mobileViewport()});
-  history.pushState(null,'',`${location.pathname}${location.search}#/${target}`);
-  buildRouter().render();
+  buildRouter().navigate(target);
 });
+
+// Acceso blindado a Inventarios: captura cualquier enlace a #/inventarios antes
+// de otros manejadores y ordena al router renderizarlo de inmediato. Funciona
+// también si el usuario ya estaba en la misma ruta o si la PWA no emite hashchange.
+document.addEventListener('click',event=>{
+  const link=event.target?.closest?.('a[href="#/inventarios"]');
+  if(!link||!store.data)return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  const access=sessionAccess();
+  const target=normalizeRouteForRole('inventarios',access.role,{mobile:mobileViewport()});
+  buildRouter().navigate(target);
+},true);
 
 window.addEventListener('serco:choose-company',()=>{
   if(!store.data||!auth.user)return;
