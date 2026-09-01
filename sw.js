@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.01-inventario-acceso-v69';
+const APP_VERSION = '2026.09.01-inventarios-v70';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

@@ -58,17 +58,12 @@ export function shell(title,content,active='dashboard'){
 export function wireShell(){
   const currentUser=store.data.users.find(u=>u.id===store.data.session.userId)||auth.user;
 
-  // Entrada robusta a Inventarios desde cualquier vista. Si el hash ya es el mismo,
-  // forzamos el evento para volver a renderizar; si cambia, el Router lo recibe normalmente.
+  // Inventarios no depende del hashchange del navegador. El shell pide al router
+  // de la aplicación que navegue y renderice de inmediato (PC, PWA y móvil).
   document.querySelectorAll('a[href="#/inventarios"]').forEach(link=>{
     link.addEventListener('click',event=>{
       event.preventDefault();
-      const target='#/inventarios';
-      if(location.hash===target){
-        window.dispatchEvent(new HashChangeEvent('hashchange'));
-      }else{
-        location.hash=target;
-      }
+      window.dispatchEvent(new CustomEvent('serco:navigate',{detail:{route:'inventarios'}}));
     });
   });
 

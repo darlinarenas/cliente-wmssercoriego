@@ -1,3 +1,5 @@
+const PWA_RELEASE = '2026.09.01-inventarios-v70';
+const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
 function esIOS() {
@@ -81,6 +83,15 @@ export async function iniciarPWA() {
   });
   if ('serviceWorker' in navigator) {
     try {
+      // En cada release nuevo limpiamos únicamente las cachés WMS anteriores.
+      // Esto evita que una PWA instalada continúe ejecutando módulos JS viejos.
+      const previousRelease=localStorage.getItem('serco_wms_pwa_release');
+      if(previousRelease!==PWA_RELEASE&&'caches' in window){
+        const keys=await caches.keys();
+        await Promise.all(keys.filter(key=>key.startsWith(WMS_CACHE_PREFIX)).map(key=>caches.delete(key)));
+        localStorage.setItem('serco_wms_pwa_release',PWA_RELEASE);
+      }
+
       let recargandoPorActualizacion = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (recargandoPorActualizacion) return;
@@ -88,7 +99,7 @@ export async function iniciarPWA() {
         window.location.reload();
       });
 
-      const reg = await navigator.serviceWorker.register('./sw.js', {
+      const reg = await navigator.serviceWorker.register(`./sw.js?release=${encodeURIComponent(PWA_RELEASE)}`, {
         scope: './',
         updateViaCache: 'none'
       });
@@ -105,6 +116,7 @@ export async function iniciarPWA() {
         worker.addEventListener('statechange', () => activarActualizacion(worker));
       });
 
+      if(reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
       const comprobarActualizacion = () => reg.update().catch(() => {});
       await comprobarActualizacion();
 

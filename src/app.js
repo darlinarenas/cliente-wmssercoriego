@@ -127,6 +127,18 @@ window.addEventListener('serco:context-changed',()=>{
   buildRouter().render();
 });
 
+// Navegación interna explícita para acciones críticas. Evita depender de que
+// hashchange se dispare correctamente dentro de una PWA instalada.
+window.addEventListener('serco:navigate',event=>{
+  if(!store.data)return;
+  const requested=String(event?.detail?.route||'').replace(/^#\//,'').trim();
+  if(!requested)return;
+  const access=sessionAccess();
+  const target=normalizeRouteForRole(requested,access.role,{mobile:mobileViewport()});
+  history.pushState(null,'',`${location.pathname}${location.search}#/${target}`);
+  buildRouter().render();
+});
+
 window.addEventListener('serco:choose-company',()=>{
   if(!store.data||!auth.user)return;
   const companies=(store.data.companies||[]).filter(c=>c.active!==false&&(auth.user.role==='ADMIN_GLOBAL'||(auth.user.companyIds||[]).includes(c.id)));
