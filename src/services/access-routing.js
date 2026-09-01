@@ -27,6 +27,22 @@ export function codePermissionsForUser(user,siteId){
 }
 
 
+
+export function mapPermissionsForRole(role){
+ const manage=['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role);
+ return {view:manage};
+}
+
+export function mapPermissionsForUser(user,siteId){
+ if(user?.role==='ADMIN_GLOBAL')return mapPermissionsForRole('ADMIN_GLOBAL');
+ const assignments=Array.isArray(user?.accessAssignments)?user.accessAssignments:[],siteIds=Array.isArray(user?.siteIds)?user.siteIds:[],assignment=assignments.find(a=>a?.siteId===siteId),hasScopedAccess=assignments.length||siteIds.length;
+ if(hasScopedAccess&&!assignment&&!siteIds.includes(siteId))return {view:false};
+ const defaults=mapPermissionsForRole(assignment?.role||user?.role);
+ if(assignment?.customPermissions!==true)return defaults;
+ const custom=assignment.permissions||{};
+ return {view:typeof custom.mapView==='boolean'?custom.mapView:defaults.view};
+}
+
 export function inventoryPermissionsForRole(role){
  const manage=['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role);
  return {count:manage,manage,review:manage};

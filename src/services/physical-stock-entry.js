@@ -23,24 +23,24 @@ function parseDestination(value=''){
 function existingQty(code,{locationId,palletId}){
   return (store.data.inventory||[]).filter(i=>String(i.productCode)===String(code)&&i.locationId===locationId&&(i.palletId||null)===(palletId||null)).reduce((sum,i)=>sum+Number(i.qty||0),0);
 }
-function options(siteId,presetPalletId=null){
+function options(siteId,presetPalletId=null,presetLocationId=null){
   const pallets=(store.data.pallets||[]).filter(p=>p.siteId===siteId&&p.status!=='CERRADO');
   const occupiedByPallet=new Set(pallets.filter(p=>p.locationId).map(p=>p.locationId));
   const locations=(store.data.locations||[]).filter(l=>l.siteId===siteId&&l.active!==false&&!['BLOQUEADA','INHABILITADA','RESERVADA'].includes(l.status)&&!occupiedByPallet.has(l.id));
   const palletOptions=pallets.map(p=>`<option value="${esc(destinationValue(p.locationId,p.id))}" ${p.id===presetPalletId?'selected':''}>Pallet · ${esc(palletDisplayName(p))} · ${esc(p.locationId||'sin ubicación')}</option>`).join('');
-  const locationOptions=locations.map(l=>`<option value="${esc(destinationValue(l.id))}">Ubicación directa · ${esc(vistaCodigoUbicacion(l,store.data)||l.id)}</option>`).join('');
+  const locationOptions=locations.map(l=>`<option value="${esc(destinationValue(l.id))}" ${l.id===presetLocationId?'selected':''}>Ubicación directa · ${esc(vistaCodigoUbicacion(l,store.data)||l.id)}</option>`).join('');
   return `<option value="">Seleccionar destino físico…</option>${palletOptions}${locationOptions}`;
 }
 function dialogHtml(){return `<dialog id="physical-stock-dialog" class="physical-stock-dialog"><section class="physical-stock-card"><div class="dialog-head"><div><span class="eyebrow">STOCK FÍSICO REAL</span><h3 id="physical-stock-title">Registrar producto encontrado</h3><small id="physical-stock-subtitle"></small></div><button id="physical-stock-close" class="ghost" type="button">×</button></div><div class="physical-stock-product" id="physical-stock-product"></div><label>¿Dónde lo encontraste?<select id="physical-stock-destination"></select><small>Selecciona el pallet o la ubicación física exacta.</small></label><div class="physical-stock-current"><span>Registrado actualmente en ese destino</span><strong id="physical-stock-current">0 un.</strong></div><label>Cantidad física contada<input id="physical-stock-qty" type="number" min="0" step="1" inputmode="numeric" placeholder="Ej. 12"><small>Escribe el total que realmente estás viendo. Esta cantidad reemplaza la registrada solo en ese destino.</small></label><label>Motivo / referencia<textarea id="physical-stock-reason" rows="2" maxlength="220" placeholder="Ej.: Levantamiento físico inicial, conteo manual…">Levantamiento físico / producto encontrado</textarea></label><div class="warning-box"><b>Seguro y auditable:</b> no modifica SKU ni códigos asociados. Se registra cantidad anterior, nueva cantidad, ubicación/pallet, usuario, fecha y motivo.</div><div class="dialog-actions"><button id="physical-stock-cancel" class="ghost" type="button">Cancelar</button><button id="physical-stock-save" class="primary" type="button">Guardar stock físico</button></div></section></dialog>`;}
 function ensureDialog(){let dlg=document.querySelector('#physical-stock-dialog');if(!dlg){document.body.insertAdjacentHTML('beforeend',dialogHtml());dlg=document.querySelector('#physical-stock-dialog');}return dlg;}
 
-export async function openPhysicalStockEntry(code,{presetPalletId=null,onSaved}={}){
+export async function openPhysicalStockEntry(code,{presetPalletId=null,presetLocationId=null,presetQty=null,presetReason='',onSaved}={}){
   const p=product(code);if(!p){toast('Producto no reconocido','warning');return;}
   if(!allowed()){toast('Tu permiso no autoriza registrar o corregir stock físico','warning');return;}
   const siteId=activeSiteId(store.data),dlg=ensureDialog(),destination=document.querySelector('#physical-stock-destination'),qty=document.querySelector('#physical-stock-qty'),reason=document.querySelector('#physical-stock-reason');
   document.querySelector('#physical-stock-subtitle').textContent=`${p.code} · ${p.name||p.description||'Producto'}`;
   document.querySelector('#physical-stock-product').innerHTML=`<span class="sku">${esc(p.code)}</span><b>${esc(p.name||'Producto')}</b><small>${esc(p.description||'Sin descripción')}</small>`;
-  destination.innerHTML=options(siteId,presetPalletId);qty.value='';reason.value='Levantamiento físico / producto encontrado';
+  destination.innerHTML=options(siteId,presetPalletId,presetLocationId);qty.value=Number.isFinite(Number(presetQty))?String(Number(presetQty)):'';reason.value=presetReason||'Levantamiento físico / producto encontrado';
   const updateCurrent=()=>{const dest=parseDestination(destination.value),current=dest?existingQty(p.code,dest):0;document.querySelector('#physical-stock-current').textContent=`${current} un.`;if(dest&&qty.value==='')qty.value=String(current);};
   destination.onchange=updateCurrent;updateCurrent();
   const close=()=>dlg.close();document.querySelector('#physical-stock-close').onclick=close;document.querySelector('#physical-stock-cancel').onclick=close;dlg.oncancel=e=>{e.preventDefault();close();};

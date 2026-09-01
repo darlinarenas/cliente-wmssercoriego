@@ -29,7 +29,7 @@ import { renderTransferReceiving } from './modules/recepcion-traspasos/recepcion
 import { renderPutawayTasks } from './modules/tareas-ubicacion/tareas-ubicacion.js';
 import { renderCodes } from './modules/codigos/codigos.js';
 import { activeSiteId } from './services/stock.js';
-import { effectiveRole,normalizeRouteForRole } from './services/access-routing.js';
+import { effectiveRole,normalizeRouteForRole,mapPermissionsForUser } from './services/access-routing.js';
 import { siteCompanyId } from './services/company.js';
 import { installGlobalFormGuidance } from './layout/layout.js';
 
@@ -40,7 +40,7 @@ installGlobalFormGuidance();
 function sessionAccess(){const siteId=activeSiteId(store.data),user=(store.data.users||[]).find(u=>u.id===store.data.session?.userId)||auth.user;return {siteId,user,role:effectiveRole(user,siteId)};}
 function mobileViewport(){return window.matchMedia('(max-width: 760px)').matches;}
 function replaceHash(route){history.replaceState(null,'',`${location.pathname}${location.search}#/${route}`);}
-function secureRoute(id,render){return ()=>{const target=normalizeRouteForRole(id,sessionAccess().role,{mobile:mobileViewport()});if(target!==id){replaceHash(target);queueMicrotask(()=>buildRouter().render());return;}render();};}
+function secureRoute(id,render){return ()=>{const access=sessionAccess();if(id==='mapa3d'&&!mapPermissionsForUser(access.user,access.siteId).view){replaceHash('inventarios');queueMicrotask(()=>buildRouter().render());return;}const target=normalizeRouteForRole(id,access.role,{mobile:mobileViewport()});if(target!==id){replaceHash(target);queueMicrotask(()=>buildRouter().render());return;}render();};}
 
 function buildRouter(){
   if(router)return router;
