@@ -1410,3 +1410,6 @@ dialog.scanner-dialog{
  .numeric-keyboard-button,.scan-button{min-width:46px}.inventory-operator-history{padding:0 10px}.inventory-operator-history .inventory-lines{max-height:280px;overflow:auto}.inventory-operator-home{padding:14px!important}.inventory-operator-home-head h2{font-size:20px}.inventory-operator-task-card{padding:12px}.inventory-operator-task-card .inventory-session-main h3{font-size:17px}.inventory-operator-task-card .inventory-session-main .badge{font-size:9px}.inventory-finished-list>summary{padding:10px 2px}
 }
 .inventory-position-primary[hidden]{display:none!important}.inventory-position-details:not([hidden]){padding-top:8px}
+
+/* 2026-09-01: envío visible de etiquetas y limpieza operativa */
+.label-queue-send{display:grid;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid #e2e8f0}.label-queue-send small{color:var(--muted);line-height:1.35}.label-queue-send .primary{width:100%;min-height:48px}.inventory-admin-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}@media(max-width:760px){.inventory-admin-actions{width:100%;display:grid;grid-template-columns:1fr}.inventory-admin-actions button{width:100%}.label-queue-send{position:sticky;bottom:74px;background:#fff;padding-bottom:4px;z-index:2}}

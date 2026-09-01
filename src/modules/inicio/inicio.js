@@ -4,7 +4,7 @@ import { metric,badge,esc,empty } from '../../components/ui.js';
 import { activeSiteId } from '../../services/stock.js';
 import { activeCompanyId,siteCompanyId } from '../../services/company.js';
 import { startSilentRefresh } from '../../services/silent-refresh.js';
-import { codePermissionsForUser, inventoryPermissionsForUser } from '../../services/access-routing.js';
+import { codePermissionsForUser,inventoryPermissionsForUser } from '../../services/access-routing.js';
 
 function operatorDashboard(d,user,siteId){
  const reviewStatuses=new Set(['PREPARADA','PENDIENTE_EMISION']);
@@ -16,8 +16,8 @@ function operatorDashboard(d,user,siteId){
  const inventorySessions=(d.planning?.inventorySessions||[]).filter(s=>s.siteId===siteId);
  const inventoryTasks=inventorySessions.flatMap(s=>(s.assignments||[]).filter(a=>a.userId===user.id&&s.status==='EN_CONTEO'&&a.status!=='ENVIADO_REVISION').map(a=>({session:s,assignment:a})));
  const inventoryReview=inventorySessions.flatMap(s=>(s.assignments||[]).filter(a=>a.userId===user.id&&a.status==='ENVIADO_REVISION').map(a=>({session:s,assignment:a})));
+ const inventoryAccess=inventoryPermissionsForUser(user,siteId),hasInventoryAccess=inventoryAccess.count||inventoryAccess.manage||inventoryAccess.review||inventorySessions.some(s=>(s.assignments||[]).some(a=>a.userId===user.id));
  const total=orderTasks.length+putaway.length+inventoryTasks.length;
- const inventoryPerms=inventoryPermissionsForUser(user,siteId);
  const actions=[
   ['buscar','⌕','Buscar','Localizar productos y ubicaciones'],
   ...(codePermissionsForUser(user,siteId).consult?[["codigos","▣","Consultar / asociar códigos","Escanear, consultar y asociar etiquetas"]]:[]),
@@ -26,7 +26,7 @@ function operatorDashboard(d,user,siteId){
   ['palets','▣','Organizar palets','Revisar y ubicar productos'],
   ['movimientos','↔','Mover','Reubicar producto o pallet'],
   ['ordenes','✓','Órdenes / Mis tareas',`${orderTasks.length+putaway.length} pendiente(s)`],
-  ...(inventoryPerms.count||inventoryTasks.length?[["inventarios","▦","Inventario / Levantamiento físico",inventoryTasks.length?`${inventoryTasks.length} tarea(s) · contar por rack y posición`:"Contar por rack, posición y pallet"]]:[])
+  ...(hasInventoryAccess?[["inventarios","▦",inventoryTasks.length?"Inventario asignado":"Inventario / Levantamiento",inventoryTasks.length?`${inventoryTasks.length} tarea(s) · abrir conteo`:"Abrir conteo por rack"]]:[])
  ];
  return `<section class="operator-welcome"><div><span class="eyebrow">PANEL DEL OPERARIO</span><h2>¿Qué necesitas hacer?</h2><p>Accesos operativos del centro actual. Las opciones administrativas están ocultas.</p></div><a class="operator-task-alert ${total?'has-pending':'is-clear'}" href="${orderTasks.length||putaway.length?'#/ordenes':inventoryTasks.length?'#/inventarios':'#/ordenes'}"><b>${total}</b><span><strong>${total?'Tienes trabajo pendiente':'No tienes trabajos pendientes'}</strong><small>${orderTasks.length} orden(es) · ${putaway.length} ubicación(es) · ${inventoryTasks.length} inventario(s) · ${reviewOrders.length+inventoryReview.length} en revisión</small></span></a></section>${inventoryTasks.length?`<a class="operator-inventory-alert" href="#/inventarios"><span>▦</span><div><small>TAREA DE INVENTARIO</small><b>Te asignaron un conteo de inventario</b><em>${inventoryTasks.map(t=>(t.assignment.rackIds||[]).join(', ')).join(' · ')}</em></div><strong>${inventoryTasks.length}</strong></a>`:''}<div class="operator-action-grid">${actions.map(([id,icon,label,help])=>`<a href="#/${id}" class="operator-action-card ${id==='ordenes'&&total?'has-tasks':''}"><span>${icon}</span><div><b>${label}</b><small>${id==='ordenes'?`${total} pendiente(s) · ${reviewOrders.length} en revisión`:help}</small></div>${id==='ordenes'&&total?`<em>${total}</em>`:''}</a>`).join('')}</div>${putaway.length?`<section class="panel operator-pending-panel"><div class="panel-head"><div><span class="eyebrow">TAREAS DE UBICACIÓN</span><h3>${putaway.length} asignada(s) a tu usuario</h3></div><a class="primary" href="#/tareas-ubicacion">Ver mis tareas</a></div></section>`:''}`;
 }
