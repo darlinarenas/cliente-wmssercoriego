@@ -58,6 +58,20 @@ export function shell(title,content,active='dashboard'){
 export function wireShell(){
   const currentUser=store.data.users.find(u=>u.id===store.data.session.userId)||auth.user;
 
+  // Entrada robusta a Inventarios desde cualquier vista. Si el hash ya es el mismo,
+  // forzamos el evento para volver a renderizar; si cambia, el Router lo recibe normalmente.
+  document.querySelectorAll('a[href="#/inventarios"]').forEach(link=>{
+    link.addEventListener('click',event=>{
+      event.preventDefault();
+      const target='#/inventarios';
+      if(location.hash===target){
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      }else{
+        location.hash=target;
+      }
+    });
+  });
+
   document.querySelector('#site-switch')?.addEventListener('change',e=>{const siteId=e.target.value,site=(store.data.sites||[]).find(s=>s.id===siteId);if(!site)return;localStorage.setItem('serco_wms_active_company',siteCompanyId(site,store.data));localStorage.setItem('serco_wms_active_site',siteId);store.data.session.activeSiteId=siteId;store.data.session.activeCompanyId=siteCompanyId(site,store.data);window.dispatchEvent(new CustomEvent('serco:context-changed',{detail:{siteId,companyId:store.data.session.activeCompanyId}}));});
   document.querySelector('#choose-company-btn')?.addEventListener('click',()=>window.dispatchEvent(new CustomEvent('serco:choose-company')));
   const contextBtn=document.querySelector('#context-switcher-btn'),contextPanel=document.querySelector('#context-switcher-panel');
