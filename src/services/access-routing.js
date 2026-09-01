@@ -1,4 +1,4 @@
-const OPERATOR_ROUTES=new Set(['dashboard','buscar','codigos','ordenes','recepciones','organizar-recibidos','recepcion-traspasos','tareas-ubicacion','transferencias','cargas','palets','movimientos','movil','mapa3d','inventarios']);
+const OPERATOR_ROUTES=new Set(['dashboard','buscar','codigos','ordenes','recepciones','organizar-recibidos','recepcion-traspasos','tareas-ubicacion','transferencias','cargas','palets','movimientos','movil','mapa3d','inventarios','etiquetas']);
 const MANAGER_BLOCKED=new Set(['usuarios','centros']);
 
 export function effectiveRole(user,siteId){
@@ -15,7 +15,7 @@ export function routeAllowedForRole(route,role){
 
 export function codePermissionsForRole(role){
  const manage=['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role);
- return {consult:manage||['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(role),associate:manage,editProduct:manage,editInventory:manage,createProduct:manage,changeSku:['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role),reconcileErp:['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role),applyErpStock:['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role)};
+ return {consult:manage||['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(role),associate:manage,editProduct:manage,editInventory:manage,physicalStock:manage,printLabels:manage,createProduct:manage,changeSku:['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role),reconcileErp:['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role),applyErpStock:['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role)};
 }
 
 export function codePermissionsForUser(user,siteId){
@@ -23,7 +23,7 @@ export function codePermissionsForUser(user,siteId){
  const assignment=(user?.accessAssignments||[]).find(a=>a.siteId===siteId),defaults=codePermissionsForRole(assignment?.role||user?.role);
  if(assignment?.customPermissions!==true)return defaults;
  const custom=assignment.permissions||{};
- return {consult:typeof custom.codesConsult==='boolean'?custom.codesConsult:defaults.consult,associate:typeof custom.codesAssociate==='boolean'?custom.codesAssociate:defaults.associate,editProduct:typeof custom.productsEdit==='boolean'?custom.productsEdit:defaults.editProduct,editInventory:typeof custom.inventoryAdjust==='boolean'?custom.inventoryAdjust:defaults.editInventory,createProduct:typeof custom.productsEdit==='boolean'?custom.productsEdit:defaults.createProduct,changeSku:typeof custom.changeSku==='boolean'?custom.changeSku:defaults.changeSku,reconcileErp:typeof custom.reconcileErp==='boolean'?custom.reconcileErp:defaults.reconcileErp,applyErpStock:typeof custom.applyErpStock==='boolean'?custom.applyErpStock:defaults.applyErpStock};
+ return {consult:typeof custom.codesConsult==='boolean'?custom.codesConsult:defaults.consult,associate:typeof custom.codesAssociate==='boolean'?custom.codesAssociate:defaults.associate,editProduct:typeof custom.productsEdit==='boolean'?custom.productsEdit:defaults.editProduct,editInventory:typeof custom.inventoryAdjust==='boolean'?custom.inventoryAdjust:defaults.editInventory,physicalStock:typeof custom.physicalStockAdjust==='boolean'?custom.physicalStockAdjust:defaults.physicalStock,printLabels:typeof custom.labelsPrint==='boolean'?custom.labelsPrint:defaults.printLabels,createProduct:typeof custom.productsEdit==='boolean'?custom.productsEdit:defaults.createProduct,changeSku:typeof custom.changeSku==='boolean'?custom.changeSku:defaults.changeSku,reconcileErp:typeof custom.reconcileErp==='boolean'?custom.reconcileErp:defaults.reconcileErp,applyErpStock:typeof custom.applyErpStock==='boolean'?custom.applyErpStock:defaults.applyErpStock};
 }
 
 

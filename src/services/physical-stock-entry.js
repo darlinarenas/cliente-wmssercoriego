@@ -8,7 +8,7 @@ import { palletDisplayName } from './pallet-ops.js';
 import { vistaCodigoUbicacion } from './ubicaciones.js';
 
 function currentUser(data=store.data){return (data.users||[]).find(u=>u.id===data.session?.userId);}
-function allowed(){return codePermissionsForUser(currentUser(),activeSiteId(store.data)).editInventory;}
+function allowed(){return codePermissionsForUser(currentUser(),activeSiteId(store.data)).physicalStock;}
 function product(code){return (store.data.products||[]).find(p=>String(p.code)===String(code));}
 function destinationValue(locationId,palletId=null){return palletId?`PALLET@@${palletId}`:`LOCATION@@${locationId}`;}
 function parseDestination(value=''){
@@ -58,7 +58,7 @@ export async function openPhysicalStockEntry(code,{presetPalletId=null,onSaved}=
       data.inventory=data.inventory.filter(i=>Number(i.qty)>0);
       data.movements=data.movements||[];data.movements.unshift({id:`MOV-FIS-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,siteId,type:'LEVANTAMIENTO_STOCK_FISICO',productCode:p.code,qty:Math.abs(after-before),delta:after-before,beforeQty:before,afterQty:after,from:dest.locationId,to:dest.locationId,palletId:dest.palletId||null,reason:why,userId:data.session.userId,at});
       refreshInventoryStatuses(data,siteId);
-    },`Stock físico ${p.code}: ${before} → ${after} en ${dest.palletId||dest.locationId}`,{operations:['inventoryAdjust']});}
+    },`Stock físico ${p.code}: ${before} → ${after} en ${dest.palletId||dest.locationId}`,{operations:['physicalStockAdjust']});}
     catch(error){await notice('No se pudo guardar',error.message||'No fue posible registrar el stock físico.','error');return;}
     close();await notice('Stock físico guardado',`${p.code}: ${before} → ${after} un. en ${dest.palletId||dest.locationId}. El cambio quedó auditado.`,'success');onSaved?.(p.code);
   };

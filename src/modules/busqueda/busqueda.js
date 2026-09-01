@@ -8,6 +8,7 @@ import { productAliases } from '../../services/product-codes.js';
 import { activeSiteId,stockSitesOrdered,inventorySiteId,totalCompanyStock } from '../../services/stock.js';
 import { vistaCodigoUbicacion } from '../../services/ubicaciones.js';
 import { palletDisplayName } from '../../services/pallet-ops.js';
+import { codePermissionsForUser } from '../../services/access-routing.js';
 
 function norm(v=''){return v.toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
 function normCode(v=''){return norm(v).replace(/[^a-z0-9]/g,'');}
@@ -22,6 +23,7 @@ function compactSection(title,summary,content,extraClass=''){
 }
 function results(q){
   const d=store.data,raw=norm(q); if(!raw)return '';
+  const user=(d.users||[]).find(u=>u.id===d.session?.userId),access=codePermissionsForUser(user,activeSiteId(d));
   const tokens=raw.split(/\s+/).filter(Boolean);
   const matches=d.products.map(p=>({p,score:scoreProduct(p,tokens,raw)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,30).map(x=>x.p);
   if(!matches.length)return empty('Sin resultados','Busca por código completo o parcial, descripción o cualquier palabra del producto.');
@@ -35,7 +37,7 @@ function results(q){
     const productDetails=`<div class="search-product-details"><span><small>Descripción</small><b>${esc(p.description||'No registrada')}</b></span><span><small>Tipo</small><b>${esc(p.type||p.family||'Sin clasificar')}</b></span><span><small>Códigos reconocidos</small><b>${esc(productAliases(p).join(', '))}</b></span></div>`;
     const siteStocks=`<div class="search-site-stocks">${siteRows.map(x=>`<span class="${x.active?'active':''}"><small>${x.active?'Centro activo':'Otra sucursal'}</small><b>${esc(x.name)}</b><strong>${x.qty} un.</strong></span>`).join('')}</div>`;
     const transitContent=transit.length?`<div class="transit-list"><b>Unidades fuera de bodega / EN TRÁNSITO</b>${transit.map(t=>`<div><span><b>${esc(t.id)}</b> → ${esc(t.destination||'Destino')}</span><small>Retira / conduce: ${esc(t.driver||'No registrado')} · ${t.departedAt?new Date(t.departedAt).toLocaleString('es-CL'):'Sin hora'}</small><strong>${t.qty} un.</strong></div>`).join('')}</div>`:'<p class="muted">No hay unidades de este producto en tránsito.</p>';
-    const actions=`<div class="result-actions"><a href="#/mapa3d?code=${encodeURIComponent(p.code)}" class="primary">Ver en mapa 3D</a><a href="#/movimientos?code=${encodeURIComponent(p.code)}" class="secondary">Mover / reubicar</a><a href="#/transferencias?code=${encodeURIComponent(p.code)}" class="ghost">Preparar despacho</a><button class="primary physical-stock-entry" data-code="${esc(p.code)}">✓ Encontré stock físico</button><button class="ghost edit-product" data-code="${esc(p.code)}">Editar / Inventario</button><button class="ghost copy-code" data-code="${esc(p.code)}">Copiar código</button></div>`;
+    const actions=`<div class="result-actions"><a href="#/mapa3d?code=${encodeURIComponent(p.code)}" class="primary">Ver en mapa 3D</a><a href="#/movimientos?code=${encodeURIComponent(p.code)}" class="secondary">Mover / reubicar</a><a href="#/transferencias?code=${encodeURIComponent(p.code)}" class="ghost">Preparar despacho</a>${access.physicalStock?`<button class="primary physical-stock-entry" data-code="${esc(p.code)}">✓ Encontré stock físico</button>`:''}${access.editProduct||access.editInventory?`<button class="ghost edit-product" data-code="${esc(p.code)}">Editar / Inventario</button>`:''}<button class="ghost copy-code" data-code="${esc(p.code)}">Copiar código</button></div>`;
     return `<article class="product-result compact-result"><div class="product-title compact-product-title"><div><span class="sku">Código ${esc(p.code)}</span><h3>${esc(p.name)}</h3></div><div class="product-stock-head"><div class="cantidad-destacada global-wms-stock"><small>STOCK GLOBAL</small><strong>${globalTotal} un.</strong></div><div class="cantidad-destacada active-site-stock"><small>${esc(site?.name||active)} · ACTIVO</small>${badge(`${total} un.`,total?'ok':'warn')}${transitTotal?`<small>En tránsito: <b>${transitTotal}</b></small>`:''}</div></div></div><div class="search-compact-menu">${compactSection('Detalles del producto','Descripción, tipo y códigos',productDetails)}${compactSection('Stock por centros',`${siteRows.length} centro${siteRows.length===1?'':'s'} · ${globalTotal} un.`,siteStocks)}${compactSection('Dónde está ubicado',`${inventoryBySite.reduce((n,g)=>n+g.rows.length,0)} ubicación${inventoryBySite.reduce((n,g)=>n+g.rows.length,0)===1?'':'es'}`,ubicaciones,'location-section')}${transit.length?compactSection('Unidades en tránsito',`${transitTotal} un.`,transitContent,'transit-section'):''}${compactSection('Acciones','Mapa, mover, despacho y edición',actions,'actions-section')}</div></article>`;
   }).join('');
 }
