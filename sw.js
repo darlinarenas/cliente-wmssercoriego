@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.31-inventario-rack-operativo-v65';
+const APP_VERSION = '2026.08.31-inventario-rack-acceso-v66';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

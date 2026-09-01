@@ -1390,3 +1390,9 @@ dialog.scanner-dialog{
 }
 .inventory-count-mode-note{display:flex;align-items:flex-start;gap:9px;margin-top:12px;padding:10px 12px;border:1px solid #dbeafe;border-radius:12px;background:#f8fbff}.inventory-count-mode-note b{white-space:nowrap;font-size:11px;color:#1d4ed8}.inventory-count-mode-note small{color:#64748b;line-height:1.35}
 @media(max-width:760px){.inventory-count-mode-note{display:grid;gap:3px}.inventory-count-mode-note b{white-space:normal}}
+
+/* Inventario operativo: acceso visible para operador y reapertura controlada */
+.inventory-my-rack-label{display:block;margin-top:6px;color:#15803d!important;font-weight:800!important}
+.inventory-reopen-callout{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 14px;border:1px solid #f3c86a;border-radius:14px;background:#fff9e8}
+.inventory-reopen-callout>div{display:grid;gap:3px}.inventory-reopen-callout small{color:#725b22}.inventory-readonly-badge{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#fff0c7;color:#815d00;font-size:11px;font-weight:900;letter-spacing:.04em}
+@media(max-width:760px){.inventory-reopen-callout{align-items:stretch;flex-direction:column}.inventory-reopen-callout .primary{width:100%}.inventory-my-rack-label{font-size:11px}.inventory-session-actions .open-inventory-session{min-height:48px;font-size:15px}.inventory-operator-workbench-title{align-items:flex-start}.inventory-readonly-badge{white-space:nowrap}}
