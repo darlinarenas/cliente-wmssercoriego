@@ -5,7 +5,7 @@ import { activeSiteId } from '../../services/stock.js';
 import { enlazarBotonEscaner } from '../../services/camara-ui.js';
 import { code128Svg } from '../../services/barcode.js';
 import { startSilentRefresh } from '../../services/silent-refresh.js';
-import { SHIPMENT_STATUS,acceptShipmentCustody,ensureLegacyShipment,markShipmentArrival,shipmentByCode,shipmentOrder } from '../../services/transfer-workflow.js';
+import { SHIPMENT_STATUS,acceptShipmentCustody,createShipment,ensureLegacyShipment,markShipmentArrival,shipmentByCode,shipmentOrder } from '../../services/transfer-workflow.js';
 
 function me(){return store.data.users.find(u=>u.id===store.data.session.userId);}
 function roleAt(user,siteId=activeSiteId()){return (user?.accessAssignments||[]).find(a=>a.siteId===siteId)?.role||user?.role;}
