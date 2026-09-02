@@ -1434,3 +1434,10 @@ dialog.scanner-dialog{
 .manager-lite-progress-track{height:7px;margin-top:10px;border-radius:999px;background:#e8eef3;overflow:hidden}
 .manager-lite-progress-track i{display:block;height:100%;border-radius:inherit;background:#16a34a}
 @media(max-width:760px){.manager-lite-progress-list{grid-template-columns:1fr}}
+
+
+/* Cargas: retiro por transportista externo */
+.shipment-external-driver{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:100%}
+.shipment-external-driver[hidden]{display:none}
+.shipment-external-driver input{min-width:0}
+@media(max-width:760px){.shipment-external-driver{grid-template-columns:1fr}}
