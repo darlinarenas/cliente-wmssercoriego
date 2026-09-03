@@ -10,6 +10,7 @@ import { startSilentRefresh } from '../../services/silent-refresh.js';
 import { requireAdminSupercode } from '../../services/security.js';
 import { registerPermanentPallet,moveWholePallet,editPalletDisplayName,palletDisplayName,canReceiveWholePallet } from '../../services/pallet-ops.js';
 import { openPhysicalStockEntry } from '../../services/physical-stock-entry.js';
+import { refreshInventoryStatuses } from '../../services/inventory-ops.js';
 
 const STATUS_LABEL={EN_CONTEO:'En conteo',EN_REVISION:'En revisión',CERRADA:'Inventario cerrado',CONCILIADA:'Conciliada'};
 const STATUS_TONE={EN_CONTEO:'warning',EN_REVISION:'warning',CERRADA:'neutral',CONCILIADA:'success'};
