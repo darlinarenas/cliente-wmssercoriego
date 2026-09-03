@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.03-inventario-guiado-v75';
+const PWA_RELEASE = '2026.09.03-posicion-fija-v76';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 

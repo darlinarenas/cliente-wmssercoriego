@@ -1532,3 +1532,19 @@ dialog.scanner-dialog{
 }
 .operator-inventory-simple .operator-extra:not([open])>:not(summary),
 .operator-inventory-simple .inventory-finish-details:not([open])>:not(summary){display:none!important}
+
+/* Ubicación inequívoca y acciones del rack junto al guardado. */
+.operator-inventory-simple .inventory-work-dock{display:grid;gap:9px;border:1px solid #bbf7d0;border-radius:14px;padding:12px;background:#fff;box-shadow:0 -4px 18px #0f172a0d}
+.inventory-current-location{display:grid;gap:3px;min-width:0}
+.inventory-current-location small{font-size:10px;font-weight:900;color:#15803d}
+.inventory-current-location b{font-size:16px;color:#14532d;overflow-wrap:anywhere}
+.inventory-current-location span{font-size:11px;color:#64748b}
+.inventory-work-action-buttons{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.inventory-work-action-buttons>button{min-height:52px;font-size:16px;font-weight:800;white-space:normal}
+#inventory-submit-from-work{grid-column:1/-1}
+@media(max-width:760px){
+ .operator-inventory-simple:has(.inventory-count-card:not([hidden]) .inventory-work-dock){padding-bottom:240px!important}
+ .operator-inventory-simple .inventory-work-dock{position:fixed;left:10px;right:10px;bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:20;margin:0;max-height:45dvh;overflow:auto}
+ .inventory-work-action-buttons>button{min-height:54px;font-size:15px;padding:10px 8px}
+ .inventory-current-location span{display:none}
+}
