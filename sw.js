@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.03-tarjeta-inventario-v79';
+const APP_VERSION = '2026.09.03-etiquetas-fieles-v80';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
@@ -33,6 +33,7 @@ const PRECACHE = [
   './src/modules/importar/importar.js',
   './src/modules/inventarios/inventarios.js',
   './src/modules/etiquetas/etiquetas.js',
+  './src/services/label-renderer.js',
   './src/modules/inicio/inicio.js',
   './src/modules/movil/movil.js',
   './src/modules/mapa3d/mapa3d.js',
