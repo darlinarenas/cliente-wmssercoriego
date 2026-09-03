@@ -1591,3 +1591,56 @@ dialog.scanner-dialog{
 @media(max-width:1450px){.exec-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:900px){.exec-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){.exec-inventory-mini .exec-inventory-mini-main{gap:4px}.exec-mini-bars{width:62px}.exec-preview-metrics{font-size:11px}}
+
+/* Presentación exclusiva del pop-up de progreso de inventario */
+#exec-monitor-dialog:has(.exec-inventory-preview){width:min(850px,calc(100vw - 24px));padding:24px;background:#f8fafc;box-shadow:0 28px 80px #0f172a40}
+#exec-monitor-dialog:has(.exec-inventory-preview)>.dialog-head{padding-bottom:16px;border-bottom:1px solid #e2e8f0}
+#exec-monitor-body .exec-inventory-preview{background:#fff;padding:22px;gap:18px;border-color:#dde7e5;border-radius:18px;box-shadow:0 4px 16px #142b2010}
+#exec-monitor-body .exec-inventory-preview-head{align-items:flex-start}
+#exec-monitor-body .exec-preview-eyebrow{font-size:10px;font-weight:800;letter-spacing:.1em;color:#18814c}
+#exec-monitor-body .exec-inventory-preview-head h4{font-size:20px;margin:5px 0;color:#14283b;overflow-wrap:anywhere}
+#exec-monitor-body .exec-inventory-preview-head p{font-size:14px;margin:0 0 5px;color:#34465c}
+#exec-monitor-body .exec-preview-hero{display:flex;align-items:center;gap:22px;background:linear-gradient(110deg,#f0faf4,#f8fafc);padding:18px;border:1px solid #e1eee6;border-radius:14px}
+#exec-monitor-body .exec-preview-ring{flex:none;width:100px;height:100px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,#fff 59%,transparent 60%),conic-gradient(#16a363 var(--progress),#dfebe4 0)}
+#exec-monitor-body .exec-preview-ring strong{font-size:27px;letter-spacing:-1px;color:#147849}
+#exec-monitor-body .exec-preview-hero b{font-size:17px;color:#193c2b}
+#exec-monitor-body .exec-preview-hero p{margin:6px 0;font-size:14px;color:#34465c}
+#exec-monitor-body .exec-preview-hero small{display:block;font-size:11px;line-height:1.5;max-width:340px}
+#exec-monitor-body .exec-preview-track{height:5px;margin-top:-8px}
+#exec-monitor-body .exec-preview-metrics{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+#exec-monitor-body .exec-preview-metrics>div{padding:13px;background:#f8fafc;border:1px solid #e7edf3;border-radius:12px;display:flex;flex-direction:column;justify-content:space-between;gap:8px}
+#exec-monitor-body .exec-preview-metrics small{font-size:11px;line-height:1.4}
+#exec-monitor-body .exec-preview-metrics b{font-size:24px;letter-spacing:-.5px}
+#exec-monitor-body .exec-preview-metrics em{font-style:normal;font-size:15px;font-weight:500;color:#718096;white-space:nowrap}
+#exec-monitor-body .exec-preview-team{border:1px solid #e5ebf2;border-radius:12px;overflow:hidden}
+#exec-monitor-body .exec-preview-team summary{padding:14px;font-size:13px;color:#20384c;background:#fbfcfe}
+#exec-monitor-body .exec-preview-team summary small{font-weight:400;margin-left:8px;font-size:11px}
+#exec-monitor-body .exec-preview-team-list{padding:0 14px}
+#exec-monitor-body .exec-preview-person{grid-template-columns:38px minmax(0,1fr) auto;align-items:center;gap:12px;padding:14px 0}
+#exec-monitor-body .exec-preview-person:last-child{border-bottom:0}
+#exec-monitor-body .exec-preview-avatar{height:38px;border-radius:12px;display:grid;place-items:center;background:#eaf5ee;color:#227347;font-size:12px;font-weight:800}
+#exec-monitor-body .exec-preview-person-info{display:grid;gap:4px;min-width:0}
+#exec-monitor-body .exec-preview-person-info b{font-size:13px;overflow-wrap:anywhere}
+#exec-monitor-body .exec-preview-person-info small{font-size:11px}
+#exec-monitor-body .exec-preview-person strong{font-size:16px}
+#exec-monitor-body .exec-preview-person-track{height:4px;background:#edf1f5;border-radius:4px;overflow:hidden;margin-top:4px}
+#exec-monitor-body .exec-preview-person-track i{display:block;height:100%;background:#29ad70;border-radius:4px}
+#exec-monitor-body .exec-preview-found{display:grid;gap:5px;background:#fff8e9;border:1px solid #f0dda9;padding:12px;border-radius:12px;font-size:12px;color:#805a13}
+#exec-monitor-body .exec-preview-open>a{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:62px;padding:14px 16px;border-radius:12px;text-decoration:none;background:#14834d;color:#fff}
+#exec-monitor-body .exec-preview-open>a small{color:#dcf5e6;font-size:11px}
+#exec-monitor-body .exec-preview-open>a strong{color:#fff;font-size:14px}
+#exec-monitor-body .exec-preview-open>a b{font-size:14px}
+#exec-monitor-body .exec-preview-open>a:hover{background:#106d40}
+#exec-monitor-body .exec-preview-open>a:focus-visible{outline:3px solid #73bf94;outline-offset:3px}
+@media(max-width:600px){
+ #exec-monitor-dialog:has(.exec-inventory-preview){padding:14px}
+ #exec-monitor-body .exec-inventory-preview{padding:14px;gap:14px}
+ #exec-monitor-body .exec-preview-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #exec-monitor-body .exec-preview-hero{gap:12px;padding:12px}
+ #exec-monitor-body .exec-preview-ring{width:76px;height:76px}
+ #exec-monitor-body .exec-preview-ring strong{font-size:22px}
+ #exec-monitor-body .exec-preview-hero b{font-size:14px}
+ #exec-monitor-body .exec-preview-hero p{font-size:12px}
+ #exec-monitor-body .exec-inventory-preview-head h4{font-size:17px}
+ #exec-monitor-body .exec-preview-open>a{padding:12px;gap:8px}
+}

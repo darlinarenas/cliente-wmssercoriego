@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.03-etiquetas-fieles-v80';
+const APP_VERSION = '2026.09.03-popup-inventario-v81';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

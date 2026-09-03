@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.03-etiquetas-fieles-v80';
+const PWA_RELEASE = '2026.09.03-popup-inventario-v81';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
