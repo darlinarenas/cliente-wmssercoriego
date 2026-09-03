@@ -1503,3 +1503,32 @@ dialog.scanner-dialog{
  .operator-order-simple #pick-form>button{min-height:46px}
  .operator-pick-simple .dialog-card{padding:14px}
 }
+
+/* Inicio compacto por etiqueta; selección manual e historial bajo demanda. */
+.operator-inventory-simple .inventory-location-camera{display:block;width:100%;min-height:56px;font-size:20px;margin-bottom:12px}
+.inventory-location-entry>div{display:flex;gap:8px;margin:7px 0}
+.inventory-location-entry input{min-width:0;flex:1}
+.inventory-location-entry button{min-height:48px;font-size:16px}
+.inventory-location-entry>small{display:block;color:#64748b;font-size:13px}
+.operator-inventory-simple .operator-manual-location:not([open])>div,
+.operator-inventory-simple .operator-position-selector:not([open])>.operator-position-options,
+.operator-inventory-simple .inventory-operator-history:not([open])>.inventory-operator-history-body{display:none!important}
+.operator-inventory-simple .inventory-operator-history-body{max-height:40vh;overflow:auto;padding:10px}
+.operator-inventory-simple .inventory-task-scope-operator{padding:8px;border:0}
+.operator-inventory-simple .inventory-task-banner h3{font-size:18px;margin:0}
+.operator-inventory-simple .inventory-finish-details{margin-top:6px}
+.operator-inventory-simple .inventory-operator-history>summary{min-height:48px;font-size:16px;padding:13px;cursor:pointer}
+.operator-inventory-simple .inventory-count-title{margin-bottom:8px}
+.inventory-manager-collapsible .inventory-lines{max-height:55vh;overflow:auto}
+.inventory-manager-collapsible .inventory-line{overflow-wrap:anywhere}
+@media(max-width:600px){
+ .operator-inventory-simple{padding:12px!important}
+ .operator-inventory-simple>.panel-head h2{font-size:18px;margin:4px 0}
+ .operator-inventory-simple>.panel-head small{font-size:11px}
+ .inventory-location-entry>div{flex-wrap:wrap}
+ .inventory-location-entry input{flex-basis:100%}
+ .inventory-location-entry button{width:100%}
+ .operator-inventory-simple .inventory-position-primary button{min-height:50px;font-size:17px}
+}
+.operator-inventory-simple .operator-extra:not([open])>:not(summary),
+.operator-inventory-simple .inventory-finish-details:not([open])>:not(summary){display:none!important}
