@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.01-inventarios-v72';
+const PWA_RELEASE = '2026.09.03-operador-v73';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
