@@ -52,9 +52,10 @@ function parsePositions(value){
 function layoutFromDialog(levels){
   const result={};
   for(let n=1;n<=levels;n++){
-    const input=document.querySelector(`[data-level-layout="${n}"]`);
-    const positions=parsePositions(input?.value);
-    if(!positions)return null;
+    const mode=document.querySelector(`[data-level-mode="${n}"]`)?.value||'FULL';
+    if(mode==='FULL'){result[String(n)]=[''];continue;}
+    const positions=parsePositions(document.querySelector(`[data-level-layout="${n}"]`)?.value);
+    if(!positions||positions.length===1&&positions[0]==='')return null;
     result[String(n)]=positions;
   }
   return result;
@@ -93,8 +94,14 @@ function syncLocations(d,r){
   const rn=rackNumber(r);
   for(let m=1;m<=r.modules;m++)for(let n=1;n<=r.levels;n++)for(const pos of effectivePositions(r,m,n)){
     const id=positionId(r,m,n,pos),existing=d.locations.find(l=>l.id===id);
-    if(existing){existing.active=true;existing.position=pos||undefined;continue;}
-    d.locations.push({id,siteId:r.siteId,rackId:r.id,rackCode:r.rackCode||rackCode(r),module:m,level:n,position:pos||undefined,label:pos?`${r.name} · M${m} · N${n} · Posición ${pos}`:id,status:'LIBRE',access:n===1?'DIRECTO':'YALE',kind:pos?'PALLET_POSITION':rn>=6?'PICKING_RACK':'RACK',active:true,capacity:pos||rn>=6?1:null,notes:pos?'Posición física configurable.':''});
+    const storageMode=pos?'SUBPOSITION_CONTAINER':'FULL_POSITION_CONTAINER';
+    const notes=pos?'Subposición contenedora multiproducto independiente.':'Posición completa contenedora multiproducto.';
+    if(existing){
+      existing.active=true;existing.position=pos||undefined;
+      if(r.containerStorageEnabled){existing.storageMode=storageMode;existing.multiProduct=true;existing.capacity=null;existing.notes=notes;}
+      continue;
+    }
+    d.locations.push({id,siteId:r.siteId,rackId:r.id,rackCode:r.rackCode||rackCode(r),module:m,level:n,position:pos||undefined,label:pos?`${r.name} · M${m} · N${n} · Posición ${pos}`:id,status:'LIBRE',access:n===1?'DIRECTO':'YALE',kind:pos?'PALLET_POSITION':rn>=6?'PICKING_RACK':'RACK',active:true,capacity:r.containerStorageEnabled?null:(pos||rn>=6?1:null),storageMode:r.containerStorageEnabled?storageMode:undefined,multiProduct:r.containerStorageEnabled?true:undefined,notes:r.containerStorageEnabled?notes:(pos?'Posición física configurable.':'')});
   }
 }
 function renderLevelEditor(r,levels){
@@ -102,26 +109,30 @@ function renderLevelEditor(r,levels){
   if(!box)return;
   const rows=[];
   for(let n=levels;n>=1;n--){
-    const positions=levelPositions(r,n);
-    rows.push(`<label class="rack-layout-row"><span>Nivel ${n}</span><input data-level-layout="${n}" value="${esc(positions[0]===''?'Única':positions.join(', '))}" placeholder="Única o A, B, C"><small>Ej.: Única · A · A, B · A, B, C, D</small></label>`);
+    const positions=levelPositions(r,n),subdivided=!(positions.length===1&&positions[0]==='');
+    rows.push(`<div class="rack-layout-row"><span>Nivel ${n}</span><select data-level-mode="${n}"><option value="FULL" ${subdivided?'':'selected'}>Posición completa</option><option value="SUBDIVIDED" ${subdivided?'selected':''}>Subdividida</option></select><input data-level-layout="${n}" value="${esc(subdivided?positions.join(', '):'')}" placeholder="A, B, C, D" ${subdivided?'':'disabled'}><small>${subdivided?'Cada letra será una ubicación multiproducto independiente.':'Todo el nivel/módulo será una sola ubicación multiproducto.'}</small></div>`);
   }
   box.innerHTML=rows.join('');
+  box.querySelectorAll('[data-level-mode]').forEach(select=>select.onchange=()=>{const n=select.dataset.levelMode,input=box.querySelector(`[data-level-layout="${n}"]`),help=select.closest('.rack-layout-row')?.querySelector('small'),sub=select.value==='SUBDIVIDED';if(input){input.disabled=!sub;if(sub&&!input.value.trim())input.value='A, B';}if(help)help.textContent=sub?'Cada letra será una ubicación multiproducto independiente.':'Todo el nivel/módulo será una sola ubicación multiproducto.';});
 }
 function renderModuleLevelEditor(r,module,levels){
   const box=document.querySelector('#module-level-layout');
   if(!box)return;
   const rows=[];
   for(let n=levels;n>=1;n--){
-    const positions=levelPositions(r,n,module);
-    rows.push(`<label class="rack-layout-row"><span>Nivel ${n}</span><input data-module-level-layout="${n}" value="${esc(positions[0]===''?'Única':positions.join(', '))}" placeholder="Única o A, B, C"><small>Solo afecta al Módulo ${module}. Ej.: Única · A · A, B · A, B, C, D</small></label>`);
+    const positions=levelPositions(r,n,module),subdivided=!(positions.length===1&&positions[0]==='');
+    rows.push(`<div class="rack-layout-row"><span>Nivel ${n}</span><select data-module-level-mode="${n}"><option value="FULL" ${subdivided?'':'selected'}>Posición completa</option><option value="SUBDIVIDED" ${subdivided?'selected':''}>Subdividida</option></select><input data-module-level-layout="${n}" value="${esc(subdivided?positions.join(', '):'')}" placeholder="A, B, C, D" ${subdivided?'':'disabled'}><small>${subdivided?`Módulo ${module}: cada letra guarda varios SKU de forma independiente.`:`Módulo ${module}: una sola ubicación puede guardar varios SKU.`}</small></div>`);
   }
   box.innerHTML=rows.join('');
+  box.querySelectorAll('[data-module-level-mode]').forEach(select=>select.onchange=()=>{const n=select.dataset.moduleLevelMode,input=box.querySelector(`[data-module-level-layout="${n}"]`),help=select.closest('.rack-layout-row')?.querySelector('small'),sub=select.value==='SUBDIVIDED';if(input){input.disabled=!sub;if(sub&&!input.value.trim())input.value='A, B';}if(help)help.textContent=sub?`Módulo ${module}: cada letra guarda varios SKU de forma independiente.`:`Módulo ${module}: una sola ubicación puede guardar varios SKU.`;});
 }
 function moduleLayoutFromDialog(levels){
   const result={};
   for(let n=1;n<=levels;n++){
+    const mode=document.querySelector(`[data-module-level-mode="${n}"]`)?.value||'FULL';
+    if(mode==='FULL'){result[String(n)]=[''];continue;}
     const positions=parsePositions(document.querySelector(`[data-module-level-layout="${n}"]`)?.value);
-    if(!positions)return null;
+    if(!positions||positions.length===1&&positions[0]==='')return null;
     result[String(n)]=positions;
   }
   return result;
@@ -136,7 +147,7 @@ function showRackFeedback(message,type='error',target='#rack-feedback'){
 
 export function renderStructure(root){
   const sid=siteId(),site=store.data.sites.find(s=>s.id===sid)||store.data.sites[0],format=store.data.settings?.locationCodeFormat||FORMATO_UBICACION_PREDETERMINADO;
-  root.innerHTML=shell('Estructura',`<div class="page-intro"><div><span class="eyebrow">ESTRUCTURA POR CENTRO</span><h2>${esc(site?.name||sid)}</h2><p>Cada bodega o tienda organiza sus propias ubicaciones. Esta pantalla solo permite ver y modificar el centro activo.</p></div><div class="inline-site-select"><small>Centro activo</small><b>${esc(site?.name||sid)}</b></div></div><section class="panel"><div class="panel-head"><div><h3>Códigos físicos</h3><small>Ejemplo con posición A/B: <b id="location-preview"></b></small></div></div><div class="form-grid"><label>Formato<input id="location-format" value="${esc(format)}"><small>Variables: {SEDE}, {RACK}, {MODULO}, {NIVEL}, opcional {POSICION}</small></label></div><div class="dialog-actions"><button id="save-location-format" class="primary">Guardar formato</button></div></section><section class="panel"><div class="panel-head"><div><h3>Racks · ${esc(site?.name||sid)}</h3><small>Cada rack puede tener una distribución distinta de posiciones por nivel.</small></div><button id="new-rack" class="primary">+ Nuevo rack</button></div><div class="structure-table"><div class="structure-row head"><div>Rack</div><div>Módulos</div><div>Niveles</div><div>Ubic.</div><div>Estado</div><div></div></div>${rackRows(sid)}</div></section><div id="rack-map-detail"></div><dialog id="rack-dialog"><form id="rack-form"><div class="dialog-head"><h3>Configurar rack</h3><button type="button" id="close-rack" class="ghost">×</button></div><input type="hidden" id="rack-id"><label>Nombre<input id="rack-name" required></label><div class="form-grid"><label>Módulos<input id="rack-modules" type="number" min="1" max="100" required></label><label>Niveles<input id="rack-levels" type="number" min="1" max="20" required></label></div><label>Uso / descripción<input id="rack-usage"></label><label>Estado<select id="rack-status"><option>ACTIVO</option><option>EN_CONSTRUCCION</option><option>INACTIVO</option></select></label><div class="rack-layout-editor"><b>Distribución por nivel</b><small>Define las posiciones de cada nivel. “Única” crea una sola ubicación; también puedes usar A, B, C, D, etc.</small><div id="rack-level-layout"></div></div><div class="warning-box">Las ubicaciones con stock o pallets nunca se eliminan automáticamente. Al cambiar la distribución, las ubicaciones vacías que ya no correspondan quedan inactivas.</div><div id="rack-feedback" class="rack-feedback"></div><div class="dialog-actions rack-dialog-actions"><button type="button" id="delete-rack" class="danger-action" hidden>Eliminar rack</button><span class="dialog-actions-spacer"></span><button type="button" id="cancel-rack" class="ghost">Cancelar</button><button type="submit" class="primary">Guardar y generar</button></div></form></dialog><dialog id="module-dialog"><form id="module-form"><div class="dialog-head"><div><h3 id="module-dialog-title">Editar módulo</h3><small>Esta configuración reemplaza la distribución general solo para este módulo.</small></div><button type="button" id="close-module-dialog" class="ghost">×</button></div><input type="hidden" id="module-number"><div class="rack-layout-editor"><b>Posiciones por nivel</b><div id="module-level-layout"></div></div><div class="warning-box">Si una posición que quieres quitar contiene stock o un pallet, el sistema no permitirá guardarlo y te indicará cuál debes vaciar primero.</div><div id="module-feedback" class="rack-feedback"></div><div class="dialog-actions"><button type="button" id="reset-module-layout" class="ghost">Usar distribución general</button><button type="button" id="cancel-module-dialog" class="ghost">Cancelar</button><button type="submit" class="primary">Guardar módulo</button></div></form></dialog>`,'estructura');
+  root.innerHTML=shell('Estructura',`<div class="page-intro"><div><span class="eyebrow">ESTRUCTURA POR CENTRO</span><h2>${esc(site?.name||sid)}</h2><p>Cada bodega o tienda organiza sus propias ubicaciones. Esta pantalla solo permite ver y modificar el centro activo.</p></div><div class="inline-site-select"><small>Centro activo</small><b>${esc(site?.name||sid)}</b></div></div><section class="panel"><div class="panel-head"><div><h3>Códigos físicos</h3><small>Ejemplo con posición A/B: <b id="location-preview"></b></small></div></div><div class="form-grid"><label>Formato<input id="location-format" value="${esc(format)}"><small>Variables: {SEDE}, {RACK}, {MODULO}, {NIVEL}, opcional {POSICION}</small></label></div><div class="dialog-actions"><button id="save-location-format" class="primary">Guardar formato</button></div></section><section class="panel"><div class="panel-head"><div><h3>Racks · ${esc(site?.name||sid)}</h3><small>Cada rack puede tener una distribución distinta de posiciones por nivel.</small></div><button id="new-rack" class="primary">+ Nuevo rack</button></div><div class="structure-table"><div class="structure-row head"><div>Rack</div><div>Módulos</div><div>Niveles</div><div>Ubic.</div><div>Estado</div><div></div></div>${rackRows(sid)}</div></section><div id="rack-map-detail"></div><dialog id="rack-dialog"><form id="rack-form"><div class="dialog-head"><h3>Configurar rack</h3><button type="button" id="close-rack" class="ghost">×</button></div><input type="hidden" id="rack-id"><label>Nombre<input id="rack-name" required></label><div class="form-grid"><label>Módulos<input id="rack-modules" type="number" min="1" max="100" required></label><label>Niveles<input id="rack-levels" type="number" min="1" max="20" required></label></div><label>Uso / descripción<input id="rack-usage"></label><label>Estado<select id="rack-status"><option>ACTIVO</option><option>EN_CONSTRUCCION</option><option>INACTIVO</option></select></label><div class="rack-layout-editor"><b>Modo de almacenamiento por nivel</b><small>Elige “Posición completa” para usar una ubicación multiproducto, o “Subdividida” para crear A/B/C/etc.; cada subposición funciona como un contenedor independiente.</small><div id="rack-level-layout"></div></div><div class="warning-box">Las ubicaciones con stock o pallets nunca se eliminan automáticamente. Al cambiar la distribución, las ubicaciones vacías que ya no correspondan quedan inactivas.</div><div id="rack-feedback" class="rack-feedback"></div><div class="dialog-actions rack-dialog-actions"><button type="button" id="delete-rack" class="danger-action" hidden>Eliminar rack</button><span class="dialog-actions-spacer"></span><button type="button" id="cancel-rack" class="ghost">Cancelar</button><button type="submit" class="primary">Guardar y generar</button></div></form></dialog><dialog id="module-dialog"><form id="module-form"><div class="dialog-head"><div><h3 id="module-dialog-title">Editar módulo</h3><small>Esta configuración reemplaza la distribución general solo para este módulo.</small></div><button type="button" id="close-module-dialog" class="ghost">×</button></div><input type="hidden" id="module-number"><div class="rack-layout-editor"><b>Modo de almacenamiento por nivel</b><small>Esta selección solo afecta al módulo actual. Tanto la posición completa como cada subposición pueden contener múltiples SKU.</small><div id="module-level-layout"></div></div><div class="warning-box">Si una posición que quieres quitar contiene stock o un pallet, el sistema no permitirá guardarlo y te indicará cuál debes vaciar primero.</div><div id="module-feedback" class="rack-feedback"></div><div class="dialog-actions"><button type="button" id="reset-module-layout" class="ghost">Usar distribución general</button><button type="button" id="cancel-module-dialog" class="ghost">Cancelar</button><button type="submit" class="primary">Guardar módulo</button></div></form></dialog>`,'estructura');
   wireShell();
 
   const fmt=document.querySelector('#location-format'),preview=document.querySelector('#location-preview');
@@ -189,7 +200,7 @@ export function renderStructure(root){
     delete probe.moduleLevelPositions[String(module)];
     const occupied=obsoleteOccupiedLocations(probe);
     if(occupied.length){showRackFeedback(`No se puede restablecer el módulo: ${occupied[0].id} contiene stock o un pallet. Muévelo primero y vuelve a intentarlo.`,'error','#module-feedback');return;}
-    await store.commit(d=>{const r=d.racks.find(x=>x.id===activeMapRack.id);if(!r)return;r.moduleLevelPositions={...(r.moduleLevelPositions||{})};delete r.moduleLevelPositions[String(module)];r.plannedSlots=plannedSlotsForRack(r);syncLocations(d,r);recalcularCodigosEscaneables(d);},`Módulo ${module} de ${activeMapRack.rackCode||activeMapRack.id} restablecido`);
+    await store.commit(d=>{const r=d.racks.find(x=>x.id===activeMapRack.id);if(!r)return;r.containerStorageEnabled=true;r.moduleLevelPositions={...(r.moduleLevelPositions||{})};delete r.moduleLevelPositions[String(module)];r.plannedSlots=plannedSlotsForRack(r);syncLocations(d,r);recalcularCodigosEscaneables(d);},`Módulo ${module} de ${activeMapRack.rackCode||activeMapRack.id} restablecido`);
     moduleDlg.close();renderStructure(root);toast(`Módulo ${module} restablecido a la distribución general.`);
   };
   document.querySelector('#module-form').onsubmit=async e=>{
@@ -200,7 +211,7 @@ export function renderStructure(root){
     const probe={...activeMapRack,moduleLevelPositions:{...(activeMapRack.moduleLevelPositions||{}),[String(module)]:layout}};
     const occupied=obsoleteOccupiedLocations(probe);
     if(occupied.length){showRackFeedback(`No se puede guardar: ${occupied[0].id} contiene stock o un pallet. Muévelo primero desde Mover/Reubicar y vuelve a intentarlo.`,'error','#module-feedback');return;}
-    await store.commit(d=>{const r=d.racks.find(x=>x.id===activeMapRack.id);if(!r)return;r.moduleLevelPositions={...(r.moduleLevelPositions||{}),[String(module)]:layout};r.plannedSlots=plannedSlotsForRack(r);syncLocations(d,r);recalcularCodigosEscaneables(d);},`Distribución del módulo ${module} actualizada en ${activeMapRack.rackCode||activeMapRack.id}`);
+    await store.commit(d=>{const r=d.racks.find(x=>x.id===activeMapRack.id);if(!r)return;r.containerStorageEnabled=true;r.moduleLevelPositions={...(r.moduleLevelPositions||{}),[String(module)]:layout};r.plannedSlots=plannedSlotsForRack(r);syncLocations(d,r);recalcularCodigosEscaneables(d);},`Distribución del módulo ${module} actualizada en ${activeMapRack.rackCode||activeMapRack.id}`);
     moduleDlg.close();renderStructure(root);toast(`Módulo ${module} actualizado correctamente.`);
   };
   let editingRack=null;
@@ -263,7 +274,7 @@ export function renderStructure(root){
     await store.commit(d=>{
       let r=d.racks.find(x=>x.id===id&&x.siteId===sid);
       if(!r){r={id,siteId:sid,rackCode:rc,sectorId:null};d.racks.push(r);}
-      Object.assign(r,{name:document.querySelector('#rack-name').value.trim()||rc,modules,levels,status:document.querySelector('#rack-status').value,usage:document.querySelector('#rack-usage').value.trim(),levelPositions:layout});
+      Object.assign(r,{name:document.querySelector('#rack-name').value.trim()||rc,modules,levels,status:document.querySelector('#rack-status').value,usage:document.querySelector('#rack-usage').value.trim(),levelPositions:layout,containerStorageEnabled:true});
       r.moduleLevelPositions=r.moduleLevelPositions||{};
       for(const key of Object.keys(r.moduleLevelPositions)){
         if(Number(key)>modules){delete r.moduleLevelPositions[key];continue;}
