@@ -1548,3 +1548,27 @@ dialog.scanner-dialog{
  .inventory-work-action-buttons>button{min-height:54px;font-size:15px;padding:10px 8px}
  .inventory-current-location span{display:none}
 }
+
+/* Centro de monitoreo: gráfica real y accesos accesibles a sus desgloses. */
+.exec-kpis button.exec-kpi{width:100%;text-align:left;font:inherit;cursor:pointer}
+.exec-kpis button.exec-kpi:hover,.exec-kpis button.exec-kpi:focus-visible{outline:2px solid #7c3aed;outline-offset:2px;transform:translateY(-2px)}
+.exec-center-card{position:relative}
+.exec-center-open{position:absolute;inset:0;width:100%;height:100%;background:transparent!important;border:0!important;border-radius:inherit;cursor:pointer}
+.exec-center-open:focus-visible{outline:3px solid #7c3aed}
+.exec-table a.exec-table-row{color:inherit;text-decoration:none}
+.exec-table a.exec-table-row:hover{background:#f0fdf4}
+.exec-inventory-chart{margin:18px 0}
+.exec-chart-bars{height:210px;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px;padding:14px 8px 0;border-bottom:1px solid #cbd5e1}
+.exec-chart-day{display:grid;grid-template-rows:24px 1fr 28px;text-align:center;gap:5px;min-width:0}
+.exec-chart-day>div{display:flex;align-items:flex-end;background:repeating-linear-gradient(to top,#e2e8f0 0,#e2e8f0 1px,transparent 1px,transparent 25%);border-radius:6px}
+.exec-chart-day i{display:block;width:70%;margin:auto auto 0;background:linear-gradient(#7c3aed,#22c55e);border-radius:6px 6px 0 0}
+.exec-chart-day small{font-size:12px}
+.exec-inventory-chart p{font-size:12px;color:#64748b}
+#exec-monitor-dialog{width:min(780px,calc(100vw - 24px));max-height:85dvh;overflow:auto;padding:20px;border:1px solid #dbe4ee;border-radius:18px}
+#exec-monitor-body{display:grid;gap:9px;margin-top:14px}
+#exec-monitor-body>a{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px;border:1px solid #e2e8f0;border-radius:12px;text-decoration:none;color:#0f172a}
+#exec-monitor-body>a:hover{background:#f0fdf4}
+#exec-monitor-body span{display:grid;gap:5px;min-width:0;overflow-wrap:anywhere}
+#exec-monitor-body small{color:#64748b}
+#exec-monitor-body strong{white-space:nowrap;color:#15803d}
+@media(max-width:600px){.exec-chart-bars{gap:5px;height:180px}.exec-chart-day small{font-size:10px}}
