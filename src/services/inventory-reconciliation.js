@@ -32,7 +32,7 @@ export function inventoryPhysicalSnapshot(session){
 }
 export function inventoryReconciliationRows(state,session){
   const system=session.systemSnapshotByProduct||{},physical=inventoryPhysicalSnapshot(session),codes=new Set([...Object.keys(system),...Object.keys(physical)]);
-  return [...codes].map(code=>{const before=Number(system[code]||0),counted=Number(physical[code]||0),diff=counted-before,product=(state.products||[]).find(p=>String(p.code)===String(code));return {code,name:product?.name||product?.description||`Producto ${code}`,system:before,physical:counted,diff,status:diff===0?'COINCIDE':diff>0?'SOBRANTE':'FALTANTE'};}).sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff)||String(a.code).localeCompare(String(b.code),undefined,{numeric:true}));
+  return [...codes].map(code=>{const before=Number(system[code]||0),counted=Number(physical[code]||0),diff=counted-before,product=(state.products||[]).find(p=>String(p.code)===String(code));return {code,name:product?.name||product?.description||(session.lines||[]).find(l=>String(l.productCode)===String(code))?.productName||`Producto ${code}`,system:before,physical:counted,diff,status:diff===0?'COINCIDE':diff>0?'SOBRANTE':'FALTANTE'};}).sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff)||String(a.code).localeCompare(String(b.code),undefined,{numeric:true}));
 }
 export function inventoryReconciliationDrift(state,session){
   const expected=session.systemSnapshotByProduct||{},current=inventoryScopeSnapshot(state,session),codes=new Set([...Object.keys(expected),...Object.keys(current)]);
@@ -65,6 +65,7 @@ function addToCountedPosition(state,session,code,qty){
 export function applyInventoryReconciliation(state,sessionId,{userId=state.session?.userId||'Sistema',at=new Date().toISOString(),note=''}={}){
   const session=(state.planning?.inventorySessions||[]).find(s=>s.id===sessionId);if(!session)throw new Error('No se encontró el inventario a conciliar.');
   if(session.status!=='CERRADA')throw new Error('Solo se puede conciliar un inventario cerrado.');
+  const unknown=[...new Set((session.lines||[]).filter(l=>l.foundWithoutCatalog&&!(state.products||[]).some(p=>String(p.code)===String(l.productCode))).map(l=>l.productCode))];if(unknown.length)throw new Error(`Antes de conciliar, da de alta en Productos estos códigos encontrados: ${unknown.join(', ')}`);
   const site=(state.sites||[]).find(s=>s.id===session.siteId);if(!site)throw new Error('El centro del inventario ya no existe.');
   if(sessionCompanyId(session,state)!==siteCompanyId(site,state))throw new Error('La empresa del inventario no coincide con la empresa del centro.');
   if(!session.systemSnapshotByProduct||typeof session.systemSnapshotByProduct!=='object')throw new Error('Este inventario no tiene una referencia de stock válida. Realiza un reconteo antes de conciliar.');

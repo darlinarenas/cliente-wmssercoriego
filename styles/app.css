@@ -1572,3 +1572,12 @@ dialog.scanner-dialog{
 #exec-monitor-body small{color:#64748b}
 #exec-monitor-body strong{white-space:nowrap;color:#15803d}
 @media(max-width:600px){.exec-chart-bars{gap:5px;height:180px}.exec-chart-day small{font-size:10px}}
+
+/* Hallazgos de inventario sin catálogo */
+.inventory-found-dialog{width:min(480px,calc(100vw - 24px));max-height:85dvh;overflow:auto;margin:auto;border:0;border-radius:18px;padding:24px;box-sizing:border-box}
+.inventory-found-dialog::backdrop{background:rgba(15,23,42,.55)}
+.inventory-found-dialog form,.inventory-found-dialog label{display:grid;gap:10px}
+.inventory-found-dialog form{gap:16px}.inventory-found-dialog input{width:100%;box-sizing:border-box;min-height:48px}
+.inventory-found-actions{display:flex;flex-wrap:wrap;gap:12px}.inventory-found-actions button{min-height:48px;flex:1}
+#inventory-found-error{color:#b42318;margin:0}#inventory-add-unknown{min-height:44px;margin-top:8px}
+.inventory-found-summary{margin:16px 0;padding:16px;border:1px solid #edc66c;background:#fffbeb;border-radius:12px}.inventory-found-summary summary{cursor:pointer;font-weight:700}.inventory-found-badge{color:#895600;font-weight:700}
