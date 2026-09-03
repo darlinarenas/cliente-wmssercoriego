@@ -1644,3 +1644,12 @@ dialog.scanner-dialog{
  #exec-monitor-body .exec-inventory-preview-head h4{font-size:17px}
  #exec-monitor-body .exec-preview-open>a{padding:12px;gap:8px}
 }
+
+/* 2026-09-03 · Branding oficial Khal */
+.brand-mark{
+  background:#080a0d url('../assets/icons/icon-192.png') center/88% no-repeat!important;
+  color:transparent!important;
+  overflow:hidden;
+}
+.login-brand .brand-mark{width:54px;height:54px;border-radius:14px}
+.khal-brand-logo{display:block;width:min(300px,72vw);height:auto;margin:0 auto 14px;border-radius:12px}

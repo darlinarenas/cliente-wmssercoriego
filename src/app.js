@@ -94,7 +94,7 @@ async function retryTransient(task,{attempts=2,delay=1800}={}){
 }
 
 function renderBoot(message='Conectando con el servidor…'){
-  root.innerHTML=`<main style="min-height:100vh;display:grid;place-items:center;background:#f4f7fb;padding:24px;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"><section style="width:min(430px,100%);background:#fff;border:1px solid #dfe7f1;border-radius:20px;padding:28px;box-shadow:0 18px 50px rgba(15,23,42,.08);text-align:center"><div style="width:54px;height:54px;border-radius:16px;background:#16a34a;color:#fff;display:grid;place-items:center;margin:0 auto 16px;font-size:26px;font-weight:800">S</div><h1 style="font-size:21px;margin:0 0 3px;color:#0f172a">WMS</h1><b style="display:block;margin:0 0 10px;color:#16a34a;font-size:13px">By Vexhora</b><p style="margin:0;color:#64748b;font-size:14px">${message}</p></section></main>`;
+  root.innerHTML=`<main style="min-height:100vh;display:grid;place-items:center;background:#f4f7fb;padding:24px;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"><section style="width:min(430px,100%);background:#fff;border:1px solid #dfe7f1;border-radius:20px;padding:28px;box-shadow:0 18px 50px rgba(15,23,42,.08);text-align:center"><img src="./assets/branding/khal-logo.jpg" alt="Khal · Warehouse Management System · By Vexhora" style="display:block;width:min(320px,88%);height:auto;margin:0 auto 16px;border-radius:12px"><h1 style="font-size:21px;margin:0 0 3px;color:#0f172a">Khal</h1><b style="display:block;margin:0 0 10px;color:#d4a800;font-size:13px">Vexhora Group</b><p style="margin:0;color:#64748b;font-size:14px">${message}</p></section></main>`;
 }
 
 function renderBootError(error){

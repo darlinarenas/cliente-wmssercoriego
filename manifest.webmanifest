@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "SercoRiego Lite WMS",
-  "short_name": "SercoRiego WMS",
-  "description": "Sistema liviano de control de bodega, ubicación, palets, recepción, despacho e inventario de SercoRiego.",
+  "name": "Khal",
+  "short_name": "Khal",
+  "description": "Khal · Gestión de bodega por Vexhora Group.",
   "lang": "es-CL",
   "start_url": "./",
   "scope": "./",

@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.03-repisas-multiproducto-v82';
+const PWA_RELEASE = '2026.09.03-khal-logo-v84';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
@@ -22,7 +22,7 @@ function crearDialogo() {
   dlg.innerHTML = `
     <div class="pwa-dialog-head">
       <div>
-        <b>Instalar SercoRiego Lite WMS</b>
+        <b>Instalar Khal</b>
         <small>Usar como aplicación</small>
       </div>
       <button type="button" class="ghost" id="pwa-dialog-close" aria-label="Cerrar">×</button>
@@ -46,7 +46,7 @@ function mostrarAyudaInstalacion() {
         <li>Selecciona <b>Añadir a pantalla de inicio</b>.</li>
         <li>Activa <b>Abrir como app web</b> si aparece y toca <b>Añadir</b>.</li>
       </ol>
-      <p class="muted">Después podrás abrir SercoRiego Lite WMS desde su icono.</p>`;
+      <p class="muted">Después podrás abrir Khal desde su icono.</p>`;
   } else {
     body.innerHTML = `
       <img src="./assets/icons/icon-192.png" alt="" class="pwa-dialog-icon">

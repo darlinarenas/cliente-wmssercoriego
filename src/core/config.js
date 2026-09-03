@@ -1,5 +1,5 @@
 export const APP_CONFIG = {
-  name: 'SercoRiego Lite WMS',
+  name: 'Khal',
   version: '1.0.0-postgresql',
   storageKey: 'serco_wms_inventory_v1',
   activeSiteId: 'REC',
