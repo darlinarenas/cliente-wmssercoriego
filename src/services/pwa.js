@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.03-hallazgos-inventario-v78';
+const PWA_RELEASE = '2026.09.03-tarjeta-inventario-v79';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
