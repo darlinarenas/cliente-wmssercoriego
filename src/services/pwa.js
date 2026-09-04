@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.04-label-print-v88';
+const PWA_RELEASE = '2026.09.04-preview-compact-v89';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 

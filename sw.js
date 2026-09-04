@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.04-label-print-v88';
+const APP_VERSION = '2026.09.04-preview-compact-v89';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
