@@ -9,9 +9,18 @@ function inventoryRowLocation(state,row){
   const pallet=row.palletId?(state.pallets||[]).find(p=>p.id===row.palletId):null;
   return (state.locations||[]).find(l=>l.id===(pallet?.locationId||row.locationId))||(state.locations||[]).find(l=>l.id===row.locationId)||null;
 }
+function locationModule(loc){const raw=loc?.module??String(loc?.id||loc?.label||'').match(/-M(\d+)/i)?.[1]??'';return String(raw||'');}
+function assignmentAllowsRow(state,assignment,row,loc){
+  const moduleTargets=Array.isArray(assignment?.moduleTargets)?assignment.moduleTargets.filter(x=>x?.rackId&&String(x.module||'').trim()):[],palletIds=Array.isArray(assignment?.palletIds)?assignment.palletIds.filter(Boolean):[];
+  if(!moduleTargets.length&&!palletIds.length)return (assignment?.rackIds||[]).includes(loc?.rackId);
+  if(moduleTargets.some(t=>t.rackId===loc?.rackId&&String(t.module)===locationModule(loc)))return true;
+  return !!row?.palletId&&palletIds.includes(row.palletId);
+}
 function rowInSessionScope(state,session,row,racks=new Set(rackIdsForSession(state,session))){
   const loc=inventoryRowLocation(state,row),site=row.siteId||loc?.siteId||(state.pallets||[]).find(p=>p.id===row.palletId)?.siteId;
-  return site===session.siteId&&!!loc&&racks.has(loc.rackId);
+  if(site!==session.siteId||!loc||!racks.has(loc.rackId))return false;
+  if((session.scope||'ALL_ACTIVE_RACKS')!=='CLINICAL_TARGETS')return true;
+  return (session.assignments||[]).some(a=>assignmentAllowsRow(state,a,row,loc));
 }
 export function inventoryScopeSnapshot(state,session){
   const racks=new Set(rackIdsForSession(state,session)),out={};
@@ -58,6 +67,7 @@ function addToCountedPosition(state,session,code,qty){
   const location=(state.locations||[]).find(l=>l.id===line.locationId),pallet=line.palletId?(state.pallets||[]).find(p=>p.id===line.palletId):null;
   if(!location||location.siteId!==session.siteId)throw new Error(`La posición contada para ${code} ya no pertenece al centro del inventario.`);
   if(pallet&&pallet.siteId!==session.siteId)throw new Error(`El pallet contado para ${code} ya no pertenece al centro del inventario.`);
+  if(!rowInSessionScope(state,session,{siteId:session.siteId,locationId:line.locationId,palletId:line.palletId||null}))throw new Error(`La posición contada para ${code} ya no pertenece al alcance clínico del inventario.`);
   let row=(state.inventory||[]).find(r=>String(r.productCode)===String(code)&&r.locationId===line.locationId&&(r.palletId||null)===(line.palletId||null));
   if(!row){row={id:`INV-CONC-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,siteId:session.siteId,productCode:code,locationId:line.locationId,palletId:line.palletId||null,qty:0,origin:'INVENTORY_RECONCILIATION'};(state.inventory=state.inventory||[]).push(row);}row.qty=Number(row.qty||0)+qty;
   return [{inventoryId:row.id,locationId:row.locationId,palletId:row.palletId||null,qty}];
