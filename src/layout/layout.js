@@ -6,6 +6,7 @@ import { activeSiteId,userAllowedSites } from '../services/stock.js';
 import { activeCompanyId,companyName,siteCompanyId } from '../services/company.js';
 import { codePermissionsForUser, palletPermissionsForUser, inventoryPermissionsForUser, mapPermissionsForUser } from '../services/access-routing.js';
 import { apiRequest } from '../services/api.js';
+import { sonidoOrdenAsignada,sonidoOrdenCulminada } from '../services/sonidos.js';
 
 const nav=[
  ['dashboard','Inicio','⌂'],
@@ -23,6 +24,22 @@ const nav=[
 ];
 
 let navOrderAlertTimer=null;
+let orderAlertSnapshot=null;
+function orderAlertRole(user,siteId){return (user?.accessAssignments||[]).find(a=>a.siteId===siteId)?.role||user?.role;}
+function primeOrderAlertSnapshot(orders=[]){orderAlertSnapshot=new Map((orders||[]).map(o=>[o.id,{assignedTo:o.assignedTo||null,assignedAt:o.assignedAt||null,status:o.status,pickingCompletedAt:o.pickingCompletedAt||null}]));}
+function detectOrderSoundAlerts(previous,next,currentUser,siteId){
+  if(!previous){primeOrderAlertSnapshot(next);return;}
+  const role=orderAlertRole(currentUser,siteId);
+  for(const o of next||[]){
+    const before=previous.get(o.id);
+    if(!before)continue;
+    const justAssigned=o.assignedTo===currentUser?.id&&o.status==='ASIGNADA'&&(before.assignedTo!==o.assignedTo||before.assignedAt!==o.assignedAt);
+    if(justAssigned){sonidoOrdenAsignada();toast(`Nueva orden asignada: ${o.externalNumber||o.id}`,'success');}
+    const justFinished=role==='ENCARGADO'&&o.status==='PENDIENTE_EMISION'&&before.status!=='PENDIENTE_EMISION'&&before.pickingCompletedAt!==o.pickingCompletedAt;
+    if(justFinished){sonidoOrdenCulminada();toast(`Orden culminada: ${o.externalNumber||o.id}`,'success');}
+  }
+  primeOrderAlertSnapshot(next);
+}
 const MANAGER_ROLES=new Set(['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO']);
 const ORDER_DONE_STATUSES=new Set(['EMITIDA','CERRADA','ENTREGADA_CONDUCTOR','ANULADA']);
 const ORDER_REVIEW_STATUSES=new Set(['PREPARADA','PENDIENTE_EMISION']);
@@ -48,9 +65,9 @@ function updateNavAlertBadges(){
 function installNavOrderAlerts(){
   if(navOrderAlertTimer){clearInterval(navOrderAlertTimer);navOrderAlertTimer=null;}
   updateNavAlertBadges();
-  if(location.hash.startsWith('#/ordenes')||location.hash.startsWith('#/dashboard'))return;
+  primeOrderAlertSnapshot(store.data.orders||[]);
   let running=false;
-  navOrderAlertTimer=setInterval(async()=>{if(running)return;running=true;try{const next=await apiRequest('/orders');if(JSON.stringify(store.data.orders||[])!==JSON.stringify(next||[])){store.data.orders=next||[];updateNavAlertBadges();}}catch{}finally{running=false;}},10000);
+  navOrderAlertTimer=setInterval(async()=>{if(running)return;running=true;try{const previous=orderAlertSnapshot;const next=await apiRequest('/orders');const d=store.data,currentUser=d.users.find(u=>u.id===d.session?.userId)||auth.user,siteId=activeSiteId(d);detectOrderSoundAlerts(previous,next||[],currentUser,siteId);if(JSON.stringify(store.data.orders||[])!==JSON.stringify(next||[])){store.data.orders=next||[];updateNavAlertBadges();}}catch{}finally{running=false;}},10000);
 }
 
 export function shell(title,content,active='dashboard'){

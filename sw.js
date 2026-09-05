@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.05-login-background-separated-v98';
+const APP_VERSION = '2026.09.05-order-sounds-v99';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
@@ -69,6 +69,8 @@ const PRECACHE = [
   './src/services/pallet-ops.js',
   './assets/sounds/scan-no-encontrado.wav',
   './assets/sounds/scan-ok.wav',
+  './assets/sounds/orden-asignada.mp3',
+  './assets/sounds/orden-culminada.mp3',
   './src/services/sonidos.js',
   './styles/app.css'
 ];

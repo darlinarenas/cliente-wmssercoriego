@@ -3,7 +3,9 @@ import { resolveProduct } from './product-codes.js';
 
 const SONIDOS={
   ok:new URL('../../assets/sounds/scan-ok.wav',import.meta.url).href,
-  noEncontrado:new URL('../../assets/sounds/scan-no-encontrado.wav',import.meta.url).href
+  noEncontrado:new URL('../../assets/sounds/scan-no-encontrado.wav',import.meta.url).href,
+  ordenAsignada:new URL('../../assets/sounds/orden-asignada.mp3',import.meta.url).href,
+  ordenCulminada:new URL('../../assets/sounds/orden-culminada.mp3',import.meta.url).href
 };
 
 let contexto=null;
@@ -94,3 +96,6 @@ export function sonidoPorCodigo(valor){
 }
 export function sonidoEscaneoOk(){return reproducir('ok');}
 export function sonidoEscaneoNoEncontrado(){return reproducir('noEncontrado');}
+
+export async function sonidoOrdenAsignada(){if(!habilitado)return false;return reproducirWav(SONIDOS.ordenAsignada);}
+export async function sonidoOrdenCulminada(){if(!habilitado)return false;return reproducirWav(SONIDOS.ordenCulminada);}
