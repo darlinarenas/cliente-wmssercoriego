@@ -1703,3 +1703,17 @@ dialog.scanner-dialog{
 .manager-reassign{min-width:190px}.manager-reassign>summary{cursor:pointer;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:#fff;font-weight:800;list-style:none}.manager-reassign>summary::-webkit-details-marker{display:none}
 .manager-reassign[open]{grid-column:1/-1}.manager-reassign .order-assign{margin:8px 0 0;background:#fff}
 @media(max-width:760px){.manager-order-tracking{grid-template-columns:1fr}.manager-order-tracking-actions{display:grid;grid-template-columns:1fr}.manager-order-tracking-actions>*{width:100%}.manager-reassign{min-width:0}}
+
+/* v101 · picking móvil: cantidad siempre a mano y lista solo pendiente */
+.operator-pick-simple .pick-now-field{position:relative;display:grid;gap:7px}
+.operator-pick-simple .pick-item-required{display:flex;align-items:center;justify-content:center;min-height:42px;padding:8px 12px;border:2px solid #16a34a;border-radius:11px;background:#ecfdf3;color:#08753a;font-size:18px;font-weight:900;line-height:1.15;text-align:center}
+.operator-pick-simple .pick-now-field input{font-size:24px!important;text-align:center;font-weight:900}
+@media(max-width:600px){
+ .operator-pick-simple #pick-item-dialog-info{gap:7px}
+ .operator-pick-simple .pick-item-dialog-summary{gap:5px}
+ .operator-pick-simple .pick-item-dialog-summary>span{padding:7px 8px}
+ .operator-pick-simple .pick-item-dialog-summary>.pick-summary-main b{font-size:32px}
+ .operator-pick-simple .pick-readable-location{padding:8px 10px}
+ .operator-pick-simple .pick-item-dialog-form{padding:9px;gap:8px}
+ .operator-pick-simple .pick-item-required{min-height:38px;font-size:17px}
+}

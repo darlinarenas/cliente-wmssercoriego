@@ -25,17 +25,18 @@ const nav=[
 
 let navOrderAlertTimer=null;
 let orderAlertSnapshot=null;
+let orderAlertScope=null;
+let orderAlertStartedAt=0;
 function orderAlertRole(user,siteId){return (user?.accessAssignments||[]).find(a=>a.siteId===siteId)?.role||user?.role;}
 function primeOrderAlertSnapshot(orders=[]){orderAlertSnapshot=new Map((orders||[]).map(o=>[o.id,{assignedTo:o.assignedTo||null,assignedAt:o.assignedAt||null,status:o.status,pickingCompletedAt:o.pickingCompletedAt||null}]));}
 function detectOrderSoundAlerts(previous,next,currentUser,siteId){
   if(!previous){primeOrderAlertSnapshot(next);return;}
-  const role=orderAlertRole(currentUser,siteId);
+  const role=orderAlertRole(currentUser,siteId),activePickStatuses=new Set(['ASIGNADA','EN_PICKING']);
   for(const o of next||[]){
-    const before=previous.get(o.id);
-    if(!before)continue;
-    const justAssigned=o.assignedTo===currentUser?.id&&o.status==='ASIGNADA'&&(before.assignedTo!==o.assignedTo||before.assignedAt!==o.assignedAt);
-    if(justAssigned){sonidoOrdenAsignada();toast(`Nueva orden asignada: ${o.externalNumber||o.id}`,'success');}
-    const justFinished=role==='ENCARGADO'&&o.status==='PENDIENTE_EMISION'&&before.status!=='PENDIENTE_EMISION'&&before.pickingCompletedAt!==o.pickingCompletedAt;
+    const before=previous.get(o.id),assignedAt=Date.parse(o.assignedAt||'')||0;
+    const becameMine=o.assignedTo===currentUser?.id&&activePickStatuses.has(o.status)&&(!before?assignedAt>=orderAlertStartedAt-1000:before.assignedTo!==o.assignedTo||before.assignedAt!==o.assignedAt);
+    if(becameMine){sonidoOrdenAsignada();toast(`Nueva orden asignada: ${o.externalNumber||o.id}`,'success');}
+    const justFinished=role==='ENCARGADO'&&o.status==='PENDIENTE_EMISION'&&before&&before.status!=='PENDIENTE_EMISION'&&before.pickingCompletedAt!==o.pickingCompletedAt;
     if(justFinished){sonidoOrdenCulminada();toast(`Orden culminada: ${o.externalNumber||o.id}`,'success');}
   }
   primeOrderAlertSnapshot(next);
@@ -64,10 +65,11 @@ function updateNavAlertBadges(){
 }
 function installNavOrderAlerts(){
   if(navOrderAlertTimer){clearInterval(navOrderAlertTimer);navOrderAlertTimer=null;}
+  const d=store.data,currentUser=d.users.find(u=>u.id===d.session?.userId)||auth.user,siteId=activeSiteId(d),scope=`${currentUser?.id||'anon'}:${siteId||'site'}`;
   updateNavAlertBadges();
-  primeOrderAlertSnapshot(store.data.orders||[]);
+  if(orderAlertScope!==scope){orderAlertScope=scope;orderAlertStartedAt=Date.now();primeOrderAlertSnapshot(store.data.orders||[]);}else if(!orderAlertSnapshot)primeOrderAlertSnapshot(store.data.orders||[]);
   let running=false;
-  navOrderAlertTimer=setInterval(async()=>{if(running)return;running=true;try{const previous=orderAlertSnapshot;const next=await apiRequest('/orders');const d=store.data,currentUser=d.users.find(u=>u.id===d.session?.userId)||auth.user,siteId=activeSiteId(d);detectOrderSoundAlerts(previous,next||[],currentUser,siteId);if(JSON.stringify(store.data.orders||[])!==JSON.stringify(next||[])){store.data.orders=next||[];updateNavAlertBadges();}}catch{}finally{running=false;}},10000);
+  navOrderAlertTimer=setInterval(async()=>{if(running)return;running=true;try{const previous=orderAlertSnapshot,next=await apiRequest('/orders'),data=store.data,user=data.users.find(u=>u.id===data.session?.userId)||auth.user,activeSite=activeSiteId(data);detectOrderSoundAlerts(previous,next||[],user,activeSite);store.data.orders=next||[];updateNavAlertBadges();}catch{}finally{running=false;}},5000);
 }
 
 export function shell(title,content,active='dashboard'){
