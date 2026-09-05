@@ -21,6 +21,7 @@ function operatorDashboard(d,user,siteId){
  const actions=[
   ['buscar','⌕','Buscar','Localizar productos y ubicaciones'],
   ...(codePermissionsForUser(user,siteId).consult?[["codigos","▣","Consultar / asociar códigos","Escanear, consultar y asociar etiquetas"]]:[]),
+  ...(codePermissionsForUser(user,siteId).printLabels?[["etiquetas","▤","Etiquetas","Escanear productos y preparar impresión"]]:[]),
   ['recepciones','⇩','Recibir','Registrar mercadería que llega'],
   ['transferencias','⇄','Despachar','Preparar una salida o traspaso'],
   ['palets','▣','Organizar palets','Revisar y ubicar productos'],

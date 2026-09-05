@@ -63,7 +63,7 @@ export function shell(title,content,active='dashboard'){
   const navLink=([id,label,ico],sub=false)=>{const count=taskCountFor(id),tracked=id==='ordenes'||id==='tareas-ubicacion',countHtml=!tracked||!count?'':id==='ordenes'&&alertState.isManager?`<em class="nav-count manager-alert">${count}</em>`:`<em class="nav-count">${count}</em>`;return `<a href="#/${id}" class="nav-link ${sub?'nav-sub-link':''} ${active===id?'active':''} ${id==='ordenes'&&count?'has-nav-alert':''}"><span>${ico}</span><b>${label}</b>${countHtml}</a>`;};
   const links=nav.map(node=>{if(Array.isArray(node))return canSee(node[0])?navLink(node):'';const items=node.items.filter(([id])=>canSee(id));if(!items.length)return '';const opened=items.some(([id])=>id===active);return `<details class="nav-group ${opened?'active':''}" ${opened?'open':''}><summary><span>${node.ico}</span><b>${node.label}</b><i>⌄</i></summary><div class="nav-submenu">${items.map(item=>navLink(item,true)).join('')}</div></details>`;}).join('');
   const mobileActive=active==='dashboard'?'inicio':active==='buscar'?'buscar':['recepciones','organizar-recibidos','recepcion-traspasos','tareas-ubicacion'].includes(active)?'recibir':['transferencias','cargas'].includes(active)?'despachar':'mas';
-  const mobileQuickNav=[['inicio','⌂','Inicio','#/movil'],['buscar','⌕','Buscar','#/buscar'],['recibir','⇩','Recibir','#/movil?seccion=recibir'],['despachar','⇄','Despachar','#/movil?seccion=despachar'],['mas','⋯','Más','#/movil?seccion=mas']];
+  const mobileQuickNav=[['inicio','⌂','Inicio','#/dashboard'],['buscar','⌕','Buscar','#/buscar'],['recibir','⇩','Recibir','#/movil?seccion=recibir'],['despachar','⇄','Despachar','#/movil?seccion=despachar'],['mas','⋯','Más','#/movil?seccion=mas']];
   const mobileQuickLinks=mobileQuickNav.map(([id,ico,label,href])=>`<a href="${href}" class="${mobileActive===id?'activo':''}"><span>${ico}</span><small>${label}</small></a>`).join('');
   return `<div class="app-shell vista-administrativa">
     <aside class="sidebar">
@@ -102,7 +102,7 @@ export function wireShell(){
   menuBtn?.addEventListener('click',toggleMenu);
   sidebarBackdrop?.addEventListener('click',closeMenu);
   document.querySelectorAll('.sidebar a').forEach(a=>a.addEventListener('click',closeMenu));
-  document.querySelector('#mobile-back-btn')?.addEventListener('click',()=>{if(history.length>1)history.back();else location.hash='#/movil';});
+  document.querySelector('#mobile-back-btn')?.addEventListener('click',()=>{if(history.length>1)history.back();else location.hash='#/dashboard';});
   document.querySelector('#logout-btn')?.addEventListener('click',e=>{const button=e.currentTarget;button.disabled=true;button.textContent='Saliendo…';auth.logout();localStorage.removeItem('serco_wms_active_company');localStorage.removeItem('serco_wms_active_site');history.replaceState(null,'',location.pathname+location.search);location.reload();});
 }
 function globalToast(){let el=document.querySelector('#global-toast');if(!el){el=document.createElement('div');el.id='global-toast';el.className='toast global-toast';el.setAttribute('role','status');el.setAttribute('aria-live','assertive');document.body.appendChild(el);}const openDialogs=[...document.querySelectorAll('dialog[open]')].filter(d=>d.id!=='operation-notice-global');const host=openDialogs.at(-1)||document.body;if(el.parentElement!==host)host.appendChild(el);return el;}

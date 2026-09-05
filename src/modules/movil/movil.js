@@ -8,10 +8,10 @@ import { activeCompanyId,siteCompanyId } from '../../services/company.js';
 import { buscarUbicacionPorCodigo } from '../../services/ubicaciones.js';
 import { inventoryPermissionsForUser,codePermissionsForUser, palletPermissionsForUser } from '../../services/access-routing.js';
 
-const rutas={inicio:'movil',buscar:'buscar',recibir:'movil?seccion=recibir',despachar:'movil?seccion=despachar',mas:'movil?seccion=mas'};
+const rutas={inicio:'dashboard',buscar:'buscar',recibir:'movil?seccion=recibir',despachar:'movil?seccion=despachar',mas:'movil?seccion=mas'};
 function consulta(){return new URLSearchParams(location.hash.split('?')[1]||'');}
 function seccion(){return consulta().get('seccion')||'inicio';}
-function ir(sec){location.hash=sec==='buscar'?'#/buscar':`#/movil${sec==='inicio'?'':`?seccion=${sec}`}`;}
+function ir(sec){location.hash=sec==='inicio'?'#/dashboard':sec==='buscar'?'#/buscar':`#/movil?seccion=${sec}`;}
 function producto(c){return resolveProduct(c);}
 function nombre(c){return producto(c)?.name||`Producto ${c}`;}
 function inventarioProducto(code){const company=activeCompanyId();return store.data.inventory.filter(i=>i.productCode===code&&i.qty>0&&siteCompanyId(store.data.sites.find(s=>s.id===inventorySiteId(i)),store.data)===company);}
@@ -92,9 +92,10 @@ function cablearDespacho(root){cablearDesplegables();const t=transferenciaActiva
 export function renderMovil(root){
  if(esTransportista()){location.hash='#/cargas';return;}
  const sec=seccion();
+ if(sec==='inicio'){location.hash='#/dashboard';return;}
  if(sec==='buscar'){location.hash='#/buscar';return;}
  if(sec==='codigos'&&permisosCodigos().consult)root.innerHTML=codigosMovil();else if(sec==='recibir')root.innerHTML=recibir();else if(sec==='despachar')root.innerHTML=despachar();else if(sec==='mas')root.innerHTML=mas();else root.innerHTML=inicio();
- if(sec!=='inicio'){const header=root.querySelector('.movil-cabecera');if(header){const back=document.createElement('a');back.href='#/movil';back.className='movil-flow-back';back.innerHTML='<span>←</span><small>Volver al inicio</small>';header.prepend(back);}}
+ if(sec!=='inicio'){const header=root.querySelector('.movil-cabecera');if(header){const back=document.createElement('a');back.href='#/dashboard';back.className='movil-flow-back';back.innerHTML='<span>←</span><small>Volver al inicio</small>';header.prepend(back);}}
  if(sec==='codigos'&&permisosCodigos().consult)cablearCodigosMovil();else if(sec==='recibir')cablearRecibir(root);else if(sec==='despachar')cablearDespacho(root);else if(sec==='inicio'||sec==='codigos')cablearInicio();else {
    cablearDesplegables();
    const instalar=document.querySelector('#movil-instalar-pwa');
