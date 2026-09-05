@@ -1695,3 +1695,11 @@ dialog.scanner-dialog{
 /* v95 · instalacion PWA visible en telefono/tablet */
 .pwa-install-btn[hidden],.movil-menu-button[hidden]{display:none!important}.pwa-install-btn.is-installed,.movil-menu-button.is-installed{opacity:.72;cursor:default}.pwa-install-btn:disabled,.movil-menu-button:disabled{pointer-events:none}.pwa-install-btn:not([hidden]){visibility:visible}
 @media(min-width:761px) and (max-width:1100px){.pwa-install-btn{padding:8px 10px;gap:7px}.pwa-install-btn small{display:none}}
+
+/* v100 · seguimiento de orden para jefe de bodega */
+.manager-order-tracking{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:start;margin:14px 0;padding:14px 16px;border:1px solid #cfe8d7;border-radius:14px;background:#f7fcf8}
+.manager-order-tracking h3{margin:3px 0 4px}.manager-order-tracking p{margin:0;color:var(--muted);line-height:1.4}
+.manager-order-tracking-actions{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;justify-content:flex-end}
+.manager-reassign{min-width:190px}.manager-reassign>summary{cursor:pointer;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:#fff;font-weight:800;list-style:none}.manager-reassign>summary::-webkit-details-marker{display:none}
+.manager-reassign[open]{grid-column:1/-1}.manager-reassign .order-assign{margin:8px 0 0;background:#fff}
+@media(max-width:760px){.manager-order-tracking{grid-template-columns:1fr}.manager-order-tracking-actions{display:grid;grid-template-columns:1fr}.manager-order-tracking-actions>*{width:100%}.manager-reassign{min-width:0}}
