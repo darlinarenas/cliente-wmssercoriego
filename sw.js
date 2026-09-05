@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.05-silent-count-pdf-v103';
+const APP_VERSION = '2026.09.05-custodia-retiro-v104';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
