@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.05-audio-close-v90';
+const APP_VERSION = '2026.09.05-label-size-help-v91';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

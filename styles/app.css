@@ -1653,3 +1653,13 @@ dialog.scanner-dialog{
 }
 .login-brand .brand-mark{width:54px;height:54px;border-radius:14px}
 .khal-brand-logo{display:block;width:min(300px,72vw);height:auto;margin:0 auto 14px;border-radius:12px}
+
+/* Etiquetas: ayuda compacta de medidas sin alterar el layout de controles */
+.label-size-help-button{align-self:end;justify-self:start;width:auto;min-height:38px;padding:8px 12px;font-size:11px;font-weight:900;white-space:nowrap}
+.label-size-help-dialog{width:min(520px,calc(100vw - 24px));max-width:520px;border:0;border-radius:18px;padding:0;box-shadow:0 24px 70px rgba(15,23,42,.26)}
+.label-size-help-dialog::backdrop{background:rgba(15,23,42,.58)}
+.label-size-help-card{display:grid;gap:14px;padding:18px;background:#fff}
+.label-size-help-content{display:grid;gap:10px;color:#475569;line-height:1.5}
+.label-size-help-content p{margin:0}
+.label-size-help-content b{color:#0f172a}
+@media(max-width:700px){.label-size-help-button{width:100%}.label-size-help-dialog{width:calc(100vw - 16px)}}
