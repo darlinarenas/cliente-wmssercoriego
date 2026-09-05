@@ -1717,3 +1717,6 @@ dialog.scanner-dialog{
  .operator-pick-simple .pick-item-dialog-form{padding:9px;gap:8px}
  .operator-pick-simple .pick-item-required{min-height:38px;font-size:17px}
 }
+
+/* v102 · excepción física de picking */
+.pick-physical-found{display:flex!important;align-items:flex-start;gap:10px;margin:4px 0 2px;padding:10px 12px;border:1px solid #f0c36d;border-radius:12px;background:#fffaf0}.pick-physical-found[hidden]{display:none!important}.pick-physical-found input{width:20px;height:20px;margin:1px 0 0;flex:0 0 auto}.pick-physical-found span{display:grid;gap:2px}.pick-physical-found b{font-size:13px}.pick-physical-found small{color:var(--muted);line-height:1.3}@media(max-width:760px){.pick-physical-found{padding:9px 10px;margin:2px 0}.pick-physical-found b{font-size:12px}.pick-physical-found small{font-size:11px}}

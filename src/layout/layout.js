@@ -27,17 +27,21 @@ let navOrderAlertTimer=null;
 let orderAlertSnapshot=null;
 let orderAlertScope=null;
 let orderAlertStartedAt=0;
+const orderAlertSeenAssignments=new Set();
+const orderAlertSeenCompletions=new Set();
 function orderAlertRole(user,siteId){return (user?.accessAssignments||[]).find(a=>a.siteId===siteId)?.role||user?.role;}
 function primeOrderAlertSnapshot(orders=[]){orderAlertSnapshot=new Map((orders||[]).map(o=>[o.id,{assignedTo:o.assignedTo||null,assignedAt:o.assignedAt||null,status:o.status,pickingCompletedAt:o.pickingCompletedAt||null}]));}
 function detectOrderSoundAlerts(previous,next,currentUser,siteId){
   if(!previous){primeOrderAlertSnapshot(next);return;}
-  const role=orderAlertRole(currentUser,siteId),activePickStatuses=new Set(['ASIGNADA','EN_PICKING']);
+  const role=orderAlertRole(currentUser,siteId),activePickStatuses=new Set(['ASIGNADA','EN_PICKING']),warehouseManager=['ENCARGADO','ADMINISTRADOR'].includes(role);
   for(const o of next||[]){
-    const before=previous.get(o.id),assignedAt=Date.parse(o.assignedAt||'')||0;
-    const becameMine=o.assignedTo===currentUser?.id&&activePickStatuses.has(o.status)&&(!before?assignedAt>=orderAlertStartedAt-1000:before.assignedTo!==o.assignedTo||before.assignedAt!==o.assignedAt);
-    if(becameMine){sonidoOrdenAsignada();toast(`Nueva orden asignada: ${o.externalNumber||o.id}`,'success');}
-    const justFinished=role==='ENCARGADO'&&o.status==='PENDIENTE_EMISION'&&before&&before.status!=='PENDIENTE_EMISION'&&before.pickingCompletedAt!==o.pickingCompletedAt;
-    if(justFinished){sonidoOrdenCulminada();toast(`Orden culminada: ${o.externalNumber||o.id}`,'success');}
+    const before=previous.get(o.id),assignedAt=Date.parse(o.assignedAt||'')||0,assignmentToken=`${o.id}:${o.assignedTo||''}:${o.assignedAt||''}`;
+    const assignmentIsNew=assignedAt>=orderAlertStartedAt-1000&&!orderAlertSeenAssignments.has(assignmentToken);
+    const becameMine=o.assignedTo===currentUser?.id&&activePickStatuses.has(o.status)&&assignmentIsNew&&(!before||before.assignedTo!==o.assignedTo||before.assignedAt!==o.assignedAt||assignedAt>=orderAlertStartedAt-1000);
+    if(becameMine){orderAlertSeenAssignments.add(assignmentToken);sonidoOrdenAsignada();toast(`Nueva orden asignada: ${o.externalNumber||o.id}`,'success');}
+    const completedAt=Date.parse(o.pickingCompletedAt||'')||0,completionToken=`${o.id}:${o.pickingCompletedAt||''}`;
+    const completionIsNew=completedAt>=orderAlertStartedAt-1000&&!orderAlertSeenCompletions.has(completionToken);
+    if(warehouseManager&&o.status==='PENDIENTE_EMISION'&&completionIsNew){orderAlertSeenCompletions.add(completionToken);sonidoOrdenCulminada();toast(`Orden culminada: ${o.externalNumber||o.id}`,'success');}
   }
   primeOrderAlertSnapshot(next);
 }
