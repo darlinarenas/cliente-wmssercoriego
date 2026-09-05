@@ -65,9 +65,11 @@ export async function solicitarPermisoSonidoGlobal(){
     const modal=document.createElement('div');
     modal.id='audio-scanner-permission';
     modal.className='audio-scanner-permission';
-    modal.innerHTML=`<div class="audio-scanner-card" role="dialog" aria-modal="true" aria-labelledby="audio-scanner-title"><div class="audio-scanner-icon">🔊</div><h2 id="audio-scanner-title">Activar sonido para los escáneres</h2><p>Activa los avisos sonoros del lector para todo el WMS.</p><button id="audio-scanner-allow" class="primary" type="button">Permitir sonido</button><small>Se activará para Buscar, Recepción, Mover, Palets, Despacho y Vista móvil durante esta sesión.</small></div>`;
+    modal.innerHTML=`<div class="audio-scanner-card" role="dialog" aria-modal="true" aria-labelledby="audio-scanner-title"><button id="audio-scanner-close" class="audio-scanner-close" type="button" aria-label="Cerrar activación de sonido" title="Cerrar">×</button><div class="audio-scanner-icon">🔊</div><h2 id="audio-scanner-title">Activar sonido para los escáneres</h2><p>Activa los avisos sonoros del lector para todo el WMS.</p><button id="audio-scanner-allow" class="primary" type="button">Permitir sonido</button><small>Se activará para Buscar, Recepción, Mover, Palets, Despacho y Vista móvil durante esta sesión.</small></div>`;
     document.body.appendChild(modal);
     const btn=modal.querySelector('#audio-scanner-allow');
+    const cerrar=modal.querySelector('#audio-scanner-close');
+    cerrar.onclick=()=>{modal.remove();modalAbierto=null;resolve(false);};
     btn.onclick=async()=>{
       btn.disabled=true;btn.textContent='Activando…';
       const ok=await permitirSonidosEscaner();
