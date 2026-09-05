@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.05-operator-panel-v96';
+const APP_VERSION = '2026.09.05-login-background-separated-v98';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
@@ -7,6 +7,7 @@ const PRECACHE = [
   './index.html',
   './runtime-config.js',
   './assets/branding/khal-logo.jpg',
+  './assets/branding/khal-login-warehouse.png',
   './assets/icons/apple-touch-icon.png',
   './assets/icons/favicon-64.png',
   './assets/icons/icon-192.png',
