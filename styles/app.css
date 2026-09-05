@@ -77,7 +77,7 @@
 .movil-lista-menu .movil-menu-button:hover{background:#f3f7fb}
 .movil-lista-menu .movil-menu-button>div{display:flex;flex-direction:column;gap:2px}
 .movil-lista-menu .movil-menu-button small{color:#718096}
-@media(max-width:760px){.pwa-install-btn{display:none}}
+@media(max-width:760px){.pwa-install-btn{display:inline-flex;padding:7px 9px;gap:7px}.pwa-install-btn>span:first-child{width:30px;height:30px}.pwa-install-btn small{display:none}}
 
 /* v1.4 · importación masiva Excel */
 .import-guide{border-top:4px solid var(--accent)}.import-columns{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}.import-columns span{display:grid;gap:3px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#f8fafc;font-size:12px;color:var(--muted)}.import-columns b{color:var(--ink)}.import-drop{margin-top:14px;border:2px dashed #cdd7e4;border-radius:16px;padding:20px;background:#fbfcfe}.import-drop input{background:#fff}.import-drop small{display:block;margin-top:8px;color:var(--muted)}.import-empty{padding:30px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:14px}.import-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}.import-stats>div{display:grid;gap:4px;border:1px solid var(--line);border-radius:12px;padding:13px;background:#f8fafc}.import-stats small{color:var(--muted)}.import-stats b{font-size:22px}.import-error-count{background:#fff2f1!important;border-color:#fac7c4!important;color:var(--danger)}.import-errors{padding:14px;border:1px solid #f4b9b5;border-radius:13px;background:#fff4f3;color:#8f2721;margin-bottom:14px}.import-errors p{margin:6px 0;font-size:12px}.import-preview-table{margin-top:14px;max-height:430px}.import-actions-panel{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,360px) auto;gap:18px;align-items:end}.import-actions-panel h3{margin-bottom:4px}.import-actions-panel p{margin:0}.import-actions-panel button:disabled{opacity:.45;cursor:not-allowed}
@@ -1690,3 +1690,7 @@ dialog.scanner-dialog{
  .label-unknown-product{grid-template-columns:minmax(0,1fr) 78px;gap:8px;padding:9px}.label-unknown-actions{display:grid;grid-template-columns:1fr}.label-unknown-actions button{width:100%;min-height:42px}.compact-product-head{margin-bottom:7px}
 }
 @media(max-width:430px){.label-compact-primary{grid-template-columns:1fr}.label-search-actions{grid-template-columns:minmax(0,1fr) 46px 46px}.label-print-bar{grid-template-columns:1fr!important}.label-print-bar button{width:100%!important}}
+
+/* v95 · instalacion PWA visible en telefono/tablet */
+.pwa-install-btn[hidden],.movil-menu-button[hidden]{display:none!important}.pwa-install-btn.is-installed,.movil-menu-button.is-installed{opacity:.72;cursor:default}.pwa-install-btn:disabled,.movil-menu-button:disabled{pointer-events:none}.pwa-install-btn:not([hidden]){visibility:visible}
+@media(min-width:761px) and (max-width:1100px){.pwa-install-btn{padding:8px 10px;gap:7px}.pwa-install-btn small{display:none}}

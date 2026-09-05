@@ -98,6 +98,6 @@ export function renderMovil(root){
  if(sec==='codigos'&&permisosCodigos().consult)cablearCodigosMovil();else if(sec==='recibir')cablearRecibir(root);else if(sec==='despachar')cablearDespacho(root);else if(sec==='inicio'||sec==='codigos')cablearInicio();else {
    cablearDesplegables();
    const instalar=document.querySelector('#movil-instalar-pwa');
-   if(instalar){ instalar.hidden=estadoPWA().instalada; instalar.onclick=()=>instalarPWA(); }
+   if(instalar){const refrescarInstalacion=()=>{const e=estadoPWA();instalar.hidden=false;instalar.disabled=e.instalada;instalar.classList.toggle('is-installed',e.instalada);const b=instalar.querySelector('b'),sm=instalar.querySelector('small');if(b)b.textContent=e.instalada?'Aplicación instalada':'Instalar aplicación';if(sm)sm.textContent=e.instalada?'Khal ya está agregado a este dispositivo':'Agregar Khal a este teléfono o tablet';};refrescarInstalacion();window.addEventListener('sercoriego:pwa',refrescarInstalacion,{once:true});instalar.onclick=()=>instalarPWA(); }
  }
 }

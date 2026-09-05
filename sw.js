@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.05-labels-mobile-v94';
+const APP_VERSION = '2026.09.05-install-visible-v95';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
