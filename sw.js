@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.05-label-layout-v92';
+const APP_VERSION = '2026.09.05-android-zebra-v93';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
@@ -34,6 +34,7 @@ const PRECACHE = [
   './src/modules/inventarios/inventarios.js',
   './src/modules/etiquetas/etiquetas.js',
   './src/services/label-renderer.js',
+  './src/services/zebra-print.js',
   './src/modules/inicio/inicio.js',
   './src/modules/movil/movil.js',
   './src/modules/mapa3d/mapa3d.js',
@@ -53,6 +54,7 @@ const PRECACHE = [
   './src/services/barcode.js',
   './src/services/camara-ui.js',
   './src/services/escaner.js',
+  './src/services/product-codes.js',
   './src/services/product-editor.js',
   './src/services/pwa.js',
   './src/services/repository.js',

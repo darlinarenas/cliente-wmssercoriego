@@ -1663,3 +1663,16 @@ dialog.scanner-dialog{
 .label-size-help-content p{margin:0}
 .label-size-help-content b{color:#0f172a}
 @media(max-width:700px){.label-size-help-button{width:100%}.label-size-help-dialog{width:calc(100vw - 16px)}}
+
+/* Android / Zebra print diagnostics */
+.labels-mobile-print-note{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid #dbe4ee;border-radius:12px;background:#f8fafc;color:#475569;font-size:12px}
+.labels-mobile-print-note b{color:#0f172a}.labels-mobile-print-note span{min-width:0}.labels-mobile-print-note button{white-space:nowrap}
+.label-print-diagnostic{width:min(620px,calc(100vw - 20px));max-width:620px;border:0;border-radius:18px;padding:0;box-shadow:0 24px 70px rgba(15,23,42,.28)}
+.label-print-diagnostic::backdrop{background:rgba(15,23,42,.58)}
+.label-print-diagnostic-card{display:grid;gap:14px;padding:18px;background:#fff}
+.label-diag-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.label-diag-grid>div{display:grid;gap:3px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;min-width:0}
+.label-diag-grid small{color:#64748b}.label-diag-grid b{color:#0f172a;overflow-wrap:anywhere}
+.label-diag-status{font-size:12px}.label-diag-status.is-ok{color:#166534}.label-diag-status.is-warn{color:#92400e}
+.label-diag-note{padding:11px 12px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;color:#475569;line-height:1.45}
+@media(max-width:700px){.labels-mobile-print-note{grid-template-columns:1fr}.labels-mobile-print-note button{width:100%}.label-diag-grid{grid-template-columns:1fr}.label-print-diagnostic{width:calc(100vw - 12px)}}
