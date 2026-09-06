@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.06-inventory-compact-v111';
+const APP_VERSION = '2026.09.06-external-pickup-v112';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
