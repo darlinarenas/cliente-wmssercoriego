@@ -2,6 +2,7 @@ import { store } from '../../services/store.js';
 import { shell, wireShell, toast } from '../../layout/layout.js';
 import { esc } from '../../components/ui.js';
 import { activeSiteId } from '../../services/stock.js';
+import { requireAdminSupercode } from '../../services/security.js';
 
 const REQUIRED=['CODIGO','DESCRIPCION','CANTIDAD','UBICACION'];
 const OPTIONAL=['TIPO','CATEGORIA','SUBCATEGORIA','ROTACION'];
@@ -105,6 +106,52 @@ function validateRows(rows){
   return {errors,valid,stats:{read:rows.slice(1).filter(r=>r.some(v=>safeText(v)!=='')).length,valid:valid.length,errors:errors.length,products:new Set(valid.map(x=>x.code)).size,locations:new Set(valid.map(x=>x.location)).size}};
 }
 
+
+function currentUser(){return store.data?.users?.find(u=>u.id===store.data?.session?.userId)||null;}
+function activeCompanyId(){return String(store.data?.session?.activeCompanyId||'').trim();}
+function companyName(){const id=activeCompanyId();return store.data?.companies?.find(c=>String(c.id)===id)?.name||id||'Empresa activa';}
+function downloadInventoryBackup(){
+  const d=store.data,companyId=activeCompanyId(),stamp=new Date().toISOString().replace(/[:.]/g,'-');
+  const backup={
+    kind:'KHAL_PRE_LEVANTAMIENTO_BACKUP',createdAt:new Date().toISOString(),companyId,companyName:companyName(),
+    meta:d.meta,settings:d.settings,planning:d.planning,
+    products:d.products||[],product_codes:d.product_codes||[],inventory:d.inventory||[],pallets:d.pallets||[],
+    locations:d.locations||[],racks:d.racks||[],sites:d.sites||[],sectors:d.sectors||[],movements:d.movements||[],audit:d.audit||[]
+  };
+  const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=`Khal-backup-${companyId||'empresa'}-${stamp}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function prepareInitialPhysicalSurvey(){
+  const u=currentUser();
+  if(u?.role!=='ADMIN_GLOBAL'){toast('Solo el administrador general puede preparar el levantamiento inicial.','warning');return;}
+  const company=companyName(),inventoryCount=(store.data.inventory||[]).length,palletLocated=(store.data.pallets||[]).filter(p=>p.locationId).length;
+  const authorized=await requireAdminSupercode(`Empresa: ${company}. Se eliminarán ${inventoryCount} registros de stock/ubicación y se desvincularán ${palletLocated} pallets ubicados. Productos, SKU, nombres, códigos asociados y estructura de racks se conservarán.`,{title:'Preparar levantamiento desde cero',buttonLabel:'Autorizar limpieza'});
+  if(!authorized)return;
+  if(!confirm(`ÚLTIMA CONFIRMACIÓN\n\nEmpresa: ${company}\n\nSe dejará el stock físico en cero eliminando sus registros de inventario y se quitarán las ubicaciones actuales de productos y pallets.\n\nNO se eliminarán productos, SKU, códigos asociados, racks ni posiciones.\n\n¿Continuar?`))return;
+  // El respaldo se descarga ANTES de mutar el estado. Si el navegador bloquea la
+  // descarga, el usuario puede cancelar en la confirmación anterior y reintentar.
+  downloadInventoryBackup();
+  const at=new Date().toISOString();
+  await store.commit(d=>{
+    d.inventory=[];
+    for(const p of d.products||[]){
+      if('pickingLocationId' in p)p.pickingLocationId=null;
+      if('locationId' in p)p.locationId=null;
+    }
+    for(const p of d.pallets||[]){
+      p.locationId=null;
+      if(p.status==='UBICADO')p.status='PENDIENTE_UBICACION';
+    }
+    d.planning=d.planning||{};
+    d.planning.initialPhysicalSurvey={preparedAt:at,preparedBy:d.session.userId,companyId:d.session.activeCompanyId||null};
+  },`Preparación de levantamiento físico inicial: stock y ubicaciones reiniciados en ${company}`,{operations:['inventoryAdjust','palletsOperate']});
+  await store.reload();
+  const remaining=(store.data.inventory||[]).length;
+  if(remaining!==0)throw new Error(`Verificación fallida: quedaron ${remaining} registros de inventario. No continúes el levantamiento hasta revisarlo.`);
+  toast('Limpieza completada y verificada. Catálogo y códigos conservados.');
+  renderImport(document.querySelector('#app'));
+}
+
 function renderPreview(){
   const box=document.querySelector('#import-preview'); if(!box||!preview)return;
   const {errors,valid,stats}=preview;
@@ -172,8 +219,10 @@ export function renderImport(root){
   <section class="panel import-guide"><div class="panel-head"><div><span class="eyebrow">PASO 1</span><h3>Descarga la plantilla oficial</h3></div><a class="primary" href="./assets/templates/Plantilla_Carga_Inventario_SercoRiego.xlsx" download>Descargar Excel</a></div><p>Columnas obligatorias: <b>CODIGO, DESCRIPCION, CANTIDAD y UBICACION</b>. TIPO, CATEGORIA, SUBCATEGORIA y ROTACION son opcionales. No existe columna Foto.</p><div class="import-columns"><span><b>CODIGO</b> Solo números</span><span><b>DESCRIPCION</b> Nombre completo</span><span><b>CANTIDAD</b> Entero ≥ 0</span><span><b>UBICACION</b> Ej. BT1</span></div></section>
   <section class="panel"><div><span class="eyebrow">PASO 2</span><h3>Selecciona tu Excel</h3><p>El sistema valida el archivo antes de cargarlo. No modifica nada hasta que confirmes.</p></div><div class="import-drop"><input id="excel-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"><small>Formato permitido: .xlsx</small></div></section>
   <section class="panel"><div class="panel-head"><div><span class="eyebrow">PASO 3</span><h3>Revisión previa</h3></div></div><div id="import-preview" class="import-empty">Selecciona un archivo Excel para ver aquí el resultado de la validación.</div></section>
-  <section class="panel import-actions-panel"><div><h3>Modo de importación</h3><p><b>Actualizar</b> conserva lo existente y reemplaza la cantidad del mismo código en la misma ubicación. <b>Reemplazar</b> sustituye únicamente el inventario físico del centro activo; el catálogo maestro y las demás sedes se conservan.</p></div><label>Acción<select id="import-mode"><option value="merge">Actualizar / agregar al inventario actual</option><option value="replace">Reemplazar catálogo e inventario con este Excel</option></select></label><button id="confirm-import" class="primary" disabled>Confirmar importación</button></section>`,'importar');
+  <section class="panel import-actions-panel"><div><h3>Modo de importación</h3><p><b>Actualizar</b> conserva lo existente y reemplaza la cantidad del mismo código en la misma ubicación. <b>Reemplazar</b> sustituye únicamente el inventario físico del centro activo; el catálogo maestro y las demás sedes se conservan.</p></div><label>Acción<select id="import-mode"><option value="merge">Actualizar / agregar al inventario actual</option><option value="replace">Reemplazar catálogo e inventario con este Excel</option></select></label><button id="confirm-import" class="primary" disabled>Confirmar importación</button></section>
+  ${currentUser()?.role==='ADMIN_GLOBAL'?`<section class="panel import-actions-panel"><div><span class="eyebrow">LEVANTAMIENTO INICIAL</span><h3>Empezar inventario físico desde cero</h3><p>Conserva <b>productos, SKU, nombres/descripciones, códigos asociados, racks y posiciones</b>. Elimina el stock físico actual, quita las ubicaciones de productos y desvincula los pallets de sus posiciones. Antes de ejecutar descarga automáticamente un respaldo JSON de la empresa activa.</p><div class="warning-box"><b>Operación destructiva protegida:</b> requiere supercódigo y una segunda confirmación. Solo afecta a la empresa activa porque el estado cargado está aislado por empresa.</div></div><button id="prepare-initial-survey" class="danger-action" type="button">Preparar levantamiento desde cero</button></section>`:''}`,'importar');
   wireShell();
+  document.querySelector('#prepare-initial-survey')?.addEventListener('click',()=>prepareInitialPhysicalSurvey().catch(e=>toast(e.message||'No se pudo preparar el levantamiento.','warning')));
   document.querySelector('#excel-file')?.addEventListener('change',async e=>{
     const file=e.target.files?.[0]; if(!file)return;
     const box=document.querySelector('#import-preview'); box.innerHTML='<div class="import-empty">Leyendo y validando Excel…</div>';
