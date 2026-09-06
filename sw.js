@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.06-operator-compact-v108';
+const APP_VERSION = '2026.09.05-white-screen-fix-v110';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
