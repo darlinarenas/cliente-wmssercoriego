@@ -1737,3 +1737,62 @@ dialog.scanner-dialog{
 /* Khal v111 · cierre visual del picking */
 .picking-completed-dialog{border:0;padding:0;background:transparent;max-width:min(92vw,430px);width:100%}.picking-completed-dialog::backdrop{background:rgba(15,23,42,.58);backdrop-filter:blur(2px)}.picking-completed-card{text-align:center;padding:26px 24px 22px;border-radius:20px}.picking-completed-icon{width:54px;height:54px;margin:0 auto 12px;border-radius:50%;display:grid;place-items:center;background:#e8f7ee;color:#08753a;font-size:28px;font-weight:900}.picking-completed-card h3{margin:7px 0 8px;font-size:21px;line-height:1.2}.picking-completed-card p{margin:0 auto 18px;max-width:320px;color:#526071;line-height:1.4}.picking-completed-card .primary{width:100%;min-height:46px}.finish-picking-invite{animation:khalFinishInvite .75s ease 0s 3;box-shadow:0 0 0 5px rgba(37,99,235,.16)}@keyframes khalFinishInvite{0%,100%{transform:scale(1)}50%{transform:scale(1.025)}}
 @media(max-width:600px){.picking-completed-card{padding:22px 18px 18px}.picking-completed-card h3{font-size:19px}}
+
+/* Inventario operario · flujo guiado compacto como picking · 2026-09-06 */
+.operator-inventory-simple .inventory-guided-workbench{display:grid;gap:9px}
+.operator-inventory-simple .inventory-guided-location{border:1px solid #dbe4ef;border-radius:14px;padding:10px;background:#fff;display:grid;gap:9px}
+.operator-inventory-simple .inventory-guided-location.is-ready{border-color:#bbf7d0;background:#f8fff9}
+.operator-inventory-simple .inventory-guided-step-head{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
+.operator-inventory-simple .inventory-guided-step-head>span{display:grid;gap:2px;min-width:0}
+.operator-inventory-simple .inventory-guided-step-head small{font-size:10px;font-weight:900;color:#64748b}
+.operator-inventory-simple .inventory-guided-step-head b{font-size:16px;color:#14283b;overflow-wrap:anywhere}
+.operator-inventory-simple .inventory-guided-step-head strong{font-size:11px;color:#15803d;white-space:nowrap}
+.operator-inventory-simple .inventory-guided-location-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.operator-inventory-simple .inventory-guided-location-actions .inventory-location-camera{margin:0;min-height:48px;font-size:16px}
+.operator-inventory-simple .inventory-location-help-button{min-height:48px;padding:8px 12px;font-size:12px}
+.operator-inventory-simple .inventory-location-help{display:grid;gap:10px;border-top:1px solid #e2e8f0;padding-top:10px}
+.operator-inventory-simple .inventory-location-help[hidden],.operator-inventory-simple .inventory-more-actions[hidden]{display:none!important}
+.operator-inventory-simple .inventory-location-helper-manual{display:grid;gap:9px}
+.operator-inventory-simple .inventory-location-helper-manual .inventory-work-positions{max-height:46dvh;overflow:auto;padding:8px;border:1px solid #e2e8f0;border-radius:12px;background:#fff}
+.operator-inventory-simple .inventory-location-helper-manual .inventory-position-cards{max-height:none;overflow:visible}
+.operator-inventory-simple .inventory-map-help{margin-top:2px}
+.operator-inventory-simple .inventory-position-tools{margin:0;border:1px solid #e2e8f0;border-radius:12px;background:#fff}
+.operator-inventory-simple .inventory-position-tools>summary{min-height:40px;padding:9px 11px;font-size:12px;font-weight:800;cursor:pointer}
+.operator-inventory-simple .inventory-position-tools:not([open])>:not(summary){display:none!important}
+.operator-inventory-simple .inventory-task-compact{margin:0 0 8px;border:1px solid #e2e8f0;border-radius:12px;background:#fff}
+.operator-inventory-simple .inventory-task-compact>summary{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 11px;cursor:pointer;list-style:none}
+.operator-inventory-simple .inventory-task-compact>summary::-webkit-details-marker{display:none}
+.operator-inventory-simple .inventory-task-compact>summary span{display:grid;gap:1px;min-width:0}
+.operator-inventory-simple .inventory-task-compact>summary small{font-size:9px;font-weight:900;color:#64748b}
+.operator-inventory-simple .inventory-task-compact>summary b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.operator-inventory-simple .inventory-task-compact>summary strong{font-size:12px;color:#168345}
+.operator-inventory-simple .inventory-task-compact-body{display:grid;gap:8px;padding:0 11px 10px}
+.operator-inventory-simple .inventory-count-card-operator{display:grid;gap:7px;padding:10px!important;margin-top:0!important;border-radius:14px}
+.operator-inventory-simple .inventory-count-card-operator .inventory-count-title{margin:0}
+.operator-inventory-simple .inventory-count-card-operator .inventory-count-title .eyebrow{font-size:9px}
+.operator-inventory-simple .inventory-count-card-operator .inventory-count-title h3{font-size:15px;margin:2px 0}
+.operator-inventory-simple .inventory-count-card-operator .inventory-count-grid{gap:8px;grid-template-columns:minmax(0,1fr) 108px}
+.operator-inventory-simple .inventory-count-card-operator label{gap:4px;font-size:11px}
+.operator-inventory-simple .inventory-count-card-operator label>small{font-size:10px;line-height:1.15}
+.operator-inventory-simple .inventory-count-card-operator input,.operator-inventory-simple .inventory-count-card-operator .scan-button{min-height:46px;font-size:16px}
+.operator-inventory-simple .inventory-count-card-operator #inventory-count-qty{font-size:20px;font-weight:800;text-align:center}
+.operator-inventory-simple .inventory-resolved{font-size:12px;padding:7px 9px}
+.operator-inventory-simple .inventory-work-dock{gap:7px;padding:8px 10px;border-radius:13px}
+.operator-inventory-simple .inventory-current-location{grid-template-columns:auto minmax(0,1fr);align-items:center;gap:2px 8px}
+.operator-inventory-simple .inventory-current-location small{grid-column:1;font-size:9px}
+.operator-inventory-simple .inventory-current-location b{grid-column:2;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.operator-inventory-simple .inventory-work-action-buttons-compact{grid-template-columns:minmax(0,1fr) 64px;gap:7px}
+.operator-inventory-simple .inventory-work-action-buttons-compact>button{min-height:48px;font-size:15px}
+.operator-inventory-simple .inventory-more-actions{grid-column:1/-1;display:grid;grid-template-columns:1fr;gap:7px}
+.operator-inventory-simple .inventory-more-actions>button{min-height:44px;font-size:13px}
+@media(max-width:760px){
+ .operator-inventory-simple{padding:8px!important}
+ .operator-inventory-simple>.panel-head{margin-bottom:7px}
+ .operator-inventory-simple>.panel-head small{display:none}
+ .operator-inventory-simple:has(.inventory-count-card:not([hidden]) .inventory-work-dock){padding-bottom:150px!important}
+ .operator-inventory-simple .inventory-work-dock{left:8px;right:8px;bottom:calc(68px + env(safe-area-inset-bottom,0px));max-height:32dvh;overflow:auto}
+ .operator-inventory-simple .inventory-guided-location-actions{grid-template-columns:1fr 1fr}
+ .operator-inventory-simple .inventory-location-help-button{font-size:11px;padding:7px}
+ .operator-inventory-simple .inventory-count-card-operator .inventory-count-grid{grid-template-columns:minmax(0,1fr) 96px}
+ .operator-inventory-simple .inventory-count-card-operator .numeric-keyboard-button{display:none}
+}
