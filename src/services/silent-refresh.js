@@ -3,7 +3,7 @@ import { apiRequest } from './api.js';
 
 const timers=new Map();
 
-export function startSilentRefresh(key,routePrefix,onChange,{interval=5000,collections=[],safe=()=>!document.querySelector('dialog[open]')&&!['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)}={}){
+export function startSilentRefresh(key,routePrefix,onChange,{interval=3000,collections=[],safe=()=>!document.querySelector('dialog[open]')&&!['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)}={}){
   stopSilentRefresh(key);
   let running=false;
   const signatures=new Map(collections.map(name=>[name,JSON.stringify(store.data[name]||[])]));
