@@ -1796,3 +1796,10 @@ dialog.scanner-dialog{
  .operator-inventory-simple .inventory-count-card-operator .inventory-count-grid{grid-template-columns:minmax(0,1fr) 96px}
  .operator-inventory-simple .inventory-count-card-operator .numeric-keyboard-button{display:none}
 }
+
+
+/* Khal v113 · cierre visible del inventario operario */
+.operator-inventory-simple .inventory-work-action-buttons-compact{grid-template-columns:1fr!important}
+.operator-inventory-simple .inventory-work-action-buttons-compact .inventory-finish-rack{min-height:46px;font-size:14px;font-weight:850;border-width:2px}
+.operator-inventory-simple .inventory-work-action-buttons-compact .inventory-complete-task{min-height:50px;font-size:15px;font-weight:900;box-shadow:0 0 0 4px rgba(22,163,74,.12)}
+.operator-inventory-simple .inventory-work-action-buttons-compact .inventory-finish-rack:disabled{opacity:.72}

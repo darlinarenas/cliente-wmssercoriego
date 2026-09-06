@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.06-external-pickup-v112';
+const PWA_RELEASE = '2026.09.06-inventory-close-v113';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
