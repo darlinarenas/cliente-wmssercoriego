@@ -1803,3 +1803,16 @@ dialog.scanner-dialog{
 .operator-inventory-simple .inventory-work-action-buttons-compact .inventory-finish-rack{min-height:46px;font-size:14px;font-weight:850;border-width:2px}
 .operator-inventory-simple .inventory-work-action-buttons-compact .inventory-complete-task{min-height:50px;font-size:15px;font-weight:900;box-shadow:0 0 0 4px rgba(22,163,74,.12)}
 .operator-inventory-simple .inventory-work-action-buttons-compact .inventory-finish-rack:disabled{opacity:.72}
+
+/* Khal v114 · controles de entrada globales para operario */
+.operator-global-tools.entrada-con-camara{grid-template-columns:minmax(0,1fr) 48px 48px;align-items:stretch}
+.operator-global-tools.pallet-search-input{display:grid;grid-template-columns:minmax(0,1fr) 48px 48px;gap:8px;align-items:stretch}
+.operator-global-tools.search-box-camera{grid-template-columns:40px minmax(0,1fr) 44px 44px 40px}
+.operator-global-tools .operator-keyboard-toggle{height:100%;min-height:40px;width:48px;min-width:48px;padding:0}
+.operator-global-tools .operator-global-scan{height:100%;min-height:40px;width:48px;min-width:48px;padding:0}
+.operator-global-input-tools{width:100%;margin:0}
+@media(max-width:760px){
+ .operator-global-tools.search-box-camera{grid-template-columns:34px minmax(0,1fr) 44px 44px 34px}
+ .operator-global-tools.entrada-con-camara,.operator-global-tools.pallet-search-input{grid-template-columns:minmax(0,1fr) 46px 46px}
+ .operator-global-tools .operator-keyboard-toggle,.operator-global-tools .operator-global-scan{width:46px;min-width:46px}
+}

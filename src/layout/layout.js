@@ -7,6 +7,7 @@ import { activeCompanyId,companyName,siteCompanyId } from '../services/company.j
 import { codePermissionsForUser, palletPermissionsForUser, inventoryPermissionsForUser, mapPermissionsForUser } from '../services/access-routing.js';
 import { apiRequest } from '../services/api.js';
 import { sonidoOrdenAsignada,sonidoOrdenCulminada } from '../services/sonidos.js';
+import { escanearEnCampo } from '../services/camara-ui.js';
 
 const nav=[
  ['dashboard','Inicio','⌂'],
@@ -109,9 +110,84 @@ export function shell(title,content,active='dashboard'){
   </div>`;
 }
 
+const OPERATOR_INPUT_ROLES=new Set(['OPERADOR_BODEGA','OPERADOR_RECEPCION']);
+let operatorInputObserver=null;
+function operatorEffectiveRole(){
+  const d=store.data,user=d.users.find(u=>u.id===d.session?.userId)||auth.user,siteId=activeSiteId(d);
+  return (user?.accessAssignments||[]).find(a=>a.siteId===siteId)?.role||user?.role;
+}
+function operatorInputDescriptor(input){
+  const label=input.closest('label')?.textContent||'';
+  return `${input.id||''} ${input.name||''} ${input.placeholder||''} ${input.getAttribute('aria-label')||''} ${label}`.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+}
+function isOperatorLookupInput(input){
+  if(!(input instanceof HTMLInputElement)||input.disabled||input.readOnly)return false;
+  const type=(input.type||'text').toLowerCase();
+  if(!['text','search','tel','url'].includes(type))return false;
+  if(input.dataset.operatorTools==='off')return false;
+  const parent=input.parentElement;
+  if(parent?.classList.contains('entrada-con-camara')||parent?.classList.contains('search-box-camera')||parent?.classList.contains('pallet-search-input'))return true;
+  const d=operatorInputDescriptor(input);
+  return /\b(codigo|sku|ubicacion|posicion|rack|pallet|palet|orden|carga|producto|buscar|busqueda|numero|documento|trf|cg|identificador)\b/.test(d);
+}
+function setOperatorKeyboardButton(button,input){
+  const numeric=(input.getAttribute('inputmode')||'').toLowerCase()==='numeric';
+  button.innerHTML=`<span class="numeric-mode-icon">⌨</span><span>${numeric?'ABC':'123'}</span>`;
+  button.title=numeric?'Usar teclado con letras':'Usar teclado numérico';
+  button.setAttribute('aria-label',button.title);
+  button.classList.toggle('is-numeric',numeric);
+}
+function wireOperatorKeyboardButton(button,input){
+  if(button.dataset.operatorKeyboardWired==='1')return;
+  button.dataset.operatorKeyboardWired='1';
+  setOperatorKeyboardButton(button,input);
+  button.addEventListener('click',()=>{
+    const numeric=(input.getAttribute('inputmode')||'').toLowerCase()==='numeric',value=input.value;
+    input.blur();input.setAttribute('inputmode',numeric?'text':'numeric');input.value=value;
+    setOperatorKeyboardButton(button,input);
+    setTimeout(()=>{input.focus();try{input.setSelectionRange(input.value.length,input.value.length);}catch{}},20);
+  });
+}
+function enhanceOperatorInput(input){
+  if(!isOperatorLookupInput(input)||input.dataset.operatorToolsReady==='1')return;
+  if(!input.id)input.id=`operator-input-${Math.random().toString(36).slice(2,10)}`;
+  let host=input.parentElement;
+  const recognizedHost=host&&(host.classList.contains('entrada-con-camara')||host.classList.contains('search-box-camera')||host.classList.contains('pallet-search-input')||host.classList.contains('operator-global-input-tools'));
+  if(!recognizedHost){
+    const wrapper=document.createElement('div');wrapper.className='entrada-con-camara operator-global-input-tools';
+    input.parentNode.insertBefore(wrapper,input);wrapper.appendChild(input);host=wrapper;
+  }
+  host.classList.add('operator-global-tools');
+  let scan=[...host.querySelectorAll('button')].find(b=>b.classList.contains('scan-button')||b.classList.contains('search-camera')||/camara|camera|scan|escan/i.test(`${b.id} ${b.title} ${b.getAttribute('aria-label')||''}`));
+  let keyboard=[...host.querySelectorAll('button')].find(b=>b.classList.contains('numeric-mode-button')||b.classList.contains('numeric-keyboard-button')||b.dataset.operatorKeyboard==='1');
+  if(!keyboard){
+    keyboard=document.createElement('button');keyboard.type='button';keyboard.className='scan-button numeric-mode-button operator-keyboard-toggle';keyboard.dataset.operatorKeyboard='1';
+    if(scan)host.insertBefore(keyboard,scan);else host.appendChild(keyboard);
+    wireOperatorKeyboardButton(keyboard,input);
+  }else if(keyboard.dataset.operatorKeyboard==='1')wireOperatorKeyboardButton(keyboard,input);
+  if(!scan){
+    scan=document.createElement('button');scan.type='button';scan.className='scan-button operator-global-scan';scan.title='Escanear con cámara';scan.setAttribute('aria-label','Escanear con cámara');scan.textContent='▣';host.appendChild(scan);
+    scan.addEventListener('click',()=>escanearEnCampo(input.id,{titulo:'Escanear código',ayuda:'Apunta al código, ubicación o etiqueta que quieres ingresar',onError:m=>toast(m,'warning')}));
+  }
+  input.dataset.operatorToolsReady='1';
+}
+function enhanceOperatorInputs(root=document){
+  if(!OPERATOR_INPUT_ROLES.has(operatorEffectiveRole()))return;
+  if(root instanceof HTMLInputElement)enhanceOperatorInput(root);
+  root.querySelectorAll?.('input').forEach(enhanceOperatorInput);
+}
+function installOperatorInputTools(){
+  if(!OPERATOR_INPUT_ROLES.has(operatorEffectiveRole())){operatorInputObserver?.disconnect();operatorInputObserver=null;return;}
+  enhanceOperatorInputs(document.querySelector('#app')||document);
+  if(operatorInputObserver)return;
+  operatorInputObserver=new MutationObserver(records=>records.forEach(r=>r.addedNodes.forEach(node=>{if(node.nodeType===1)enhanceOperatorInputs(node);}))); 
+  operatorInputObserver.observe(document.querySelector('#app')||document.body,{childList:true,subtree:true});
+}
+
 export function wireShell(){
   const currentUser=store.data.users.find(u=>u.id===store.data.session.userId)||auth.user;
   installNavOrderAlerts();
+  installOperatorInputTools();
 
   document.querySelector('#site-switch')?.addEventListener('change',e=>{const siteId=e.target.value,site=(store.data.sites||[]).find(s=>s.id===siteId);if(!site)return;localStorage.setItem('serco_wms_active_company',siteCompanyId(site,store.data));localStorage.setItem('serco_wms_active_site',siteId);store.data.session.activeSiteId=siteId;store.data.session.activeCompanyId=siteCompanyId(site,store.data);window.dispatchEvent(new CustomEvent('serco:context-changed',{detail:{siteId,companyId:store.data.session.activeCompanyId}}));});
   document.querySelector('#choose-company-btn')?.addEventListener('click',()=>window.dispatchEvent(new CustomEvent('serco:choose-company')));
