@@ -25,6 +25,31 @@ export function editPalletDisplayName(data,{palletId,siteId,displayName,userId,a
   return {ok:true,pallet,message:`Nombre actualizado a ${clean}`};
 }
 
+export function deleteEmptyPallet(data,{palletId,siteId,userId,at=new Date().toISOString()}={}){
+  const pallet=(data.pallets||[]).find(p=>p.id===palletId);
+  if(!pallet)return {ok:false,message:'El pallet no existe'};
+  if(pallet.siteId!==siteId)return {ok:false,message:'El pallet pertenece a otro centro'};
+  const qty=(data.inventory||[]).filter(i=>i.palletId===palletId&&n(i.qty)>0).reduce((sum,i)=>sum+n(i.qty),0);
+  if(qty>0)return {ok:false,message:`No se puede eliminar: el pallet todavía contiene ${qty} unidad(es)`};
+  const activeTask=(data.tasks||[]).find(t=>t.palletId===palletId&&t.status!=='CERRADA');
+  if(activeTask)return {ok:false,message:`No se puede eliminar: el pallet tiene una tarea activa (${activeTask.id||activeTask.type||'pendiente'})`};
+  const activeReceipt=(data.receipts||[]).find(r=>r.palletId===palletId&&!['CERRADA','FINALIZADA','COMPLETADA'].includes(String(r.status||'').toUpperCase()));
+  if(activeReceipt)return {ok:false,message:`No se puede eliminar: el pallet está asociado a una recepción activa (${activeReceipt.id||'pendiente'})`};
+  const beforeLocation=pallet.locationId||null,beforeName=palletDisplayName(pallet);
+  data.inventory=(data.inventory||[]).filter(i=>!(i.palletId===palletId&&n(i.qty)<=0));
+  data.pallets=(data.pallets||[]).filter(p=>p.id!==palletId);
+  if(beforeLocation){
+    const loc=(data.locations||[]).find(l=>l.id===beforeLocation&&l.siteId===siteId);
+    if(loc&&!['BLOQUEADA','INHABILITADA','RESERVADA'].includes(loc.status)){
+      const remains=(data.inventory||[]).some(i=>i.locationId===beforeLocation&&n(i.qty)>0)||(data.pallets||[]).some(p=>p.siteId===siteId&&p.locationId===beforeLocation&&p.status!=='CERRADO');
+      loc.status=remains?'OCUPADA':'LIBRE';
+    }
+  }
+  data.movements=data.movements||[];
+  data.movements.unshift({id:`MOV-ELIM-PAL-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,siteId,type:'ELIMINACION_PALET_VACIO',palletId,from:beforeLocation||'SIN_UBICACION',to:'ELIMINADO',reason:`Pallet vacío eliminado · ${beforeName}`,userId:userId||data.session?.userId||null,at});
+  return {ok:true,palletId,message:`${beforeName} eliminado correctamente`};
+}
+
 export function ensurePalletStagingLocation(data,siteId){
   data.locations=data.locations||[];
   const id=`${siteId}-PALLETS-SIN-UBICAR`;

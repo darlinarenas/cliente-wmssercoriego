@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.06-move-scan-flow-v116';
+const PWA_RELEASE = '2026.09.06-pallet-permissions-v117';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 

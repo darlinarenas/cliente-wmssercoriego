@@ -9,7 +9,7 @@ import { openProductEditor } from '../../services/product-editor.js';
 import { openPhysicalStockEntry } from '../../services/physical-stock-entry.js';
 import { codePermissionsForUser } from '../../services/access-routing.js';
 import { activeSiteId,inventorySiteId } from '../../services/stock.js';
-import { assignProductToPallet, canReceiveWholePallet, editPalletDisplayName, moveProductToPallet, moveProductToPendingSort, moveWholePallet, palletDisplayName, registerPermanentPallet } from '../../services/pallet-ops.js';
+import { assignProductToPallet, canReceiveWholePallet, deleteEmptyPallet, editPalletDisplayName, moveProductToPallet, moveProductToPendingSort, moveWholePallet, palletDisplayName, registerPermanentPallet } from '../../services/pallet-ops.js';
 import { palletPermissionsForUser,effectiveRole } from '../../services/access-routing.js';
 
 function params(){ return new URLSearchParams(location.hash.split('?')[1]||''); }
@@ -155,7 +155,7 @@ function detallePalet(p){
   const permisos=permisosPalets(),operar=permisos.operate;
   const agrupado=[...new Set(inv.map(i=>i.productCode))].map(code=>({code,qty:inv.filter(i=>i.productCode===code).reduce((a,b)=>a+b.qty,0)}));
   return `<section class="panel pallet-detail-panel ${palletOperator()?'operator-pallet-compact':''}">
-    <div class="panel-head pallet-detail-head"><div><span class="eyebrow">PALLET FÍSICO · UNIDAD COMPLETA</span><h2>${esc(etiquetaPaletCorta(p))}</h2><small>${esc(String(p.status||'').replaceAll('_',' '))} · ${esc(p.locationId||'Sin ubicación')}</small></div><div class="pallet-head-actions">${permisos.edit?'<button id="open-edit-pallet" class="secondary" type="button">Editar información</button>':''}<a class="ghost" href="#/palets">Cerrar ×</a></div></div>
+    <div class="panel-head pallet-detail-head"><div><span class="eyebrow">PALLET FÍSICO · UNIDAD COMPLETA</span><h2>${esc(etiquetaPaletCorta(p))}</h2><small>${esc(String(p.status||'').replaceAll('_',' '))} · ${esc(p.locationId||'Sin ubicación')}</small></div><div class="pallet-head-actions">${permisos.edit?'<button id="open-edit-pallet" class="secondary" type="button">✎ Editar nombre</button>':''}${permisos.delete?`<button id="delete-empty-pallet" class="danger-action" type="button" ${totalUnidades(p.id)>0?'disabled title="Solo se puede eliminar un pallet vacío"':''}>Eliminar pallet vacío</button>`:''}<a class="ghost" href="#/palets">Cerrar ×</a></div></div>
     ${p.sourceShipmentId&&p.status==='UBICADO'?'<div class="success-box"><b>✓ Recepción y primera ubicación completadas</b><span>El pallet sigue activo como unidad física y puede volver a moverse completo.</span></div>':''}
     ${palletOperator()?'<details class="operator-extra pallet-context-help"><summary>Información del pallet</summary>':''}<div class="pallet-meta-grid"><span><b>Nombre visible</b><small>${esc(etiquetaPaletCorta(p))}</small></span><span><b>ID permanente</b><small>${esc(p.physicalCode||p.id)}</small></span><span><b>Posición del pallet</b><small>${esc(p.locationId||'Sin ubicación')}</small></span><span><b>Contenido conjunto</b><small>${agrupado.length} productos · ${totalUnidades(p.id)} unidades</small></span></div>${palletOperator()?'</details>':''}
     ${operar?`<div class="pallet-primary-actions operator-primary-actions">${moverPaletCompletoPanel(p)}${cargarProductoPanel(p)}</div>${palletOperator()?'<details class="operator-extra pallet-help-copy"><summary>Ayuda de organización</summary>':''}<div class="info-box"><b>Organización de pallet</b><br>Aquí puedes incorporar productos, mover el pallet completo o reubicar existencias. La preparación de pedidos se inicia exclusivamente desde Órdenes / Mis tareas.</div>${palletOperator()?'</details>':''}`:'<div class="info-box">Modo consulta: la administración puede habilitar el permiso para cargar productos y mover pallets.</div>'}
@@ -236,6 +236,7 @@ function wireProductManager(palletId,code){
 
 function wireDetail(palletId){
   wireEditPallet(palletId);
+  wireDeleteEmptyPallet(palletId);
   const reopenCode=params().get('product');
   if(!permisosPalets().operate){const q=document.querySelector('#pallet-q'),out=document.querySelector('#pallet-results');const construir=()=>[...new Set(contenidoPalet(palletId).map(i=>i.productCode))].map(code=>({code,qty:contenidoPalet(palletId).filter(i=>i.productCode===code).reduce((a,b)=>a+b.qty,0)}));q.oninput=()=>{out.innerHTML=listaContenido(construir(),palletId,q.value);};document.querySelector('#pallet-camera').onclick=()=>abrirCamaraEn('pallet-q','Escanear producto del pallet','Apunta al código de barras de la caja');return;}
   const construirBase=()=>[...new Set(contenidoPalet(palletId).map(i=>i.productCode))].map(code=>({code,qty:contenidoPalet(palletId).filter(i=>i.productCode===code).reduce((a,b)=>a+b.qty,0)}));
@@ -260,6 +261,21 @@ function wireDetail(palletId){
   }
   const repintar=()=>{out.innerHTML=listaContenido(construirBase(),palletId,q.value);wireItems();};
   q.oninput=repintar;document.querySelector('#pallet-camera').onclick=()=>abrirCamaraEn('pallet-q','Escanear producto del pallet','Apunta al código de barras de la caja',valor=>{const found=resolveProduct(valor),inside=found&&construirBase().some(x=>x.code===found.code);if(inside){q.value=found.code;repintar();setTimeout(()=>wireProductManager(palletId,found.code),40);}else toast('El producto escaneado no está dentro de este pallet');});wireItems();
+}
+
+function wireDeleteEmptyPallet(palletId){
+  const button=document.querySelector('#delete-empty-pallet');if(!button)return;
+  button.onclick=async()=>{
+    if(!permisosPalets().delete){toast('No tienes permiso para eliminar pallets vacíos');return;}
+    const pallet=(store.data.pallets||[]).find(p=>p.id===palletId&&p.siteId===activeSiteId());if(!pallet){toast('El pallet ya no existe');return;}
+    const qty=totalUnidades(palletId);if(qty>0){await notice('Pallet con contenido',`No se puede eliminar ${nombrePalet(pallet)} porque todavía contiene ${qty} unidad(es).`,'warning');return;}
+    if(!confirm(`¿Eliminar definitivamente ${nombrePalet(pallet)}?\n\nSolo se permite porque está vacío. Esta acción elimina el pallet, no los productos ni el historial de movimientos.`))return;
+    let result;
+    try{
+      await store.commit(d=>{result=deleteEmptyPallet(d,{palletId,siteId:activeSiteId(d),userId:d.session.userId});if(!result.ok)throw new Error(result.message);},`Pallet vacío ${palletId} eliminado`,{operations:['palletsDelete']});
+    }catch(error){await notice('No se pudo eliminar el pallet',error.message||'La operación fue rechazada.','error');return;}
+    await notice('Pallet eliminado',result.message,'success');location.hash='#/palets';renderPallets(document.querySelector('#app'));
+  };
 }
 
 function wireEditPallet(palletId){
