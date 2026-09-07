@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.06-alerta-despacho-v125';
+const APP_VERSION = '2026.09.07-calibracion-impresion-zebra-v126';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
