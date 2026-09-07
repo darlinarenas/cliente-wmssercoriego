@@ -9,8 +9,9 @@ import { openProductEditor } from '../../services/product-editor.js';
 import { openPhysicalStockEntry } from '../../services/physical-stock-entry.js';
 import { codePermissionsForUser } from '../../services/access-routing.js';
 import { activeSiteId,inventorySiteId } from '../../services/stock.js';
-import { assignProductToPallet, canReceiveWholePallet, deleteEmptyPallet, editPalletDisplayName, moveProductToPallet, moveProductToPendingSort, moveWholePallet, palletDisplayName, registerPermanentPallet } from '../../services/pallet-ops.js';
+import { assignProductToPallet, canReceiveWholePallet, deleteEmptyPallet, purgeEmptyPalletAdministrative, editPalletDisplayName, moveProductToPallet, moveProductToPendingSort, moveWholePallet, palletDisplayName, registerPermanentPallet } from '../../services/pallet-ops.js';
 import { palletPermissionsForUser,effectiveRole } from '../../services/access-routing.js';
+import { requireAdminSupercode } from '../../services/security.js';
 
 function params(){ return new URLSearchParams(location.hash.split('?')[1]||''); }
 function producto(code){ return resolveProduct(code); }
@@ -290,7 +291,24 @@ function wireDeleteEmptyPallet(palletId){
     let result;
     try{
       await store.commit(d=>{result=deleteEmptyPallet(d,{palletId,siteId:activeSiteId(d),userId:d.session.userId});if(!result.ok)throw new Error(result.message);},`Pallet vacío ${palletId} eliminado`,{operations:['palletsDelete']});
-    }catch(error){await notice('No se pudo eliminar el pallet',error.message||'La operación fue rechazada.','error');return;}
+    }catch(error){
+      const message=error.message||'La operación fue rechazada.';
+      const blocked=/recepción activa|tarea activa/i.test(message);
+      const role=effectiveRole(usuarioActual(),activeSiteId(store.data));
+      const manager=['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role);
+      if(blocked&&manager){
+        const receipt=recepcionPalet(palletId),task=(store.data.tasks||[]).find(t=>t.palletId===palletId&&t.status!=='CERRADA');
+        const detail=[receipt?`Recepción vinculada: ${receipt.id} (${receipt.status||'sin estado'})`:null,task?`Tarea vinculada: ${task.id||task.type}`:null].filter(Boolean).join(' · ');
+        const authorized=await requireAdminSupercode(`${nombrePalet(pallet)} está vacío, pero conserva referencias antiguas. ${detail}. La limpieza administrativa eliminará únicamente este pallet vacío y sus recepciones/tareas residuales; no elimina productos ni stock positivo.`,{title:'Limpiar pallet vacío y recepción residual',buttonLabel:'Autorizar limpieza'});
+        if(!authorized)return;
+        let cleanup;
+        try{
+          await store.commit(d=>{cleanup=purgeEmptyPalletAdministrative(d,{palletId,siteId:activeSiteId(d),userId:d.session.userId});if(!cleanup.ok)throw new Error(cleanup.message);},`Limpieza administrativa del pallet vacío ${palletId}`,{operations:['palletsDelete']});
+        }catch(cleanError){await notice('No se pudo realizar la limpieza',cleanError.message||'La operación fue rechazada.','error');return;}
+        await notice('Limpieza completada',cleanup.message,'success');location.hash='#/palets';renderPallets(document.querySelector('#app'));return;
+      }
+      await notice('No se pudo eliminar el pallet',message,'error');return;
+    }
     await notice('Pallet eliminado',result.message,'success');location.hash='#/palets';renderPallets(document.querySelector('#app'));
   };
 }

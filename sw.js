@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.06-pallet-name-delete-brand-v120';
+const APP_VERSION = '2026.09.06-pallet-admin-cleanup-v122';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

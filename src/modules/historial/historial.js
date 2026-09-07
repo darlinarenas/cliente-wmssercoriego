@@ -3,6 +3,7 @@ import { shell,wireShell } from '../../layout/layout.js';
 import { esc,empty,badge } from '../../components/ui.js';
 import { activeSiteId, inventorySiteId } from '../../services/stock.js';
 import { resolveProduct,productAliases } from '../../services/product-codes.js';
+import { startSilentRefresh } from '../../services/silent-refresh.js';
 
 function mapaUsuarios(){return Object.fromEntries(store.data.users.map(u=>[u.id,u.name]));}
 function usuario(id,users){return users[id]||id||'No registrado';}
@@ -45,6 +46,24 @@ function movimientosNormalizados(){
 function auditoriaNormalizada(){
   const users=mapaUsuarios();
   return [...store.data.audit].sort((a,b)=>new Date(b.at||0)-new Date(a.at||0)).map(a=>({...a,searchable:[a.message,a.type,usuario(a.userId,users),a.id].join(' ')}));
+}
+
+function actividadRecienteUnificada(q=''){
+  const users=mapaUsuarios(),site=activeSiteId();
+  const audit=auditoriaNormalizada().filter(a=>(!a.siteId||a.siteId===site)).map(a=>({
+    at:a.at,kind:'SISTEMA',title:a.message,detail:usuario(a.userId,users),searchable:a.searchable,icon:'◷'
+  }));
+  const moves=movimientosNormalizados().map(m=>({
+    at:m.at,kind:m.type==='AJUSTE_INVENTARIO'?'AJUSTE':'MOVIMIENTO',title:m.type==='AJUSTE_INVENTARIO'?`${m.productCode} · ${m.beforeQty} → ${m.afterQty}`:`${m.productCode} · ${m.from} → ${m.to}`,
+    detail:`${m.reason||'Movimiento interno'} · ${usuario(m.userId,users)}`,searchable:m.searchable,icon:'⇄'
+  }));
+  const ops=eventosOperativos().map(e=>({at:e.fecha,kind:e.tipo,title:e.titulo,detail:e.id,searchable:e.searchable,icon:e.tipo==='RECEPCIÓN'?'⇩':'⇧'}));
+  return [...audit,...moves,...ops].filter(x=>!q||contiene(x.searchable,q)).sort((a,b)=>new Date(b.at||0)-new Date(a.at||0));
+}
+function pintarActividadReciente(q=''){
+  const out=document.querySelector('#actividad-reciente-unificada');if(!out)return;
+  const rows=actividadRecienteUnificada(q).slice(0,60);
+  out.innerHTML=rows.length?rows.map(x=>`<div class="history-row live-history-row"><div class="hist-icon">${x.icon}</div><div><b>${esc(x.title)}</b><span>${esc(x.kind)}</span><small>${esc(x.detail||'')}</small></div><time>${fecha(x.at)}</time></div>`).join(''):empty('Sin actividad reciente','Todavía no hay eventos registrados en este centro.');
 }
 
 function trazaProducto(code){
@@ -92,7 +111,7 @@ function pintarAuditoria(q=''){
 }
 function actualizarBusqueda(){
   const q=document.querySelector('#historial-search')?.value.trim()||'',tipo=document.querySelector('#filtro-eventos')?.value||'TODOS';
-  pintarEventos(tipo,q);pintarMovimientos(q);pintarAuditoria(q);
+  pintarActividadReciente(q);pintarEventos(tipo,q);pintarMovimientos(q);pintarAuditoria(q);
   const trace=document.querySelector('#product-trace'); if(!trace)return;
   const exact=resolveProduct(q);
   trace.innerHTML=exact?trazaProducto(exact.code):'';
@@ -104,6 +123,7 @@ export function renderHistory(root){
  root.innerHTML=shell('Historial',`<div class="page-intro"><div><span class="eyebrow">TRAZABILIDAD</span><h2>Historial del centro activo</h2><p>Las operaciones listadas corresponden al centro activo. La búsqueda exacta de un producto conserva visibilidad de sus ubicaciones en otros centros.</p></div></div>
  <section class="panel history-search-panel"><label>Buscar absolutamente en todo el historial<div class="history-search"><span>⌕</span><input id="historial-search" placeholder="Ej.: 448660, PAL-0101, Importación, responsable, REC-PU-01…" autocomplete="off"><button id="clear-history" class="ghost small" type="button">Limpiar</button></div></label><div class="history-search-meta"><small id="historial-result-count">Mostrando actividad reciente</small><span>Si escribes un código exacto, verás su ficha completa de trazabilidad.</span></div></section>
  <div id="product-trace"></div>
+ <section class="panel"><div class="panel-head"><div><span class="eyebrow">EN VIVO</span><h3>Actividad reciente · lo último primero</h3><small>El evento más reciente siempre aparece arriba.</small></div><span class="manager-lite-live">● Actualización automática</span></div><div id="actividad-reciente-unificada"></div></section>
  <section class="panel"><div class="panel-head"><div><h3>Entradas y salidas</h3><small>Historial cronológico de productos</small></div><select id="filtro-eventos" class="select-compacto"><option value="TODOS">Todas las operaciones</option><option value="RECEPCIÓN">Solo recepciones</option><option value="DESPACHO">Solo despachos</option></select></div><div id="eventos-operativos"></div></section>
  <section class="panel"><div class="panel-head"><h3>Movimientos internos</h3></div><div id="movimientos-filtrados"></div></section>
  <section class="panel"><div class="panel-head"><h3>Actividad del sistema</h3></div><div id="auditoria-filtrada"></div></section>`,'historial');
@@ -111,4 +131,5 @@ export function renderHistory(root){
  document.querySelector('#historial-search').addEventListener('input',actualizarBusqueda);
  document.querySelector('#filtro-eventos').addEventListener('change',actualizarBusqueda);
  document.querySelector('#clear-history').onclick=()=>{document.querySelector('#historial-search').value='';actualizarBusqueda();document.querySelector('#historial-search').focus();};
+ startSilentRefresh('historial-live','#/historial',()=>renderHistory(root),{interval:3000,collections:['audit','movements','receipts','transfers','pallets']});
 }

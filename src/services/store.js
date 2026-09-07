@@ -12,7 +12,7 @@ class Store {
     const before=new Map(collections.map(key=>[key,JSON.stringify(this.data[key]||[])]));
     mutator(this.data);
     const userId=this.data.session.userId;
-    this.data.audit.unshift({id:`AUD-${Date.now()}`,type:'CHANGE',message:auditMessage,userId,at:new Date().toISOString()});
+    this.data.audit.unshift({id:`AUD-${Date.now()}`,type:'CHANGE',message:auditMessage,userId,siteId:this.data.session?.activeSiteId||null,companyId:this.data.session?.activeCompanyId||null,at:new Date().toISOString()});
     const changed=collections.filter(key=>before.get(key)!==JSON.stringify(this.data[key]||[]));
     this.data=(await repository.save(this.data,{collections:changed,operations}))||this.data; this.emit();
   }

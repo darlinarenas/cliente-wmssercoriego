@@ -25,6 +25,32 @@ export function editPalletDisplayName(data,{palletId,siteId,displayName,userId,a
   return {ok:true,pallet,message:`Nombre actualizado a ${clean}`};
 }
 
+export function purgeEmptyPalletAdministrative(data,{palletId,siteId,userId,at=new Date().toISOString()}={}){
+  const pallet=(data.pallets||[]).find(p=>p.id===palletId);
+  if(!pallet)return {ok:false,message:'El pallet no existe'};
+  if(pallet.siteId!==siteId)return {ok:false,message:'El pallet pertenece a otro centro'};
+  const qty=(data.inventory||[]).filter(i=>i.palletId===palletId&&n(i.qty)>0).reduce((sum,i)=>sum+n(i.qty),0);
+  if(qty>0)return {ok:false,message:`No se puede hacer limpieza administrativa: el pallet todavía contiene ${qty} unidad(es)`};
+  const receipts=(data.receipts||[]).filter(r=>r.siteId===siteId&&r.palletId===palletId);
+  const receiptIds=new Set(receipts.map(r=>r.id));
+  const tasks=(data.tasks||[]).filter(t=>t.palletId===palletId||(t.receiptId&&receiptIds.has(t.receiptId)));
+  const beforeLocation=pallet.locationId||null,beforeName=palletDisplayName(pallet);
+  data.inventory=(data.inventory||[]).filter(i=>!(i.palletId===palletId&&n(i.qty)<=0));
+  data.receipts=(data.receipts||[]).filter(r=>!(r.siteId===siteId&&r.palletId===palletId));
+  data.tasks=(data.tasks||[]).filter(t=>!(t.palletId===palletId||(t.receiptId&&receiptIds.has(t.receiptId))));
+  data.pallets=(data.pallets||[]).filter(p=>p.id!==palletId);
+  if(beforeLocation){
+    const loc=(data.locations||[]).find(l=>l.id===beforeLocation&&l.siteId===siteId);
+    if(loc&&!['BLOQUEADA','INHABILITADA','RESERVADA'].includes(loc.status)){
+      const remains=(data.inventory||[]).some(i=>i.locationId===beforeLocation&&n(i.qty)>0)||(data.pallets||[]).some(p=>p.siteId===siteId&&p.locationId===beforeLocation&&p.status!=='CERRADO');
+      loc.status=remains?'OCUPADA':'LIBRE';
+    }
+  }
+  data.movements=data.movements||[];
+  data.movements.unshift({id:`MOV-LIMP-PAL-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,siteId,type:'LIMPIEZA_ADMINISTRATIVA_PALET',palletId,from:beforeLocation||'SIN_UBICACION',to:'ELIMINADO',reason:`Limpieza administrativa de pallet vacío · ${beforeName} · recepciones eliminadas: ${receipts.map(r=>r.id).join(', ')||'ninguna'} · tareas residuales: ${tasks.length}`,userId:userId||data.session?.userId||null,at});
+  return {ok:true,palletId,receiptIds:[...receiptIds],tasksRemoved:tasks.length,message:`${beforeName} eliminado. Se limpiaron ${receipts.length} recepción(es) y ${tasks.length} tarea(s) residual(es).`};
+}
+
 export function deleteEmptyPallet(data,{palletId,siteId,userId,at=new Date().toISOString()}={}){
   const pallet=(data.pallets||[]).find(p=>p.id===palletId);
   if(!pallet)return {ok:false,message:'El pallet no existe'};
