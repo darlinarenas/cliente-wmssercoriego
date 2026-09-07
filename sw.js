@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.06-pallet-permissions-v117';
+const APP_VERSION = '2026.09.06-pallet-permissions-sync-v119';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
