@@ -1816,3 +1816,64 @@ dialog.scanner-dialog{
  .operator-global-tools.entrada-con-camara,.operator-global-tools.pallet-search-input{grid-template-columns:minmax(0,1fr) 46px 46px}
  .operator-global-tools .operator-keyboard-toggle,.operator-global-tools .operator-global-scan{width:46px;min-width:46px}
 }
+
+
+/* Khal v115 · patrón compacto transversal de tareas del operario */
+.operator-page-intro{margin-bottom:8px!important}
+.operator-page-intro p{max-width:760px}
+.operator-movement-compact{display:grid;gap:10px}
+.operator-movement-compact .form-grid{gap:9px}
+.operator-movement-compact>label,.operator-movement-compact .form-grid>label{gap:4px}
+.operator-movement-compact .operator-extra{margin:0;border:1px solid #e2e8f0;border-radius:12px;background:#fff}
+.operator-movement-compact .operator-extra>summary,.operator-pallet-compact .operator-extra>summary{padding:10px 12px;font-weight:850;font-size:12px;cursor:pointer;list-style:none}
+.operator-movement-compact .operator-extra>summary::-webkit-details-marker,.operator-pallet-compact .operator-extra>summary::-webkit-details-marker{display:none}
+.operator-movement-compact .operator-extra[open]>summary,.operator-pallet-compact .operator-extra[open]>summary{border-bottom:1px solid #e2e8f0}
+.operator-movement-compact .movement-stock-help .stock-preview{margin:0;padding:10px;border:0}
+.operator-movement-compact .movement-reason-help>label{display:grid;padding:10px 12px;gap:5px}
+.operator-movement-compact .operator-main-action{min-height:50px;font-size:15px;font-weight:900}
+.operator-pallet-compact{display:grid;gap:9px}
+.operator-pallet-compact .pallet-detail-head{margin-bottom:0}
+.operator-pallet-compact .pallet-context-help,.operator-pallet-compact .pallet-help-copy{margin:0;border:1px solid #e2e8f0;border-radius:12px;background:#fff}
+.operator-pallet-compact .pallet-context-help .pallet-meta-grid,.operator-pallet-compact .pallet-help-copy .info-box{margin:0;border:0;border-radius:0}
+.operator-pallet-compact .operator-primary-actions{margin:0;gap:8px}
+.operator-pallet-compact .operator-primary-actions>*,.operator-pallet-compact .operator-primary-actions button{min-height:46px}
+.operator-pallet-compact .pallet-search-box{margin:0}
+.operator-finish-zone{display:grid;gap:8px;margin-top:8px}
+.operator-finish-trigger{min-height:50px;font-size:15px;font-weight:900}
+.operator-finish-panel{display:grid;gap:8px;padding:10px;border:1px solid #dbe3ed;border-radius:13px;background:#f8fafc}
+.operator-finish-panel.oculto{display:none!important}
+.operator-completion-dialog{border:0;padding:0;background:transparent;max-width:min(92vw,420px)}
+.operator-completion-dialog::backdrop{background:rgba(15,23,42,.58);backdrop-filter:blur(2px)}
+.operator-completion-card{display:grid;gap:10px;text-align:center;background:#fff;border-radius:20px;padding:22px;box-shadow:0 24px 70px rgba(15,23,42,.3)}
+.operator-completion-icon{width:54px;height:54px;margin:auto;border-radius:50%;display:grid;place-items:center;background:#dcfce7;color:#15803d;font-size:28px;font-weight:950}
+.operator-completion-card h3{margin:0;font-size:20px}
+.operator-completion-card p{margin:0;color:#64748b;line-height:1.4}
+@media(max-width:760px){
+ .operator-page-intro{padding:8px 10px!important}
+ .operator-page-intro p{display:none}
+ .operator-page-intro h2{font-size:18px;margin:2px 0}
+ .operator-movement-compact{padding:10px!important;gap:8px}
+ .operator-movement-compact>.form-grid:first-child{grid-template-columns:minmax(0,1fr) 92px}
+ .operator-movement-compact>.form-grid:first-child input{min-height:46px}
+ .operator-movement-compact .mv-product-search>small,.operator-movement-compact #mv-from+small{display:none}
+ .operator-movement-compact .pallet-destination-actions{grid-template-columns:1fr 1fr;gap:7px}
+ .operator-movement-compact .pallet-selected-destination{padding:8px 10px}
+ .operator-pallet-compact{padding:9px!important}
+ .operator-pallet-compact .pallet-detail-head small{font-size:10px}
+ .operator-pallet-compact .pallet-head-actions #open-edit-pallet{display:none}
+ .operator-pallet-compact .pallet-search-box small{display:none}
+ .operator-pallet-compact .operator-primary-actions{display:grid;grid-template-columns:1fr 1fr}
+ .operator-finish-panel{padding:8px}
+ .movil-flujo .movil-estado{margin-bottom:8px}
+ .movil-flujo .movil-form-escaneo{gap:8px}
+ .movil-flujo .movil-form-escaneo label{gap:4px}
+ .movil-flujo .movil-form-escaneo input{min-height:48px}
+ .movil-flujo .movil-form-escaneo .primary{min-height:48px;font-weight:900}
+ .movil-flujo .fila-desplegable{margin-top:6px}
+}
+
+.operator-receipt-simple .operator-finish-details{border:2px solid #bbf7d0;border-radius:13px;background:#f0fdf4}
+.operator-receipt-simple .operator-finish-details>summary{padding:12px 14px;cursor:pointer;font-weight:900;color:#166534;list-style:none}
+.operator-receipt-simple .operator-finish-details>summary::-webkit-details-marker{display:none}
+.operator-receipt-simple .operator-finish-details[open]>summary{border-bottom:1px solid #bbf7d0}
+@media(max-width:760px){.operator-receipt-simple .receipt-meta{display:none}.operator-receipt-simple .operator-finish-details>summary{min-height:48px;display:flex;align-items:center;justify-content:center;font-size:15px}}
