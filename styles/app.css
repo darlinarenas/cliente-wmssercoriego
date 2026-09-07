@@ -1877,3 +1877,56 @@ dialog.scanner-dialog{
 .operator-receipt-simple .operator-finish-details>summary::-webkit-details-marker{display:none}
 .operator-receipt-simple .operator-finish-details[open]>summary{border-bottom:1px solid #bbf7d0}
 @media(max-width:760px){.operator-receipt-simple .receipt-meta{display:none}.operator-receipt-simple .operator-finish-details>summary{min-height:48px;display:flex;align-items:center;justify-content:center;font-size:15px}}
+
+
+/* Usuarios · edición amplia en escritorio · 2026-09-06 */
+#user-dialog.user-access-dialog{
+  width:min(940px,calc(100vw - 56px));
+  max-width:940px;
+  max-height:calc(100dvh - 42px);
+}
+#user-dialog.user-access-dialog > .dialog-card{
+  max-height:calc(100dvh - 42px);
+  padding:20px 22px;
+}
+#user-dialog.user-access-dialog .dialog-head{
+  top:-20px;
+  margin:-20px -22px 8px;
+  padding:16px 22px 12px;
+}
+#user-dialog.user-access-dialog .dialog-actions{
+  bottom:-20px;
+  margin:8px -22px -20px;
+  padding:12px 22px 16px;
+}
+#user-dialog .user-dialog-head-actions{display:flex;align-items:center;gap:8px}
+#user-dialog .user-dialog-expand{min-width:112px;white-space:nowrap}
+#user-dialog .access-assignment-list{max-height:none;overflow:visible}
+#user-dialog .access-assignment-row{grid-template-columns:minmax(210px,.8fr) minmax(260px,1.2fr);padding:14px 16px;gap:14px}
+#user-dialog .site-permission-options{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 18px;padding:14px 16px}
+#user-dialog .site-permission-options label{font-size:14px;line-height:1.25}
+#user-dialog.user-dialog-expanded{
+  width:calc(100vw - 46px);
+  max-width:1320px;
+  max-height:calc(100dvh - 30px);
+}
+#user-dialog.user-dialog-expanded > .dialog-card{max-height:calc(100dvh - 30px)}
+#user-dialog.user-dialog-expanded .site-permission-options{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:760px){
+  #user-dialog.user-access-dialog,
+  #user-dialog.user-access-dialog.user-dialog-expanded{
+    width:calc(100vw - 22px);
+    max-width:600px;
+    max-height:calc(100dvh - 24px);
+  }
+  #user-dialog.user-access-dialog > .dialog-card,
+  #user-dialog.user-access-dialog.user-dialog-expanded > .dialog-card{max-height:calc(100dvh - 24px);padding:14px}
+  #user-dialog.user-access-dialog .dialog-head{top:-14px;margin:-14px -14px 2px;padding:12px 14px 9px}
+  #user-dialog.user-access-dialog .dialog-actions{bottom:-14px;margin:2px -14px -14px;padding:9px 14px 12px}
+  #user-dialog .user-dialog-expand{display:none}
+  #user-dialog .access-assignment-row{grid-template-columns:1fr}
+  #user-dialog .access-assignment-row .custom-permission-toggle,
+  #user-dialog .access-assignment-row .site-permission-options{grid-column:1}
+  #user-dialog .site-permission-options,
+  #user-dialog.user-dialog-expanded .site-permission-options{grid-template-columns:1fr}
+}

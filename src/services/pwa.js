@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.06-pallet-permissions-v117';
+const PWA_RELEASE = '2026.09.06-user-dialog-wide-v118';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
