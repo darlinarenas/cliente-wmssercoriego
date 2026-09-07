@@ -60,9 +60,11 @@ function actividadRecienteUnificada(q=''){
   const ops=eventosOperativos().map(e=>({at:e.fecha,kind:e.tipo,title:e.titulo,detail:e.id,searchable:e.searchable,icon:e.tipo==='RECEPCIÓN'?'⇩':'⇧'}));
   return [...audit,...moves,...ops].filter(x=>!q||contiene(x.searchable,q)).sort((a,b)=>new Date(b.at||0)-new Date(a.at||0));
 }
+const HISTORY_PAGE_SIZE=20;
+let historyTab='recent',historyPage=1;
 function pintarActividadReciente(q=''){
   const out=document.querySelector('#actividad-reciente-unificada');if(!out)return;
-  const rows=actividadRecienteUnificada(q).slice(0,60);
+  const rows=actividadRecienteUnificada(q).slice(0,12);
   out.innerHTML=rows.length?rows.map(x=>`<div class="history-row live-history-row"><div class="hist-icon">${x.icon}</div><div><b>${esc(x.title)}</b><span>${esc(x.kind)}</span><small>${esc(x.detail||'')}</small></div><time>${fecha(x.at)}</time></div>`).join(''):empty('Sin actividad reciente','Todavía no hay eventos registrados en este centro.');
 }
 
@@ -94,42 +96,50 @@ function trazaProducto(code){
   <div class="trace-timeline">${timeline.length?timeline.map(x=>`<article class="trace-event"><div><span class="trace-type">${esc(x.tipo)}</span><b>${esc(x.detalle)}</b><small>${fecha(x.fecha)} · ${esc(x.horas)}</small></div><strong>${x.cantidad} un.</strong><p>${esc(x.meta)}</p><p>${esc(x.responsables)}</p></article>`).join(''):empty('Sin eventos para este producto','Todavía no hay recepciones, despachos ni movimientos registrados para este código.')}</div></section>`;
 }
 
+function paginar(lista){const total=lista.length,pages=Math.max(1,Math.ceil(total/HISTORY_PAGE_SIZE));historyPage=Math.min(historyPage,pages);const start=(historyPage-1)*HISTORY_PAGE_SIZE;return {rows:lista.slice(start,start+HISTORY_PAGE_SIZE),total,pages};}
+function controlesPagina(total,pages){return `<div class="history-pager"><small>${total?`${(historyPage-1)*HISTORY_PAGE_SIZE+1}–${Math.min(historyPage*HISTORY_PAGE_SIZE,total)} de ${total}`:'0 resultados'}</small><div><button class="ghost small" data-history-page="prev" ${historyPage<=1?'disabled':''}>← Anterior</button><b>${historyPage} / ${pages}</b><button class="ghost small" data-history-page="next" ${historyPage>=pages?'disabled':''}>Siguiente →</button></div></div>`;}
 function pintarEventos(tipo='TODOS',q=''){
-  const out=document.querySelector('#eventos-operativos'); if(!out)return;
-  const lista=eventosOperativos().filter(e=>(tipo==='TODOS'||e.tipo===tipo)&&(!q||contiene(e.searchable,q)));
-  out.innerHTML=lista.length?lista.map(e=>`<article class="evento-operativo"><div class="evento-icono">${e.tipo==='RECEPCIÓN'?'⇩':'⇧'}</div><div class="evento-cuerpo"><div class="evento-titulo"><div><span class="eyebrow">${esc(e.tipo)}</span><h4>${esc(e.titulo)}</h4><small>${esc(e.id)}</small></div>${badge(e.tipo,e.tipo==='RECEPCIÓN'?'ok':'neutral')}</div><div class="evento-detalle">${e.detalle}</div></div><time>${fecha(e.fecha)}</time></article>`).join(''):empty('Sin operaciones coincidentes','Prueba con otro código, descripción, usuario, recepción, palet, origen o destino.');
+  const out=document.querySelector('#history-tab-content'); if(!out)return;
+  const all=eventosOperativos().filter(e=>(tipo==='TODOS'||e.tipo===tipo)&&(!q||contiene(e.searchable,q))),{rows,total,pages}=paginar(all);
+  out.innerHTML=`<div class="history-tab-toolbar"><select id="filtro-eventos" class="select-compacto"><option value="TODOS" ${tipo==='TODOS'?'selected':''}>Todas las operaciones</option><option value="RECEPCIÓN" ${tipo==='RECEPCIÓN'?'selected':''}>Solo recepciones</option><option value="DESPACHO" ${tipo==='DESPACHO'?'selected':''}>Solo despachos</option></select></div>${rows.length?rows.map(e=>`<article class="evento-operativo"><div class="evento-icono">${e.tipo==='RECEPCIÓN'?'⇩':'⇧'}</div><div class="evento-cuerpo"><div class="evento-titulo"><div><span class="eyebrow">${esc(e.tipo)}</span><h4>${esc(e.titulo)}</h4><small>${esc(e.id)}</small></div>${badge(e.tipo,e.tipo==='RECEPCIÓN'?'ok':'neutral')}</div><div class="evento-detalle">${e.detalle}</div></div><time>${fecha(e.fecha)}</time></article>`).join(''):empty('Sin operaciones coincidentes','Prueba con otro código, descripción, usuario, recepción, palet, origen o destino.')}${controlesPagina(total,pages)}`;
+  document.querySelector('#filtro-eventos')?.addEventListener('change',e=>{historyPage=1;renderHistoryTab(q,e.target.value);});
 }
 function pintarMovimientos(q=''){
-  const out=document.querySelector('#movimientos-filtrados'); if(!out)return;
-  const users=mapaUsuarios(),moves=movimientosNormalizados().filter(m=>!q||contiene(m.searchable,q));
-  out.innerHTML=moves.length?moves.map(m=>`<div class="history-row"><div class="hist-icon">⇄</div><div><b>${esc(m.productCode)} · ${esc(nombreProducto(m.productCode))} · ${m.type==='AJUSTE_INVENTARIO'?`Ajuste ${m.beforeQty} → ${m.afterQty} (${m.delta>0?'+':''}${m.delta})`:`${m.qty} unidades`}</b><span>${m.type==='AJUSTE_INVENTARIO'?`Inventario físico en ${esc(m.to)}`:`${esc(m.from)} → ${esc(m.to)}`}</span><small>${esc(m.reason)} · ${esc(usuario(m.userId,users))}</small></div><time>${fecha(m.at)}</time></div>`).join(''):empty('Sin movimientos coincidentes','No hay movimientos internos que coincidan con la búsqueda.');
+  const out=document.querySelector('#history-tab-content'); if(!out)return;
+  const users=mapaUsuarios(),all=movimientosNormalizados().filter(m=>!q||contiene(m.searchable,q)),{rows,total,pages}=paginar(all);
+  out.innerHTML=`${rows.length?rows.map(m=>`<div class="history-row"><div class="hist-icon">⇄</div><div><b>${esc(m.productCode)} · ${esc(nombreProducto(m.productCode))} · ${m.type==='AJUSTE_INVENTARIO'?`Ajuste ${m.beforeQty} → ${m.afterQty} (${m.delta>0?'+':''}${m.delta})`:`${m.qty} unidades`}</b><span>${m.type==='AJUSTE_INVENTARIO'?`Inventario físico en ${esc(m.to)}`:`${esc(m.from)} → ${esc(m.to)}`}</span><small>${esc(m.reason)} · ${esc(usuario(m.userId,users))}</small></div><time>${fecha(m.at)}</time></div>`).join(''):empty('Sin movimientos coincidentes','No hay movimientos internos que coincidan con la búsqueda.')}${controlesPagina(total,pages)}`;
 }
 function pintarAuditoria(q=''){
-  const out=document.querySelector('#auditoria-filtrada'); if(!out)return;
-  const users=mapaUsuarios(),audit=auditoriaNormalizada().filter(a=>!q||contiene(a.searchable,q));
-  out.innerHTML=audit.length?audit.map(a=>`<div class="history-row"><div class="hist-icon">◷</div><div><b>${esc(a.message)}</b><small>${esc(usuario(a.userId,users)||'Sistema')}</small></div><time>${fecha(a.at)}</time></div>`).join(''):empty('Sin actividad coincidente','No hay registros de auditoría para esta búsqueda.');
+  const out=document.querySelector('#history-tab-content'); if(!out)return;
+  const users=mapaUsuarios(),site=activeSiteId(),all=auditoriaNormalizada().filter(a=>(!a.siteId||a.siteId===site)&&(!q||contiene(a.searchable,q))),{rows,total,pages}=paginar(all);
+  out.innerHTML=`${rows.length?rows.map(a=>`<div class="history-row"><div class="hist-icon">◷</div><div><b>${esc(a.message)}</b><small>${esc(usuario(a.userId,users)||'Sistema')}</small></div><time>${fecha(a.at)}</time></div>`).join(''):empty('Sin actividad coincidente','No hay registros de auditoría para esta búsqueda.')}${controlesPagina(total,pages)}`;
+}
+function pintarRecienteTab(q=''){
+ const out=document.querySelector('#history-tab-content');if(!out)return;const {rows,total,pages}=paginar(actividadRecienteUnificada(q));
+ out.innerHTML=`${rows.length?rows.map(x=>`<div class="history-row live-history-row"><div class="hist-icon">${x.icon}</div><div><b>${esc(x.title)}</b><span>${esc(x.kind)}</span><small>${esc(x.detail||'')}</small></div><time>${fecha(x.at)}</time></div>`).join(''):empty('Sin actividad reciente','Todavía no hay eventos registrados en este centro.')}${controlesPagina(total,pages)}`;
+}
+function renderHistoryTab(q='',tipo='TODOS'){
+ document.querySelectorAll('[data-history-tab]').forEach(b=>b.classList.toggle('active',b.dataset.historyTab===historyTab));
+ if(historyTab==='ops')pintarEventos(tipo,q);else if(historyTab==='moves')pintarMovimientos(q);else if(historyTab==='audit')pintarAuditoria(q);else pintarRecienteTab(q);
+ document.querySelectorAll('[data-history-page]').forEach(btn=>btn.onclick=()=>{historyPage+=btn.dataset.historyPage==='next'?1:-1;renderHistoryTab(q,document.querySelector('#filtro-eventos')?.value||tipo);});
 }
 function actualizarBusqueda(){
-  const q=document.querySelector('#historial-search')?.value.trim()||'',tipo=document.querySelector('#filtro-eventos')?.value||'TODOS';
-  pintarActividadReciente(q);pintarEventos(tipo,q);pintarMovimientos(q);pintarAuditoria(q);
+  const q=document.querySelector('#historial-search')?.value.trim()||'';historyPage=1;renderHistoryTab(q);
   const trace=document.querySelector('#product-trace'); if(!trace)return;
-  const exact=resolveProduct(q);
-  trace.innerHTML=exact?trazaProducto(exact.code):'';
-  const count=document.querySelector('#historial-result-count');
-  if(count){const n=eventosOperativos().filter(e=>(tipo==='TODOS'||e.tipo===tipo)&&(!q||contiene(e.searchable,q))).length+movimientosNormalizados().filter(m=>!q||contiene(m.searchable,q)).length;count.textContent=q?`${n} coincidencias operativas`:'Mostrando actividad reciente';}
+  const exact=resolveProduct(q);trace.innerHTML=exact?trazaProducto(exact.code):'';
+  const count=document.querySelector('#historial-result-count');if(count)count.textContent=q?'Resultados filtrados · 20 por página':'Vista compacta · 20 por página';
 }
 
 export function renderHistory(root){
- root.innerHTML=shell('Historial',`<div class="page-intro"><div><span class="eyebrow">TRAZABILIDAD</span><h2>Historial del centro activo</h2><p>Las operaciones listadas corresponden al centro activo. La búsqueda exacta de un producto conserva visibilidad de sus ubicaciones en otros centros.</p></div></div>
- <section class="panel history-search-panel"><label>Buscar absolutamente en todo el historial<div class="history-search"><span>⌕</span><input id="historial-search" placeholder="Ej.: 448660, PAL-0101, Importación, responsable, REC-PU-01…" autocomplete="off"><button id="clear-history" class="ghost small" type="button">Limpiar</button></div></label><div class="history-search-meta"><small id="historial-result-count">Mostrando actividad reciente</small><span>Si escribes un código exacto, verás su ficha completa de trazabilidad.</span></div></section>
+ root.innerHTML=shell('Historial',`<div class="page-intro history-compact-intro"><div><span class="eyebrow">TRAZABILIDAD</span><h2>Control y trazabilidad</h2><p>Lo último siempre primero. El historial completo se carga por secciones para mantener Khal rápido.</p></div></div>
+ <section class="panel history-search-panel"><label>Buscar en el historial<div class="history-search"><span>⌕</span><input id="historial-search" placeholder="SKU, PAL-0101, recepción, usuario…" autocomplete="off"><button id="clear-history" class="ghost small" type="button">Limpiar</button></div></label><div class="history-search-meta"><small id="historial-result-count">Vista compacta · 20 por página</small><span>Solo se dibuja la sección que estás consultando.</span></div></section>
  <div id="product-trace"></div>
- <section class="panel"><div class="panel-head"><div><span class="eyebrow">EN VIVO</span><h3>Actividad reciente · lo último primero</h3><small>El evento más reciente siempre aparece arriba.</small></div><span class="manager-lite-live">● Actualización automática</span></div><div id="actividad-reciente-unificada"></div></section>
- <section class="panel"><div class="panel-head"><div><h3>Entradas y salidas</h3><small>Historial cronológico de productos</small></div><select id="filtro-eventos" class="select-compacto"><option value="TODOS">Todas las operaciones</option><option value="RECEPCIÓN">Solo recepciones</option><option value="DESPACHO">Solo despachos</option></select></div><div id="eventos-operativos"></div></section>
- <section class="panel"><div class="panel-head"><h3>Movimientos internos</h3></div><div id="movimientos-filtrados"></div></section>
- <section class="panel"><div class="panel-head"><h3>Actividad del sistema</h3></div><div id="auditoria-filtrada"></div></section>`,'historial');
- wireShell(); actualizarBusqueda();
+ <section class="panel history-live-summary"><div class="panel-head"><div><span class="eyebrow">EN VIVO</span><h3>Últimas 12 acciones</h3><small>Resumen inmediato, sin cargar cientos de registros.</small></div><span class="manager-lite-live">● Actualización automática</span></div><div id="actividad-reciente-unificada"></div></section>
+ <section class="panel history-browser"><div class="history-tabs" role="tablist"><button class="active" type="button" data-history-tab="recent">Todo</button><button type="button" data-history-tab="ops">Entradas / salidas</button><button type="button" data-history-tab="moves">Movimientos</button><button type="button" data-history-tab="audit">Sistema</button></div><div id="history-tab-content"></div></section>`,'historial');
+ wireShell();pintarActividadReciente();renderHistoryTab();
  document.querySelector('#historial-search').addEventListener('input',actualizarBusqueda);
- document.querySelector('#filtro-eventos').addEventListener('change',actualizarBusqueda);
  document.querySelector('#clear-history').onclick=()=>{document.querySelector('#historial-search').value='';actualizarBusqueda();document.querySelector('#historial-search').focus();};
- startSilentRefresh('historial-live','#/historial',()=>renderHistory(root),{interval:3000,collections:['audit','movements','receipts','transfers','pallets']});
+ document.querySelectorAll('[data-history-tab]').forEach(btn=>btn.onclick=()=>{historyTab=btn.dataset.historyTab;historyPage=1;renderHistoryTab(document.querySelector('#historial-search')?.value.trim()||'');});
+ startSilentRefresh('historial-live','#/historial',()=>renderHistory(root),{interval:5000,collections:['audit','movements','receipts','transfers']});
 }
+

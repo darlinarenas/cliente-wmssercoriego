@@ -1945,3 +1945,8 @@ dialog.scanner-dialog{
  .operator-pallet-compact .pallet-head-actions>a{grid-column:1/-1;text-align:center}
  .pallet-delete-confirm-actions{grid-template-columns:1fr}
 }
+
+
+/* Khal v124 · trazabilidad compacta y rápida */
+.history-compact-intro{margin-bottom:12px}.history-live-summary{margin-bottom:12px}.history-live-summary #actividad-reciente-unificada{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.history-live-summary .history-row{border:1px solid #e7edf3;border-radius:12px;padding:10px;background:#fbfcfe;min-width:0}.history-tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #e6edf2}.history-tabs button{border:1px solid #dfe7ef;background:#f8fafc;border-radius:999px;padding:8px 12px;font:inherit;font-size:11px;font-weight:850;color:#506074;cursor:pointer}.history-tabs button.active{background:#0f8f49;border-color:#0f8f49;color:#fff}.history-tab-toolbar{display:flex;justify-content:flex-end;margin-bottom:10px}.history-pager{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;margin-top:8px;border-top:1px solid #e7edf3}.history-pager>div{display:flex;align-items:center;gap:8px}.history-pager b,.history-pager small{font-size:10px;color:var(--muted)}.history-browser #history-tab-content{min-height:100px}.manager-lite-orders>a:nth-child(n+6),.exec-activity>div:nth-child(n+6){display:none}
+@media(max-width:760px){.history-live-summary #actividad-reciente-unificada{grid-template-columns:1fr}.history-tabs{display:grid;grid-template-columns:1fr 1fr}.history-pager{align-items:flex-start;flex-direction:column}.history-pager>div{width:100%;justify-content:space-between}}
