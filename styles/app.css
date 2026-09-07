@@ -1860,7 +1860,6 @@ dialog.scanner-dialog{
  .operator-movement-compact .pallet-selected-destination{padding:8px 10px}
  .operator-pallet-compact{padding:9px!important}
  .operator-pallet-compact .pallet-detail-head small{font-size:10px}
- .operator-pallet-compact .pallet-head-actions #open-edit-pallet{display:none}
  .operator-pallet-compact .pallet-search-box small{display:none}
  .operator-pallet-compact .operator-primary-actions{display:grid;grid-template-columns:1fr 1fr}
  .operator-finish-panel{padding:8px}
@@ -1929,4 +1928,20 @@ dialog.scanner-dialog{
   #user-dialog .access-assignment-row .site-permission-options{grid-column:1}
   #user-dialog .site-permission-options,
   #user-dialog.user-dialog-expanded .site-permission-options{grid-template-columns:1fr}
+}
+
+/* Khal v120 · edición visible y confirmación con branding de pallets */
+.operator-pallet-compact .pallet-head-actions #open-edit-pallet{display:inline-flex!important;align-items:center;justify-content:center}
+.pallet-short-name-dialog{max-width:min(92vw,560px)}
+.pallet-short-name-dialog label{display:grid;gap:6px}
+.pallet-short-name-dialog input[readonly]{background:#f1f5f9;color:#64748b;cursor:not-allowed}
+.pallet-delete-confirm .operator-completion-card{border:1px solid #fecaca}
+.pallet-delete-icon{background:#fee2e2;color:#b91c1c}
+.pallet-delete-confirm-actions{display:grid;grid-template-columns:1fr 1.35fr;gap:10px;margin-top:4px}
+.pallet-delete-confirm-actions .danger-action{min-height:48px;font-weight:900}
+@media(max-width:760px){
+ .operator-pallet-compact .pallet-head-actions{display:grid;grid-template-columns:1fr 1fr;width:100%;gap:7px}
+ .operator-pallet-compact .pallet-head-actions #open-edit-pallet,.operator-pallet-compact .pallet-head-actions #delete-empty-pallet{min-height:44px;width:100%}
+ .operator-pallet-compact .pallet-head-actions>a{grid-column:1/-1;text-align:center}
+ .pallet-delete-confirm-actions{grid-template-columns:1fr}
 }

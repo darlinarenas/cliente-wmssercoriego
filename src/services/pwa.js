@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.06-pallet-permissions-sync-v119';
+const PWA_RELEASE = '2026.09.06-pallet-name-delete-brand-v120';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 

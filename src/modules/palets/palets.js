@@ -133,7 +133,24 @@ function cargarProductoPanel(p){return `<button id="open-pallet-load-dialog" cla
 
 function registroPaletDialog(){return `<dialog id="register-permanent-pallet"><div class="dialog-card"><div class="dialog-head"><div><span class="eyebrow">PALLET FÍSICO PERMANENTE</span><h3>Registrar pallet</h3><small>El ID permanente no cambia; el nombre visible sí podrá corregirse con permiso.</small></div><button id="close-register-pallet" class="ghost" type="button" aria-label="Cerrar">×</button></div><label>Número o letra del pallet<div class="entrada-con-camara"><input id="permanent-pallet-id" placeholder="Ej. O, C, L, S o 0001" autocomplete="off" required><button id="scan-register-pallet" class="scan-button" type="button" title="Escanear identificador">▣</button></div><small>Se creará como ID PAL-O o PAL-0001 y nombre visible Pallet O o Pallet 0001.</small></label><div class="dialog-actions"><button id="cancel-register-pallet" class="ghost" type="button">Cancelar</button><button id="confirm-register-pallet" class="primary" type="button">Registrar pallet</button></div></div></dialog>`;}
 
-function editarPaletDialog(p){return `<dialog id="edit-pallet-name" class="pallet-operation-dialog"><div class="dialog-card pallet-short-name-dialog"><div class="dialog-head"><div><span class="eyebrow">NOMBRE CORTO DEL PALLET</span><h3>Editar nombre visible</h3><small>El ID permanente ${esc(p.physicalCode||p.id)} no se modifica.</small></div><button id="close-edit-pallet" class="ghost" type="button">×</button></div><label>Nombre corto<input id="edit-pallet-display-name" value="${esc(etiquetaPaletCorta(p))}" maxlength="8" autocomplete="off" placeholder="P-A12"><small>Usa algo práctico: P-A, P-01, P-A12 o P-101.</small></label><div class="dialog-actions"><button id="cancel-edit-pallet" class="ghost" type="button">Cancelar</button><button id="confirm-edit-pallet" class="primary" type="button">Guardar nombre</button></div></div></dialog>`;}
+function editarPaletDialog(p){return `<dialog id="edit-pallet-name" class="pallet-operation-dialog"><div class="dialog-card pallet-short-name-dialog"><div class="dialog-head"><div><span class="eyebrow">PALLET FÍSICO</span><h3>Editar nombre visible</h3><small>El identificador permanente nunca se modifica.</small></div><button id="close-edit-pallet" class="ghost" type="button">×</button></div><label>ID permanente<input value="${esc(p.physicalCode||p.id)}" readonly aria-readonly="true"><small>Este código identifica físicamente al pallet y está bloqueado.</small></label><label>Nombre visible<input id="edit-pallet-display-name" value="${esc(nombrePalet(p))}" maxlength="60" autocomplete="off" placeholder="Ej. Pallet herramientas, P-A12, Pallet norte"><small>Puedes usar hasta 60 caracteres. Este es el nombre que verán los operarios.</small></label><div class="dialog-actions"><button id="cancel-edit-pallet" class="ghost" type="button">Cancelar</button><button id="confirm-edit-pallet" class="primary" type="button">Guardar nombre</button></div></div></dialog>`;}
+
+function confirmarEliminacionPalet(p){
+  return new Promise(resolve=>{
+    let dlg=document.querySelector('#confirm-delete-empty-pallet');
+    if(!dlg){
+      document.body.insertAdjacentHTML('beforeend',`<dialog id="confirm-delete-empty-pallet" class="operator-completion-dialog pallet-delete-confirm"><div class="operator-completion-card"><div class="operator-completion-icon pallet-delete-icon">!</div><span class="eyebrow">ACCIÓN DE PALLET</span><h3 id="confirm-delete-pallet-title">Eliminar pallet vacío</h3><p id="confirm-delete-pallet-message"></p><div class="dialog-actions pallet-delete-confirm-actions"><button id="confirm-delete-pallet-cancel" class="ghost" type="button">Cancelar</button><button id="confirm-delete-pallet-ok" class="danger-action" type="button">Sí, eliminar pallet</button></div></div></dialog>`);
+      dlg=document.querySelector('#confirm-delete-empty-pallet');
+    }
+    dlg.querySelector('#confirm-delete-pallet-title').textContent=`Eliminar ${nombrePalet(p)}`;
+    dlg.querySelector('#confirm-delete-pallet-message').textContent='El pallet está vacío. Se eliminará el pallet y se liberará su ubicación, pero no se borrarán productos ni el historial de movimientos.';
+    const finish=value=>{if(dlg.open)dlg.close();resolve(value);};
+    dlg.querySelector('#confirm-delete-pallet-cancel').onclick=()=>finish(false);
+    dlg.querySelector('#confirm-delete-pallet-ok').onclick=()=>finish(true);
+    dlg.oncancel=e=>{e.preventDefault();finish(false);};
+    dlg.showModal();
+  });
+}
 
 function modalCamara(){return `<dialog id="dialogo-camara-pal" class="dialogo-camara"><div class="camara-cabecera"><div><b id="titulo-camara-pal">Escanear código</b><small id="ayuda-camara-pal">Apunta al código de barras</small></div><button id="cerrar-camara-pal" class="ghost">×</button></div><video id="video-camara-pal" autoplay playsinline muted></video><div id="estado-camara-pal" class="estado-camara">Solicitando cámara…</div></dialog>`;}
 
@@ -269,7 +286,7 @@ function wireDeleteEmptyPallet(palletId){
     if(!permisosPalets().delete){toast('No tienes permiso para eliminar pallets vacíos');return;}
     const pallet=(store.data.pallets||[]).find(p=>p.id===palletId&&p.siteId===activeSiteId());if(!pallet){toast('El pallet ya no existe');return;}
     const qty=totalUnidades(palletId);if(qty>0){await notice('Pallet con contenido',`No se puede eliminar ${nombrePalet(pallet)} porque todavía contiene ${qty} unidad(es).`,'warning');return;}
-    if(!confirm(`¿Eliminar definitivamente ${nombrePalet(pallet)}?\n\nSolo se permite porque está vacío. Esta acción elimina el pallet, no los productos ni el historial de movimientos.`))return;
+    if(!await confirmarEliminacionPalet(pallet))return;
     let result;
     try{
       await store.commit(d=>{result=deleteEmptyPallet(d,{palletId,siteId:activeSiteId(d),userId:d.session.userId});if(!result.ok)throw new Error(result.message);},`Pallet vacío ${palletId} eliminado`,{operations:['palletsDelete']});
