@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.06-pallet-admin-cleanup-v122';
+const PWA_RELEASE = '2026.09.06-pallet-cleanup-permission-v123';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 

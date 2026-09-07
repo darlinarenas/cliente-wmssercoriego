@@ -59,7 +59,7 @@ export function inventoryPermissionsForUser(user,siteId){
 
 export function palletPermissionsForRole(role){
  const manage=['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role),operator=manage||['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(role);
- return {view:operator,operate:operator,register:manage,edit:manage,delete:manage};
+ return {view:operator,operate:operator,register:manage,edit:manage,delete:manage,cleanupResidual:manage};
 }
 
 export function orderPermissionsForRole(role){
@@ -81,7 +81,7 @@ export function palletPermissionsForUser(user,siteId){
  const assignment=(user?.accessAssignments||[]).find(a=>a.siteId===siteId),defaults=palletPermissionsForRole(assignment?.role||user?.role);
  if(assignment?.customPermissions!==true)return defaults;
  const custom=assignment.permissions||{};
- return {view:typeof custom.palletsView==='boolean'?custom.palletsView:defaults.view,operate:typeof custom.palletsOperate==='boolean'?custom.palletsOperate:defaults.operate,register:typeof custom.palletsRegister==='boolean'?custom.palletsRegister:defaults.register,edit:typeof custom.palletsEdit==='boolean'?custom.palletsEdit:defaults.edit,delete:typeof custom.palletsDelete==='boolean'?custom.palletsDelete:defaults.delete};
+ return {view:typeof custom.palletsView==='boolean'?custom.palletsView:defaults.view,operate:typeof custom.palletsOperate==='boolean'?custom.palletsOperate:defaults.operate,register:typeof custom.palletsRegister==='boolean'?custom.palletsRegister:defaults.register,edit:typeof custom.palletsEdit==='boolean'?custom.palletsEdit:defaults.edit,delete:typeof custom.palletsDelete==='boolean'?custom.palletsDelete:defaults.delete,cleanupResidual:typeof custom.palletsCleanupResidual==='boolean'?custom.palletsCleanupResidual:defaults.cleanupResidual};
 }
 
 export function landingRouteForRole(role,{mobile=false}={}){

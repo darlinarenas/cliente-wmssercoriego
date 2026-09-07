@@ -11,7 +11,6 @@ import { codePermissionsForUser } from '../../services/access-routing.js';
 import { activeSiteId,inventorySiteId } from '../../services/stock.js';
 import { assignProductToPallet, canReceiveWholePallet, deleteEmptyPallet, purgeEmptyPalletAdministrative, editPalletDisplayName, moveProductToPallet, moveProductToPendingSort, moveWholePallet, palletDisplayName, registerPermanentPallet } from '../../services/pallet-ops.js';
 import { palletPermissionsForUser,effectiveRole } from '../../services/access-routing.js';
-import { requireAdminSupercode } from '../../services/security.js';
 
 function params(){ return new URLSearchParams(location.hash.split('?')[1]||''); }
 function producto(code){ return resolveProduct(code); }
@@ -148,6 +147,24 @@ function confirmarEliminacionPalet(p){
     const finish=value=>{if(dlg.open)dlg.close();resolve(value);};
     dlg.querySelector('#confirm-delete-pallet-cancel').onclick=()=>finish(false);
     dlg.querySelector('#confirm-delete-pallet-ok').onclick=()=>finish(true);
+    dlg.oncancel=e=>{e.preventDefault();finish(false);};
+    dlg.showModal();
+  });
+}
+
+
+function confirmarLimpiezaResidualPalet(p,detail=''){
+  return new Promise(resolve=>{
+    let dlg=document.querySelector('#confirm-cleanup-residual-pallet');
+    if(!dlg){
+      document.body.insertAdjacentHTML('beforeend',`<dialog id="confirm-cleanup-residual-pallet" class="operator-completion-dialog pallet-delete-confirm"><div class="operator-completion-card"><div class="operator-completion-icon pallet-delete-icon">!</div><span class="eyebrow">LIMPIEZA ADMINISTRATIVA</span><h3 id="confirm-cleanup-pallet-title">Limpiar pallet vacío</h3><p id="confirm-cleanup-pallet-message"></p><div class="warning-box"><b>Protección activa:</b> esta acción solo funciona con pallets en 0 unidades. No elimina productos, SKU, stock positivo ni historial de movimientos.</div><div class="dialog-actions pallet-delete-confirm-actions"><button id="confirm-cleanup-pallet-cancel" class="ghost" type="button">Cancelar</button><button id="confirm-cleanup-pallet-ok" class="danger-action" type="button">Sí, limpiar y eliminar</button></div></div></dialog>`);
+      dlg=document.querySelector('#confirm-cleanup-residual-pallet');
+    }
+    dlg.querySelector('#confirm-cleanup-pallet-title').textContent=`Limpiar ${nombrePalet(p)}`;
+    dlg.querySelector('#confirm-cleanup-pallet-message').textContent=`${detail||'El pallet conserva una recepción o tarea residual.'} Se eliminarán únicamente el pallet vacío y sus referencias operativas residuales.`;
+    const finish=value=>{if(dlg.open)dlg.close();resolve(value);};
+    dlg.querySelector('#confirm-cleanup-pallet-cancel').onclick=()=>finish(false);
+    dlg.querySelector('#confirm-cleanup-pallet-ok').onclick=()=>finish(true);
     dlg.oncancel=e=>{e.preventDefault();finish(false);};
     dlg.showModal();
   });
@@ -294,16 +311,18 @@ function wireDeleteEmptyPallet(palletId){
     }catch(error){
       const message=error.message||'La operación fue rechazada.';
       const blocked=/recepción activa|tarea activa/i.test(message);
-      const role=effectiveRole(usuarioActual(),activeSiteId(store.data));
-      const manager=['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role);
-      if(blocked&&manager){
+      if(blocked){
+        const permissions=permisosPalets();
+        if(!permissions.cleanupResidual){
+          await notice('Recepción residual protegida','Este pallet está vacío, pero conserva una recepción o tarea residual. Tu usuario no tiene el permiso “Limpiar recepciones residuales de pallets vacíos”. Solicita al administrador que lo habilite para este centro.','warning');
+          return;
+        }
         const receipt=recepcionPalet(palletId),task=(store.data.tasks||[]).find(t=>t.palletId===palletId&&t.status!=='CERRADA');
         const detail=[receipt?`Recepción vinculada: ${receipt.id} (${receipt.status||'sin estado'})`:null,task?`Tarea vinculada: ${task.id||task.type}`:null].filter(Boolean).join(' · ');
-        const authorized=await requireAdminSupercode(`${nombrePalet(pallet)} está vacío, pero conserva referencias antiguas. ${detail}. La limpieza administrativa eliminará únicamente este pallet vacío y sus recepciones/tareas residuales; no elimina productos ni stock positivo.`,{title:'Limpiar pallet vacío y recepción residual',buttonLabel:'Autorizar limpieza'});
-        if(!authorized)return;
+        if(!await confirmarLimpiezaResidualPalet(pallet,detail))return;
         let cleanup;
         try{
-          await store.commit(d=>{cleanup=purgeEmptyPalletAdministrative(d,{palletId,siteId:activeSiteId(d),userId:d.session.userId});if(!cleanup.ok)throw new Error(cleanup.message);},`Limpieza administrativa del pallet vacío ${palletId}`,{operations:['palletsDelete']});
+          await store.commit(d=>{cleanup=purgeEmptyPalletAdministrative(d,{palletId,siteId:activeSiteId(d),userId:d.session.userId});if(!cleanup.ok)throw new Error(cleanup.message);},`Limpieza administrativa del pallet vacío ${palletId}`,{operations:['palletsDelete','palletsCleanupResidual']});
         }catch(cleanError){await notice('No se pudo realizar la limpieza',cleanError.message||'La operación fue rechazada.','error');return;}
         await notice('Limpieza completada',cleanup.message,'success');location.hash='#/palets';renderPallets(document.querySelector('#app'));return;
       }
