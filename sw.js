@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.08-orden-clientes-v129';
+const APP_VERSION = '2026.09.08-etiquetas-calibracion-v130';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
