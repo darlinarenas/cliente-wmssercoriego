@@ -80,8 +80,8 @@ export async function zebraDiagnostics(ip='192.168.0.100',zpl=''){
 export async function printZplToZebra(zpl,{ip='192.168.0.100'}={}){
  const payload=String(zpl||'');
  if(!payload.trim())throw new Error('No hay ZPL preparado para imprimir.');
- if(browserPrintApi())return sendWithBrowserPrint(payload,ip);
- return sendWithLegacyHttp(payload,ip);
+ if(!browserPrintApi())throw new Error('No se encontró una impresora Zebra disponible.');
+ return sendWithBrowserPrint(payload,ip);
 }
 
 export function downloadZpl(zpl,filename='khal-etiquetas-prueba.zpl'){
