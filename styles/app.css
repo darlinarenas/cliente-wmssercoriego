@@ -1957,3 +1957,7 @@ dialog.scanner-dialog{
 .label-calibration-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.label-calibration-grid label{display:grid;gap:6px;padding:10px 11px;border:1px solid #e2e8f0;border-radius:11px;background:#fff}.label-calibration-grid label>b{font-size:13px;color:var(--ink)}.label-calibration-grid input[type="range"]{width:100%;padding:0;border:0}.label-calibration-grid small{font-weight:600;color:var(--muted);line-height:1.35}
 @media(max-width:900px){.label-calibration-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.label-calibration{padding:10px}.label-calibration-head{align-items:stretch}.label-calibration-head button{min-height:38px}}
+
+/* 2026-09-08 · Excel de órdenes: códigos no asociados son advertencia, no bloqueo */
+.import-warnings{margin:10px 0;padding:12px 14px;border:1px solid #f4cf7a;border-radius:12px;background:#fffaf0;color:#7c5b12;display:grid;gap:5px}
+.import-warnings b{color:#65480c}.import-warnings small{line-height:1.4}.import-warnings p{margin:2px 0;font-size:12px}
