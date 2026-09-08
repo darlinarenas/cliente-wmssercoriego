@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.08-html-css-orden-excel-v128';
+const APP_VERSION = '2026.09.08-orden-clientes-v129';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
