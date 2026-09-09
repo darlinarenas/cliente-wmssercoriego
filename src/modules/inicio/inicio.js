@@ -29,6 +29,7 @@ function operatorDashboard(d,user,siteId){
  const actions=[
   ['buscar','⌕','Buscar','Localizar productos y ubicaciones'],
   ...(codePermissionsForUser(user,siteId).consult?[["codigos","▣","Consultar / asociar códigos","Escanear, consultar y asociar etiquetas"]]:[]),
+  ...(codePermissionsForUser(user,siteId).associateQuantity?[["codigos-cantidades","×","Códigos y cantidades","Escanear código, indicar cantidad y guardar"]]:[]),
   ...(codePermissionsForUser(user,siteId).printLabels?[["etiquetas","▤","Etiquetas","Escanear productos y preparar impresión"]]:[]),
   ['recepciones','⇩','Recibir','Registrar mercadería que llega'],
   ['transferencias','⇄','Despachar','Preparar una salida o traspaso'],
