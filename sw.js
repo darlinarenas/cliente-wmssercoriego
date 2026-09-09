@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.08-barcode-producto-uniforme-v132';
+const APP_VERSION = '2026.09.08-codigos-universales-v133';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
