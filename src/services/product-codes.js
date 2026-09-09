@@ -9,13 +9,15 @@ export function productAliases(product,state=store.data){
 export function resolveProductCode(input,state=store.data){
   const code=normalizeProductCode(input); if(!code)return null;
   for(const product of state.products||[]){
-    if(normalizeProductCode(product.code)===code)return {product,record:null,code,source:'MAESTRO',presentation:'UNIDAD',unitsPerPresentation:1,excelQtyMode:'UNITS'};
-    if((product.previousCodes||[]).map(normalizeProductCode).includes(code))return {product,record:null,code,source:'HISTORICO',presentation:'UNIDAD',unitsPerPresentation:1,excelQtyMode:'UNITS'};
+    // Si el SKU maestro también tiene configuración de empaque/cantidad, esa
+    // configuración tiene prioridad sobre el fallback MAESTRO de 1 unidad.
     const record=(state.product_codes||[]).find(x=>x.productId===product.id&&x.active!==false&&normalizeProductCode(x.code)===code);
     if(record){
       const units=Math.max(1,Number(record.unitsPerPresentation||1)||1);
       return {product,record,code,source:String(record.source||record.channel||record.type||'OTRO').trim()||'OTRO',presentation:String(record.presentation||'UNIDAD').trim()||'UNIDAD',unitsPerPresentation:units,excelQtyMode:record.excelQtyMode==='PACKS'?'PACKS':'UNITS'};
     }
+    if(normalizeProductCode(product.code)===code)return {product,record:null,code,source:'MAESTRO',presentation:'UNIDAD',unitsPerPresentation:1,excelQtyMode:'UNITS'};
+    if((product.previousCodes||[]).map(normalizeProductCode).includes(code))return {product,record:null,code,source:'HISTORICO',presentation:'UNIDAD',unitsPerPresentation:1,excelQtyMode:'UNITS'};
   }
   return null;
 }
