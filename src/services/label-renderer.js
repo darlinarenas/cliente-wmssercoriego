@@ -44,7 +44,9 @@ export function buildLabelPages(items,settings,render){
  const pageW=w*columns+gap*(columns-1),W=Math.round(pageW*dpmm),H=Math.round(h*dpmm);
  const html=`<!doctype html><html lang="es"><head><meta charset="utf-8"><title></title><style>@page{size:${pageW}mm ${h}mm;margin:0!important;padding:0!important}*{box-sizing:border-box}html,body{width:${pageW}mm;margin:0!important;padding:0!important;background:white}.label-sheet{display:flex;gap:${gap}mm;width:${pageW}mm;height:${h}mm;break-after:page;page-break-after:always;overflow:hidden}.label-sheet:last-child{break-after:auto;page-break-after:auto}.label-sheet img{display:block;width:${w}mm;height:${h}mm;flex:none}@media print{html,body{margin:0!important;padding:0!important}body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}</style></head><body>${pages.map(row=>`<div class="label-sheet">${row.map(img=>`<img alt="Etiqueta" width="${img.width}" height="${img.height}" src="${img.url}">`).join('')}</div>`).join('')}</body></html>`;
  const jobs=[];for(const row of pages){const body=row.map((image,i)=>image.graphics.map(g=>`^FO${Math.round(i*(w+gap)*dpmm)},${g.y}${g.command}`).join('')).join(''),prev=jobs.at(-1);if(prev?.body===body)prev.copies++;else jobs.push({body,copies:1});}
- const darkness=Math.max(0,Math.min(30,Math.round(Number(settings.darkness)||0)));
- const zpl=jobs.map(job=>`~SD${darkness}^XA^PW${W}^LL${H}^LH0,0^LS0^LT0^PON${job.body}^PQ${job.copies}^XZ`).join('\n');
+ const darkness=Math.max(0,Math.min(30,Math.round(Number(settings.darkness)||0))),media= settings.nativeGapMode?'^MNY':'';
+ // Rack, posición y pallet: el ZPL declara explícitamente media no continua con separación (gap/web).
+ // Así la Zebra toma cada inicio físico de etiqueta como origen y no depende del tamaño de papel del driver/PDF.
+ const zpl=jobs.map(job=>`~SD${darkness}^XA${media}^PW${W}^LL${H}^LH0,0^LS0^LT0^PON${job.body}^PQ${job.copies}^XZ`).join('\n');
  return {html,zpl,pages,pageW,height:h};
 }
