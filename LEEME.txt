@@ -1,0 +1,20 @@
+Khal · Etiquetas Zebra estándar v147
+
+REEMPLAZAR:
+1) src/modules/etiquetas/etiquetas.js
+2) src/services/label-renderer.js
+3) sw.js
+
+El archivo test/label-print-standard.test.js es solo de verificación; no es obligatorio para producción.
+
+Medidas estándar:
+- Producto: 100 x 70 mm
+- Rack / posición: 103 x 30 mm
+
+Impresión:
+- Imprimir / elegir impresora: abre el diálogo normal del sistema.
+- Enviar directo a Zebra: usa Zebra Browser Print cuando esté instalado y detecte la impresora.
+- La vista previa y ZPL se generan desde la misma imagen monocroma.
+
+PWA:
+- APP_VERSION: 2026.09.09-etiquetas-zebra-estandar-v147

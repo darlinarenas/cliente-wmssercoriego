@@ -1,52 +1,149 @@
 import { code128Svg } from './barcode.js';
 
-// One monochrome image is used by browser/PDF and Zebra; no second layout.
-export function renderLabelImage(data,{type,w,h,dpi=203,brand=false,contentScale=1,verticalOffsetMm=0},makeCanvas=()=>document.createElement('canvas')){
- const dpmm=({203:8,300:12,600:24})[dpi];if(!dpmm)throw new Error('Resolución Zebra no válida.');
+const DPMM={203:8,300:12,600:24};
+const mm=(value,dpmm)=>Math.round(value*dpmm);
+
+function barcodeGeometry(svg,usableWidth,dpi){
+ const nativeWidth=Number(svg.match(/viewBox="0 0 ([\d.]+)/)?.[1]);
+ if(!nativeWidth)throw new Error('No se pudo calcular el código de barras.');
+ const dpmm=DPMM[dpi];
+ // X-dimension física objetivo ~0,375 mm. Mantiene el grosor de barra estable
+ // entre etiquetas y solo reduce un paso cuando un código largo no cabe.
+ const preferred=Math.max(2,Math.round(.375*dpmm));
+ const maximum=Math.floor(usableWidth/nativeWidth);
+ const module=Math.min(preferred,maximum);
+ if(module<2)throw new Error('El código es demasiado largo para imprimirlo con barras legibles en este ancho.');
+ return {nativeWidth,module,width:nativeWidth*module};
+}
+
+function quantizeAndBuildGraphics(ctx,W,H,canvas){
+ const pixels=ctx.getImageData(0,0,W,H),rgba=pixels.data,rowBytes=Math.ceil(W/8),bytes=new Uint8Array(rowBytes*H);
+ for(let py=0;py<H;py++)for(let px=0;px<W;px++){
+  const i=(py*W+px)*4,black=(rgba[i]+rgba[i+1]+rgba[i+2])<384;
+  if(black)bytes[py*rowBytes+(px>>3)]|=128>>(px%8);
+  rgba[i]=rgba[i+1]=rgba[i+2]=black?0:255;rgba[i+3]=255;
+ }
+ ctx.putImageData(pixels,0,0);
+ const graphics=[],stripeRows=Math.max(1,Math.floor(16000/rowBytes));
+ for(let y=0;y<H;y+=stripeRows){
+  const part=bytes.subarray(y*rowBytes,Math.min(H,y+stripeRows)*rowBytes);
+  const hex=Array.from(part,b=>b.toString(16).padStart(2,'0').toUpperCase()).join('');
+  graphics.push({y,command:`^GFA,${part.length},${part.length},${rowBytes},${hex}^FS`});
+ }
+ return {url:canvas.toDataURL('image/png'),graphics};
+}
+
+function fitText(ctx,text,maxWidth,startSize,minSize,maxLines=1){
+ const words=String(text||'').trim().split(/\s+/).filter(Boolean);
+ for(let size=startSize;size>=minSize;size--){
+  ctx.font=`700 ${size}px Arial, sans-serif`;
+  const rows=[];let row='';
+  for(const word of words){
+   const next=row?`${row} ${word}`:word;
+   if(ctx.measureText(next).width<=maxWidth){row=next;continue;}
+   if(row)rows.push(row);row='';
+   for(const ch of word){
+    if(ctx.measureText(row+ch).width>maxWidth&&row){rows.push(row);row='';}
+    row+=ch;
+   }
+  }
+  if(row)rows.push(row);
+  if(rows.length<=maxLines)return {size,rows};
+ }
+ throw new Error('El texto no cabe en la etiqueta sin recortarlo.');
+}
+
+function drawCenteredText(ctx,fit,W,y,lineHeight=1.12){
+ ctx.font=`700 ${fit.size}px Arial, sans-serif`;ctx.textAlign='center';ctx.textBaseline='top';
+ for(const row of fit.rows){ctx.fillText(row,W/2,y);y+=Math.ceil(fit.size*lineHeight);}
+ return y;
+}
+
+function drawBarcode(ctx,svg,W,y,height,geometry){
+ const barX=Math.floor((W-geometry.width)/2);
+ for(const match of svg.matchAll(/<rect x="([\d.]+)" y="0" width="([\d.]+)" height="1"\/>/g)){
+  ctx.fillRect(barX+Number(match[1])*geometry.module,y,Number(match[2])*geometry.module,height);
+ }
+ return {barX,barY:y,barH:height,module:geometry.module,nativeWidth:geometry.nativeWidth};
+}
+
+function renderProduct(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
+ const margin=mm(4,dpmm),usable=W-margin*2;
+ const top=Math.max(0,mm(3.2+Number(verticalOffsetMm||0),dpmm));
+ const code=String(data.code||'').trim(),title=String(data.title||'Producto').trim();
+ const sku=fitText(ctx,code,usable,mm(8.2,dpmm),mm(5.3,dpmm),1);
+ const name=fitText(ctx,title,usable,mm(4.6,dpmm),mm(2.7,dpmm),2);
+ const caption=fitText(ctx,code,usable,mm(3.8,dpmm),mm(2.5,dpmm),1);
+ const geometry=barcodeGeometry(svg,usable,dpi);
+ let y=top;
+ y=drawCenteredText(ctx,sku,W,y,1.04)+mm(1.1,dpmm);
+ y=drawCenteredText(ctx,name,W,y,1.08)+mm(1.2,dpmm);
+ const captionHeight=Math.ceil(caption.size*1.08),bottomMargin=mm(2.5,dpmm),captionGap=mm(1.0,dpmm);
+ const availableForBars=H-y-captionGap-captionHeight-bottomMargin;
+ const barH=Math.min(mm(25,dpmm),availableForBars);
+ if(barH<mm(18,dpmm))throw new Error(`La etiqueta de producto ${code} no tiene altura suficiente para un código grande.`);
+ const bar=drawBarcode(ctx,svg,W,y,barH,geometry);y+=barH+captionGap;
+ drawCenteredText(ctx,caption,W,y,1.05);
+ return {top,bottom:y+captionHeight,margin,...bar};
+}
+
+function renderPhysical(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm,type}){
+ const margin=mm(3,dpmm),usable=W-margin*2,code=String(data.code||'').trim();
+ const rackLine=String(data.lines?.[0]||data.eyebrow||'POSICIÓN').trim();
+ const top=Math.max(0,mm(1.6+Number(verticalOffsetMm||0),dpmm));
+ const rackFit=fitText(ctx,rackLine,usable,mm(2.8,dpmm),mm(2.1,dpmm),1);
+ const mainFit=fitText(ctx,type==='RACK'?(data.title||code):code,usable,mm(6.8,dpmm),mm(4.2,dpmm),1);
+ const caption=fitText(ctx,type==='RACK'?'Rack':'Posición',usable,mm(2.5,dpmm),mm(2.0,dpmm),1);
+ const geometry=barcodeGeometry(svg,usable,dpi);
+ let y=top;
+ y=drawCenteredText(ctx,rackFit,W,y,1.0)+mm(.35,dpmm);
+ y=drawCenteredText(ctx,mainFit,W,y,1.0)+mm(.65,dpmm);
+ const capHeight=Math.ceil(caption.size*1.05),capGap=mm(.6,dpmm),bottom=mm(1.2,dpmm);
+ const available=H-y-capGap-capHeight-bottom;
+ const barH=Math.min(mm(9.2,dpmm),available);
+ if(barH<mm(6.5,dpmm))throw new Error(`La etiqueta ${code} no tiene altura suficiente para un código legible.`);
+ const bar=drawBarcode(ctx,svg,W,y,barH,geometry);y+=barH+capGap;
+ drawCenteredText(ctx,caption,W,y,1.0);
+ return {top,bottom:y+capHeight,margin,...bar};
+}
+
+function renderGeneric(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm,brand,type}){
+ const margin=mm(3,dpmm),usable=W-margin*2,code=String(data.code||'').trim();
+ const title=fitText(ctx,data.title||code,usable,mm(5.2,dpmm),mm(3,dpmm),2);
+ const caption=fitText(ctx,code,usable,mm(3.2,dpmm),mm(2.2,dpmm),1);
+ const geometry=barcodeGeometry(svg,usable,dpi);let y=Math.max(0,mm(3+Number(verticalOffsetMm||0),dpmm));
+ y=drawCenteredText(ctx,title,W,y,1.08)+mm(1.2,dpmm);
+ const footer=brand?fitText(ctx,'By Vexhora',usable,mm(2.2,dpmm),mm(1.8,dpmm),1):null;
+ const reserve=Math.ceil(caption.size*1.05)+(footer?Math.ceil(footer.size*1.05)+mm(.6,dpmm):0)+mm(3,dpmm);
+ const barH=Math.min(mm(type==='PALLET'?23:18,dpmm),H-y-reserve);
+ if(barH<mm(8,dpmm))throw new Error(`La etiqueta ${code} no tiene altura suficiente.`);
+ const bar=drawBarcode(ctx,svg,W,y,barH,geometry);y+=barH+mm(.8,dpmm);y=drawCenteredText(ctx,caption,W,y,1.0);
+ if(footer){y+=mm(.5,dpmm);y=drawCenteredText(ctx,footer,W,y,1.0);}
+ return {top:0,bottom:y,margin,...bar};
+}
+
+// La misma imagen monocroma alimenta vista previa, impresión del sistema y ZPL.
+// Así no existen dos diseños que puedan desalinearse entre sí.
+export function renderLabelImage(data,{type,w,h,dpi=203,brand=false,verticalOffsetMm=0},makeCanvas=()=>document.createElement('canvas')){
+ const dpmm=DPMM[dpi];if(!dpmm)throw new Error('Resolución Zebra no válida.');
  const canvas=makeCanvas();canvas.width=Math.round(w*dpmm);canvas.height=Math.round(h*dpmm);
  const ctx=canvas.getContext('2d');if(!ctx)throw new Error('No se pudo preparar la etiqueta.');
- const W=canvas.width,H=canvas.height,physical=['UBICACION','RACK'].includes(type);
- const marginMm=physical?Math.min(2.5,w*.035,h*.08):Math.min(3,w*.04,h*.07);
- const margin=Math.max(Math.round(1.5*dpmm),Math.round(marginMm*dpmm)),usable=W-2*margin,available=H-2*margin;
- const code=String(data.code||'').trim(),svg=code128Svg(code,{height:1,moduleWidth:1});if(!svg)throw new Error('El código no es compatible con Code 128.');
- // Producto: todas las etiquetas comparten exactamente la misma caja disponible para el código.
- // El patrón interno cambia necesariamente con el valor codificado; no debe deformarse porque dejaría de ser escaneable.
- const barcodeUsable=type==='PRODUCTO'?usable:usable;
- const nativeWidth=Number(svg.match(/viewBox="0 0 ([\d.]+)/)?.[1]),module=Math.floor(barcodeUsable/nativeWidth);
- if(module<1)throw new Error(`El código ${code} no cabe con barras legibles. Aumenta el ancho de la etiqueta.`);
- const gap=Math.round((h<=30?.7:1.15)*dpmm),compact=w<=50||h<=30;
- const small=(physical?2.25:compact?2.3:2.8)*dpmm,big=(physical?4.8:compact?4:5.5)*dpmm,scaleBoost=Math.max(1.6,Math.min(2.4,Number(contentScale)||1.6));
- const title=type==='UBICACION'?code:(data.title||code);
- let fields=physical?[{text:data.company,size:small,lines:1},{text:title,size:big,lines:1}]:type==='PRODUCTO'?[{text:code,size:8.4*dpmm,lines:1},{text:title,size:4.7*dpmm,lines:2}]:type==='PALLET'?[{text:data.company,size:small,lines:1},{text:'PALLET',size:small,lines:1},{text:title,size:big,lines:2}]:[{text:data.company,size:small,lines:1},{text:title,size:big,lines:3},...(data.lines||[]).filter(Boolean).slice(0,2).map(text=>({text,size:small,lines:1}))];
- const font=size=>{ctx.font=`700 ${size}px Arial, sans-serif`;};
- function wrap(text,size){font(size);const result=[];let row='';for(const word of String(text||'').trim().split(/\s+/)){const next=row?row+' '+word:word;if(ctx.measureText(next).width<=usable){row=next;continue;}if(row)result.push(row);row='';for(const ch of word){if(ctx.measureText(row+ch).width>usable&&row){result.push(row);row='';}row+=ch;}}if(row)result.push(row);return result;}
- function fit(field,scale){const minimum=Math.ceil(1.9*dpmm);let size=Math.max(minimum,Math.round(field.size*scale)),lines;for(;size>=minimum;size--){lines=wrap(field.text,size);if(lines.length<=field.lines)return {...field,size,rows:lines,height:lines.length*Math.ceil(size*1.2)};}throw new Error(`El texto de ${code} no cabe sin recortarlo. Usa una etiqueta más grande.`);}
- let layout,caption,footer,barH,total,lastError;
- for(let scale=scaleBoost;scale>=.55;scale-=.05){try{layout=fields.map(f=>fit(f,scale));caption=fit({text:code,size:type==='PRODUCTO'?3.8*dpmm:small,lines:1},scale);footer=brand?fit({text:'By Vexhora',size:small*.85,lines:1},scale):null;const texts=layout.reduce((n,f)=>n+f.height,0)+caption.height+(footer?.height||0),gaps=gap*(layout.length+1+(footer?1:0));barH=Math.min(Math.round(available*((['PRODUCTO','UBICACION','RACK'].includes(type))?.45:.34)),available-texts-gaps);total=texts+gaps+barH;if(barH>=Math.min(6,h*.22)*dpmm){lastError=null;break;}lastError=new Error(`La altura de ${code} es insuficiente para texto, barras y leyenda. Aumenta el alto.`);}catch(e){lastError=e;}}
- if(lastError)throw lastError;
+ const W=canvas.width,H=canvas.height,code=String(data.code||'').trim(),svg=code128Svg(code,{height:1,moduleWidth:1});
+ if(!svg)throw new Error('El código no es compatible con Code 128.');
  ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);ctx.fillStyle='#000';ctx.textAlign='center';ctx.textBaseline='top';
- let y=Math.round((H-total)/2+Math.max(-15,Math.min(15,Number(verticalOffsetMm)||0))*dpmm);y=Math.max(0,Math.min(Math.max(0,H-total),y));const top=y;
- function drawText(f){font(f.size);for(const row of f.rows){ctx.fillText(row,W/2,y);y+=Math.ceil(f.size*1.2);}}
- for(const f of layout){drawText(f);y+=gap;}
- const barY=y,barX=Math.floor((W-nativeWidth*module)/2);barH=Math.floor(barH);
- for(const match of svg.matchAll(/<rect x="([\d.]+)" y="0" width="([\d.]+)" height="1"\/>/g))ctx.fillRect(barX+Number(match[1])*module,barY,Number(match[2])*module,barH);
- y+=barH+gap;drawText(caption);if(footer){y+=gap;drawText(footer);}
- // Quantize before both outputs: the preview is exactly the bitmap sent in ^GFA.
- const pixels=ctx.getImageData(0,0,W,H),rgba=pixels.data,rowBytes=Math.ceil(W/8),bytes=new Uint8Array(rowBytes*H);
- for(let py=0;py<H;py++)for(let px=0;px<W;px++){const i=(py*W+px)*4,black=(rgba[i]+rgba[i+1]+rgba[i+2])<384;if(black)bytes[py*rowBytes+(px>>3)]|=128>>(px%8);rgba[i]=rgba[i+1]=rgba[i+2]=black?0:255;rgba[i+3]=255;}
- ctx.putImageData(pixels,0,0);const graphics=[],stripeRows=Math.max(1,Math.floor(16000/rowBytes));
- for(let y=0;y<H;y+=stripeRows){const part=bytes.subarray(y*rowBytes,Math.min(H,y+stripeRows)*rowBytes),hex=Array.from(part,b=>b.toString(16).padStart(2,'0').toUpperCase()).join('');graphics.push({y,command:`^GFA,${part.length},${part.length},${rowBytes},${hex}^FS`});}
- return {url:canvas.toDataURL('image/png'),graphics,width:W,height:H,geometry:{top,bottom:y,margin,barX,barY,barH,module,nativeWidth}};
+ const args={data,W,H,dpmm,svg,dpi,verticalOffsetMm,brand,type};
+ const geometry=type==='PRODUCTO'?renderProduct(ctx,args):['UBICACION','RACK'].includes(type)?renderPhysical(ctx,args):renderGeneric(ctx,args);
+ const output=quantizeAndBuildGraphics(ctx,W,H,canvas);
+ return {...output,width:W,height:H,geometry};
 }
+
 export function buildLabelPages(items,settings,render){
- const {w,h,columns,gap,dpi}=settings,dpmm=({203:8,300:12,600:24})[dpi],pages=[],cache=new Map();
+ const {w,h,columns,gap,dpi}=settings,dpmm=DPMM[dpi],pages=[],cache=new Map();
  let row=[];for(const item of items){let image=cache.get(item);if(!image){image=render(item);cache.set(item,image);}for(let i=0;i<Number(item.copies||1);i++){row.push(image);if(row.length===columns){pages.push(row);row=[];}}}if(row.length)pages.push(row);
  const pageW=w*columns+gap*(columns-1),W=Math.round(pageW*dpmm),H=Math.round(h*dpmm);
- const html=`<!doctype html><html lang="es"><head><meta charset="utf-8"><title></title><style>@page{size:${pageW}mm ${h}mm;margin:0!important;padding:0!important}*{box-sizing:border-box}html,body{width:${pageW}mm;margin:0!important;padding:0!important;background:white}.label-sheet{display:flex;gap:${gap}mm;width:${pageW}mm;height:${h}mm;break-after:page;page-break-after:always;overflow:hidden}.label-sheet:last-child{break-after:auto;page-break-after:auto}.label-sheet img{display:block;width:${w}mm;height:${h}mm;flex:none}@media print{html,body{margin:0!important;padding:0!important}body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}</style></head><body>${pages.map(row=>`<div class="label-sheet">${row.map(img=>`<img alt="Etiqueta" width="${img.width}" height="${img.height}" src="${img.url}">`).join('')}</div>`).join('')}</body></html>`;
+ const html=`<!doctype html><html lang="es"><head><meta charset="utf-8"><title></title><style>@page{size:${pageW}mm ${h}mm;margin:0!important}*{box-sizing:border-box}html,body{width:${pageW}mm;margin:0!important;padding:0!important;background:#fff}.label-sheet{display:flex;gap:${gap}mm;width:${pageW}mm;height:${h}mm;break-after:page;page-break-after:always;overflow:hidden}.label-sheet:last-child{break-after:auto;page-break-after:auto}.label-sheet img{display:block;width:${w}mm;height:${h}mm;flex:none}@media print{html,body{margin:0!important;padding:0!important}.label-sheet{margin:0!important;padding:0!important}body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}</style></head><body>${pages.map(row=>`<div class="label-sheet">${row.map(img=>`<img alt="Etiqueta" width="${img.width}" height="${img.height}" src="${img.url}">`).join('')}</div>`).join('')}</body></html>`;
  const jobs=[];for(const row of pages){const body=row.map((image,i)=>image.graphics.map(g=>`^FO${Math.round(i*(w+gap)*dpmm)},${g.y}${g.command}`).join('')).join(''),prev=jobs.at(-1);if(prev?.body===body)prev.copies++;else jobs.push({body,copies:1});}
- const darkness=Math.max(0,Math.min(30,Math.round(Number(settings.darkness)||0))),media= settings.nativeGapMode?'^MNY':'';
- // Rack, posición y pallet: el ZPL declara explícitamente media no continua con separación (gap/web).
- // Así la Zebra toma cada inicio físico de etiqueta como origen y no depende del tamaño de papel del driver/PDF.
+ const darkness=Math.max(0,Math.min(30,Math.round(Number(settings.darkness)||0))),media=settings.nativeGapMode?'^MNY':'';
  const zpl=jobs.map(job=>`~SD${darkness}^XA${media}^PW${W}^LL${H}^LH0,0^LS0^LT0^PON${job.body}^PQ${job.copies}^XZ`).join('\n');
  return {html,zpl,pages,pageW,height:h};
 }
