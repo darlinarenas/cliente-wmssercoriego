@@ -14,7 +14,7 @@ export function renderLabelImage(data,{type,w,h,dpi=203,brand=false,contentScale
  const barcodeUsable=type==='PRODUCTO'?usable:usable;
  const nativeWidth=Number(svg.match(/viewBox="0 0 ([\d.]+)/)?.[1]),module=Math.floor(barcodeUsable/nativeWidth);
  if(module<1)throw new Error(`El código ${code} no cabe con barras legibles. Aumenta el ancho de la etiqueta.`);
- const gap=Math.round((physical?.65:h<=30?.7:1.15)*dpmm),compact=w<=50||h<=30;
+ const gap=Math.round((h<=30?.7:1.15)*dpmm),compact=w<=50||h<=30;
  const small=(physical?2.25:compact?2.3:2.8)*dpmm,big=(physical?4.8:compact?4:5.5)*dpmm,scaleBoost=Math.max(1.6,Math.min(2.4,Number(contentScale)||1.6));
  const title=type==='UBICACION'?code:(data.title||code);
  let fields=physical?[{text:data.company,size:small,lines:1},{text:title,size:big,lines:1}]:type==='PRODUCTO'?[{text:code,size:8.4*dpmm,lines:1},{text:title,size:4.7*dpmm,lines:2}]:type==='PALLET'?[{text:data.company,size:small,lines:1},{text:'PALLET',size:small,lines:1},{text:title,size:big,lines:2}]:[{text:data.company,size:small,lines:1},{text:title,size:big,lines:3},...(data.lines||[]).filter(Boolean).slice(0,2).map(text=>({text,size:small,lines:1}))];
@@ -22,10 +22,10 @@ export function renderLabelImage(data,{type,w,h,dpi=203,brand=false,contentScale
  function wrap(text,size){font(size);const result=[];let row='';for(const word of String(text||'').trim().split(/\s+/)){const next=row?row+' '+word:word;if(ctx.measureText(next).width<=usable){row=next;continue;}if(row)result.push(row);row='';for(const ch of word){if(ctx.measureText(row+ch).width>usable&&row){result.push(row);row='';}row+=ch;}}if(row)result.push(row);return result;}
  function fit(field,scale){const minimum=Math.ceil(1.9*dpmm);let size=Math.max(minimum,Math.round(field.size*scale)),lines;for(;size>=minimum;size--){lines=wrap(field.text,size);if(lines.length<=field.lines)return {...field,size,rows:lines,height:lines.length*Math.ceil(size*1.2)};}throw new Error(`El texto de ${code} no cabe sin recortarlo. Usa una etiqueta más grande.`);}
  let layout,caption,footer,barH,total,lastError;
- for(let scale=scaleBoost;scale>=.55;scale-=.05){try{layout=fields.map(f=>fit(f,scale));caption=fit({text:code,size:type==='PRODUCTO'?3.8*dpmm:small,lines:1},scale);footer=brand?fit({text:'By Vexhora',size:small*.85,lines:1},scale):null;const texts=layout.reduce((n,f)=>n+f.height,0)+caption.height+(footer?.height||0),gaps=gap*(layout.length+1+(footer?1:0));barH=Math.min(Math.round(available*(physical?.40:type==='PRODUCTO'?.45:.34)),available-texts-gaps);total=texts+gaps+barH;if(barH>=Math.min(6,h*.22)*dpmm){lastError=null;break;}lastError=new Error(`La altura de ${code} es insuficiente para texto, barras y leyenda. Aumenta el alto.`);}catch(e){lastError=e;}}
+ for(let scale=scaleBoost;scale>=.55;scale-=.05){try{layout=fields.map(f=>fit(f,scale));caption=fit({text:code,size:type==='PRODUCTO'?3.8*dpmm:small,lines:1},scale);footer=brand?fit({text:'By Vexhora',size:small*.85,lines:1},scale):null;const texts=layout.reduce((n,f)=>n+f.height,0)+caption.height+(footer?.height||0),gaps=gap*(layout.length+1+(footer?1:0));barH=Math.min(Math.round(available*((['PRODUCTO','UBICACION','RACK'].includes(type))?.45:.34)),available-texts-gaps);total=texts+gaps+barH;if(barH>=Math.min(6,h*.22)*dpmm){lastError=null;break;}lastError=new Error(`La altura de ${code} es insuficiente para texto, barras y leyenda. Aumenta el alto.`);}catch(e){lastError=e;}}
  if(lastError)throw lastError;
  ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);ctx.fillStyle='#000';ctx.textAlign='center';ctx.textBaseline='top';
- let y=Math.round((H-total)/2+Math.max(-15,Math.min(15,Number(verticalOffsetMm)||0))*dpmm);if(physical)y-=Math.round(.9*dpmm);y=Math.max(0,Math.min(Math.max(0,H-total),y));const top=y;
+ let y=Math.round((H-total)/2+Math.max(-15,Math.min(15,Number(verticalOffsetMm)||0))*dpmm);y=Math.max(0,Math.min(Math.max(0,H-total),y));const top=y;
  function drawText(f){font(f.size);for(const row of f.rows){ctx.fillText(row,W/2,y);y+=Math.ceil(f.size*1.2);}}
  for(const f of layout){drawText(f);y+=gap;}
  const barY=y,barX=Math.floor((W-nativeWidth*module)/2);barH=Math.floor(barH);

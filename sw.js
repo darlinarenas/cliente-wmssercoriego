@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.08-rack-posicion-100x30-v140';
+const APP_VERSION = '2026.09.08-impresion-unificada-producto-v141';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
