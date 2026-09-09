@@ -28,6 +28,7 @@ import { renderLoads } from './modules/cargas/cargas.js';
 import { renderTransferReceiving } from './modules/recepcion-traspasos/recepcion-traspasos.js';
 import { renderPutawayTasks } from './modules/tareas-ubicacion/tareas-ubicacion.js';
 import { renderCodes } from './modules/codigos/codigos.js';
+import { renderCodeQuantities } from './modules/codigos-cantidades/codigos-cantidades.js';
 import { activeSiteId } from './services/stock.js';
 import { effectiveRole,normalizeRouteForRole,mapPermissionsForUser } from './services/access-routing.js';
 import { siteCompanyId } from './services/company.js';
@@ -57,6 +58,7 @@ function buildRouter(){
     racks:secureRoute('racks',()=>renderRacks(root)),
     buscar:secureRoute('buscar',()=>renderSearch(root)),
     codigos:secureRoute('codigos',()=>renderCodes(root)),
+    'codigos-cantidades':secureRoute('codigos-cantidades',()=>renderCodeQuantities(root)),
     productos:secureRoute('productos',()=>renderProducts(root)),
     estructura:secureRoute('estructura',()=>renderStructure(root)),
     movimientos:secureRoute('movimientos',()=>renderMovements(root)),
