@@ -166,3 +166,10 @@ export function downloadZpl(zpl,filename='khal-etiquetas-prueba.zpl'){
  const blob=new Blob([String(zpl||'')],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
  a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
+
+export async function configureKhalPrintRemote(config={}){
+ return khalBridgeRequest('/remote/config',{method:'POST',body:config,timeout:5000});
+}
+export async function khalPrintRemoteStatus(){
+ return khalBridgeRequest('/remote/status',{timeout:3000});
+}

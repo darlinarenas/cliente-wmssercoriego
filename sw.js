@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.10-zebra-physical-calibration-v165';
+const APP_VERSION = '2026.09.10-remote-print-agent-v166';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
