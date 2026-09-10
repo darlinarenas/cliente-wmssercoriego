@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.10-zebra-calibration-v164';
+const APP_VERSION = '2026.09.10-zebra-physical-calibration-v165';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

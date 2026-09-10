@@ -92,7 +92,8 @@ function renderProduct(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
 function renderPhysical(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm,type}){
  const margin=mm(3,dpmm),usable=W-margin*2,code=String(data.code||'').trim();
  const rackLine=String(data.lines?.[0]||data.eyebrow||'POSICIÓN').trim();
- const top=Math.max(0,mm(1.6+Number(verticalOffsetMm||0),dpmm));
+ const safePhysicalOffset=Math.max(-10,Math.min(6,Number(verticalOffsetMm)||0));
+ const top=Math.max(0,mm(1.6+safePhysicalOffset,dpmm));
  const rackFit=fitText(ctx,rackLine,usable,mm(2.8,dpmm),mm(2.1,dpmm),1);
  const mainFit=fitText(ctx,type==='RACK'?(data.title||code):code,usable,mm(6.8,dpmm),mm(4.2,dpmm),1);
  const caption=fitText(ctx,type==='RACK'?'Rack':'Posición',usable,mm(2.5,dpmm),mm(2.0,dpmm),1);
