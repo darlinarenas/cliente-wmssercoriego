@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.09-barcode-camara-v153';
+const APP_VERSION = '2026.09.09-producto-mapa-v154';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

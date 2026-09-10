@@ -69,21 +69,23 @@ function drawBarcode(ctx,svg,W,y,height,geometry){
 
 function renderProduct(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
  const margin=mm(4,dpmm),usable=W-margin*2;
- const top=Math.max(0,mm(3.2+Number(verticalOffsetMm||0),dpmm));
+ const top=Math.max(0,mm(3.0+Number(verticalOffsetMm||0),dpmm));
  const code=String(data.code||'').trim(),title=String(data.title||'Producto').trim();
- const sku=fitText(ctx,code,usable,mm(8.2,dpmm),mm(5.3,dpmm),1);
- const name=fitText(ctx,title,usable,mm(4.6,dpmm),mm(2.7,dpmm),2);
- const caption=fitText(ctx,code,usable,mm(3.8,dpmm),mm(2.5,dpmm),1);
+ // PRODUCTO 100x70: plantilla independiente. No comparte medidas ni lógica con rack/posición.
+ // 1) SKU dominante, 2) descripción hasta dos líneas, 3) Code 128 grande, 4) leyenda del código.
+ const sku=fitText(ctx,code,usable,mm(9.2,dpmm),mm(6.2,dpmm),1);
+ const name=fitText(ctx,title,usable,mm(5.1,dpmm),mm(3.0,dpmm),2);
+ const caption=fitText(ctx,code,usable,mm(4.0,dpmm),mm(2.8,dpmm),1);
  const geometry=barcodeGeometry(svg,usable,dpi);
  let y=top;
- y=drawCenteredText(ctx,sku,W,y,1.04)+mm(1.1,dpmm);
- y=drawCenteredText(ctx,name,W,y,1.08)+mm(1.2,dpmm);
- const captionHeight=Math.ceil(caption.size*1.08),bottomMargin=mm(2.5,dpmm),captionGap=mm(1.0,dpmm);
+ y=drawCenteredText(ctx,sku,W,y,1.0)+mm(1.6,dpmm);
+ y=drawCenteredText(ctx,name,W,y,1.08)+mm(1.8,dpmm);
+ const captionHeight=Math.ceil(caption.size*1.05),bottomMargin=mm(2.2,dpmm),captionGap=mm(1.2,dpmm);
  const availableForBars=H-y-captionGap-captionHeight-bottomMargin;
- const barH=Math.min(mm(25,dpmm),availableForBars);
- if(barH<mm(18,dpmm))throw new Error(`La etiqueta de producto ${code} no tiene altura suficiente para un código grande.`);
+ const barH=Math.min(mm(27,dpmm),availableForBars);
+ if(barH<mm(20,dpmm))throw new Error(`La etiqueta de producto ${code} no tiene altura suficiente para un código grande.`);
  const bar=drawBarcode(ctx,svg,W,y,barH,geometry);y+=barH+captionGap;
- drawCenteredText(ctx,caption,W,y,1.05);
+ drawCenteredText(ctx,caption,W,y,1.0);
  return {top,bottom:y+captionHeight,margin,...bar};
 }
 
