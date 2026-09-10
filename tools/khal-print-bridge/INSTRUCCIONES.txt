@@ -1,27 +1,17 @@
-KHAL PRINT BRIDGE · IMPRESION ZEBRA RAW
+KHAL PRINT 1.1 · IMPRESION ZEBRA PARA KHAL WEB
 
-Objetivo
-- Permite que Khal, abierto en Chrome/Edge en este PC Windows, envíe ZPL directo a la Zebra instalada.
-- No usa PDF para la ruta principal.
-- Detecta automáticamente impresoras Zebra/ZDesigner/ZPL (incluye GC/GK/GX/ZD/ZT comunes).
-- El servicio solo escucha en 127.0.0.1:17891; no queda expuesto a otros equipos de la red.
+- Se instala UNA sola vez en cada PC desde el que se imprimirá.
+- Khal puede seguir alojado en Vercel/HTTPS.
+- 127.0.0.1/localhost significa “este mismo computador”; NO es una IP fija de impresora.
+- Khal consulta las impresoras Zebra/ZDesigner/ZPL instaladas en Windows y permite elegir cuál usar.
+- La selección queda guardada localmente en ese navegador/PC.
+- El trabajo se envía ZPL RAW; el PDF queda solo como respaldo.
 
-Instalación (una sola vez por PC de impresión)
-1. Instala el driver Zebra correspondiente y confirma que Windows vea la impresora.
-2. Ejecuta INSTALAR_KHAL_PRINT.bat.
-3. Abre Khal y usa Etiquetas > Vista previa e imprimir > Imprimir Zebra automático.
+INSTALACION
+1. Confirma que Windows puede ver e imprimir una página/prueba con la Zebra.
+2. Ejecuta INSTALAR_KHAL_PRINT.bat una vez.
+3. En Khal > Etiquetas > Vista previa, espera “Zebra detectada” y pulsa Imprimir Zebra.
+4. Si hay varias Zebra, elige una en el selector.
 
-Funcionamiento
-1. Khal genera la etiqueta a 203 dpi y tamaño físico exacto.
-2. La misma imagen monocroma se usa para vista previa, PDF y ZPL.
-3. Khal Print Bridge recibe el ZPL localmente.
-4. Windows lo envía como RAW a la Zebra, sin reescalado del navegador.
-
-Compatibilidad
-- Zebra que acepten ZPL y tengan driver instalado en Windows.
-- Probable para GC420/GK420/GX420/ZD220/ZD230/ZD420/ZD421/ZT410/ZT420 y equivalentes ZPL.
-- Si una impresora es 300 dpi, Khal debe configurarse/renderizarse a 300 dpi antes de imprimir; las unidades físicas se mantienen, pero no se debe mandar un bitmap 203 dpi como si fuera 300 dpi.
-
-Respaldo
-- Si el puente no está abierto, Khal intenta Zebra Browser Print.
-- El PDF queda disponible solo como respaldo del sistema.
+COMPATIBILIDAD
+GC/GK/GX/ZD/ZT y otras colas cuyo nombre o driver Windows indique Zebra/ZDesigner/ZPL.

@@ -1981,3 +1981,11 @@ dialog.scanner-dialog{
 .operator-pick-simple .pick-now-field .pick-packaging-help-inline>b{font-size:18px;color:#08753a}
 .operator-pick-simple .pick-now-field .pick-packaging-help-inline>small{font-size:10px;color:#475569}
 @media(max-width:430px){.operator-pick-simple .pick-now-field .pick-packaging-help-inline{padding:9px 10px}.operator-pick-simple .pick-now-field .pick-packaging-help-inline>b{font-size:17px}}
+
+/* Khal Print · selección local de impresora Zebra (v161) */
+.label-zebra-device{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 10px;align-items:end;margin:10px 0;padding:12px;border:1px solid var(--border,#d9e2e8);border-radius:12px;background:var(--surface-soft,#f7fafb)}
+.label-zebra-device label{grid-column:1/-1;display:flex;gap:6px;flex-direction:column;margin:0}
+.label-zebra-device label span{font-size:.82rem;font-weight:600;color:var(--muted,#62717d)}
+.label-zebra-device select{min-width:0;width:100%;height:42px}
+.label-zebra-device button{white-space:nowrap;min-height:42px}
+@media(max-width:700px){.label-zebra-device{grid-template-columns:1fr}.label-zebra-device label,.label-zebra-device select,.label-zebra-device button{grid-column:1}.label-zebra-device button{width:100%}}

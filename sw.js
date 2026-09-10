@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.10-zebra-raw-bridge-v160';
+const APP_VERSION = '2026.09.10-zebra-detect-v161';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
