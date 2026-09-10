@@ -1,17 +1,17 @@
-KHAL PRINT 1.1 · IMPRESION ZEBRA PARA KHAL WEB
+KHAL PRINT 1.3 - INSTALADOR AUTONOMO PARA WINDOWS 64 BITS
 
-- Se instala UNA sola vez en cada PC desde el que se imprimirá.
-- Khal puede seguir alojado en Vercel/HTTPS.
-- 127.0.0.1/localhost significa “este mismo computador”; NO es una IP fija de impresora.
-- Khal consulta las impresoras Zebra/ZDesigner/ZPL instaladas en Windows y permite elegir cuál usar.
-- La selección queda guardada localmente en ese navegador/PC.
-- El trabajo se envía ZPL RAW; el PDF queda solo como respaldo.
+1. Descomprime este ZIP en una carpeta.
+2. Haz doble clic en INSTALAR_KHAL_PRINT.bat.
+3. Espera el mensaje "KHAL PRINT INSTALADO CORRECTAMENTE".
+4. Vuelve a Khal y pulsa "Ya lo instale - detectar Zebra".
 
-INSTALACION
-1. Confirma que Windows puede ver e imprimir una página/prueba con la Zebra.
-2. Ejecuta INSTALAR_KHAL_PRINT.bat una vez.
-3. En Khal > Etiquetas > Vista previa, espera “Zebra detectada” y pulsa Imprimir Zebra.
-4. Si hay varias Zebra, elige una en el selector.
+IMPORTANTE
+- NO necesitas instalar Python.
+- NO necesitas pip.
+- NO necesitas pywin32.
+- NO necesitas configurar una IP fija de la impresora.
+- Khal Print detecta las impresoras Zebra/ZDesigner/ZPL instaladas en ese Windows.
+- Se instala para el usuario actual en %LOCALAPPDATA%\KhalPrint.
+- Se configura para arrancar con Windows mediante HKCU (no requiere administrador normalmente).
 
-COMPATIBILIDAD
-GC/GK/GX/ZD/ZT y otras colas cuyo nombre o driver Windows indique Zebra/ZDesigner/ZPL.
+Si Windows SmartScreen muestra una advertencia por tratarse de un ejecutable nuevo sin firma comercial, verifica que el archivo provenga del paquete oficial de Khal antes de ejecutarlo.
