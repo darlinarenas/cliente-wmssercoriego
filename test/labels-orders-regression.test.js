@@ -14,9 +14,11 @@ test('etiquetas conserva actualización dinámica y botones de cola',()=>{
   assert.match(labels,/#labels-queue-print/);
 });
 
-test('vista de etiquetas permanece limpia y usa impresión PDF/sistema',()=>{
+test('vista de etiquetas permanece limpia y usa PDF más Zebra automático',()=>{
   assert.match(labels,/VISTA PREVIA PDF/);
-  assert.match(labels,/Imprimir \/ guardar PDF/);
+  assert.match(labels,/Abrir PDF \/ sistema/);
+  assert.match(labels,/Imprimir Zebra automático/);
+  assert.match(labels,/printZplToZebra/);
   assert.doesNotMatch(labels,/Ancho de cada etiqueta/);
   assert.doesNotMatch(labels,/CALIBRACIÓN RÁPIDA/);
   assert.doesNotMatch(labels,/Imprimir directo en Zebra/);
@@ -45,4 +47,10 @@ test('mapa visual de etiquetas está restaurado y conectado',()=>{
 test('posición y rack permanecen congelados en 103x30',()=>{
   assert.match(labels,/UBICACION:'103x30'/);
   assert.match(labels,/RACK:'103x30'/);
+});
+
+test('ayuda de empaque queda junto a cantidad en picking del operario',()=>{
+  assert.match(orders,/id="pick-item-required"[\s\S]*id="pick-item-packaging-help"[\s\S]*id="pick-item-qty"/);
+  assert.match(orders,/packagingMarkup=!isManager\(\)\?packagingHelpHtml\(p,pending\):''/);
+  assert.doesNotMatch(orders,/pick-item-dialog-summary[\s\S]{0,500}\$\{!isManager\(\)\?packagingHelpHtml\(p,pending\):''\}/);
 });
