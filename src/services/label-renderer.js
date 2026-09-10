@@ -7,9 +7,9 @@ function barcodeGeometry(svg,usableWidth,dpi){
  const nativeWidth=Number(svg.match(/viewBox="0 0 ([\d.]+)/)?.[1]);
  if(!nativeWidth)throw new Error('No se pudo calcular el código de barras.');
  const dpmm=DPMM[dpi];
- // X-dimension física objetivo ~0,375 mm. Mantiene el grosor de barra estable
- // entre etiquetas y solo reduce un paso cuando un código largo no cabe.
- const preferred=Math.max(2,Math.round(.375*dpmm));
+ // X-dimension física objetivo ~0,50 mm para lectura por cámara.
+ // Conserva la zona de silencio Code 128 y solo reduce cuando el contenido no cabe.
+ const preferred=Math.max(3,Math.round(.50*dpmm));
  const maximum=Math.floor(usableWidth/nativeWidth);
  const module=Math.min(preferred,maximum);
  if(module<2)throw new Error('El código es demasiado largo para imprimirlo con barras legibles en este ancho.');
@@ -100,7 +100,7 @@ function renderPhysical(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm,type}){
  y=drawCenteredText(ctx,mainFit,W,y,1.0)+mm(.65,dpmm);
  const capHeight=Math.ceil(caption.size*1.05),capGap=mm(.6,dpmm),bottom=mm(1.2,dpmm);
  const available=H-y-capGap-capHeight-bottom;
- const barH=Math.min(mm(9.2,dpmm),available);
+ const barH=Math.min(mm(10.5,dpmm),available);
  if(barH<mm(6.5,dpmm))throw new Error(`La etiqueta ${code} no tiene altura suficiente para un código legible.`);
  const bar=drawBarcode(ctx,svg,W,y,barH,geometry);y+=barH+capGap;
  drawCenteredText(ctx,caption,W,y,1.0);
