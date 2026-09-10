@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.09-oscuridad-zebra-visible-v157';
+const APP_VERSION = '2026.09.10-ayuda-empaque-picking-v158';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
