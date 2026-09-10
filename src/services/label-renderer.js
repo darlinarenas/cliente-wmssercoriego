@@ -36,7 +36,7 @@ function quantizeAndBuildGraphics(ctx,W,H,canvas){
 function fitText(ctx,text,maxWidth,startSize,minSize,maxLines=1){
  const words=String(text||'').trim().split(/\s+/).filter(Boolean);
  for(let size=startSize;size>=minSize;size--){
-  ctx.font=`700 ${size}px Arial, sans-serif`;
+  ctx.font=`900 ${size}px "Arial Black", Arial, sans-serif`;
   const rows=[];let row='';
   for(const word of words){
    const next=row?`${row} ${word}`:word;
@@ -54,8 +54,8 @@ function fitText(ctx,text,maxWidth,startSize,minSize,maxLines=1){
 }
 
 function drawCenteredText(ctx,fit,W,y,lineHeight=1.12){
- ctx.font=`700 ${fit.size}px Arial, sans-serif`;ctx.textAlign='center';ctx.textBaseline='top';
- for(const row of fit.rows){ctx.fillText(row,W/2,y);y+=Math.ceil(fit.size*lineHeight);}
+ ctx.font=`900 ${fit.size}px "Arial Black", Arial, sans-serif`;ctx.textAlign='center';ctx.textBaseline='top';
+ for(const row of fit.rows){ctx.fillText(row,W/2,y);ctx.fillText(row,W/2+1,y);y+=Math.ceil(fit.size*lineHeight);}
  return y;
 }
 
@@ -175,10 +175,10 @@ export function buildLabelPdf(job){
   });
   const content=commands.join('\n');
   const contentId=add(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
-  const pageId=add(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pdfNumber(pageWpt)} ${pdfNumber(pageHpt)}] /Resources << /XObject << ${refs.join(' ')} >> >> /Contents ${contentId} 0 R >>`);
+  const pageId=add(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pdfNumber(pageWpt)} ${pdfNumber(pageHpt)}] /CropBox [0 0 ${pdfNumber(pageWpt)} ${pdfNumber(pageHpt)}] /TrimBox [0 0 ${pdfNumber(pageWpt)} ${pdfNumber(pageHpt)}] /Rotate 0 /Resources << /XObject << ${refs.join(' ')} >> >> /Contents ${contentId} 0 R >>`);
   pageIds.push(pageId);
  }
- objects[catalogId-1]=`<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
+ objects[catalogId-1]=`<< /Type /Catalog /Pages ${pagesId} 0 R /ViewerPreferences << /PrintScaling /None /PickTrayByPDFSize true >> >>`;
  objects[pagesId-1]=`<< /Type /Pages /Count ${pageIds.length} /Kids [${pageIds.map(id=>`${id} 0 R`).join(' ')}] >>`;
  let pdf='%PDF-1.4\n';
  const offsets=[0];

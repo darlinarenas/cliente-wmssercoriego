@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.09-pdf-real-etiquetas-v151';
+const APP_VERSION = '2026.09.09-etiquetas-estandar-v152';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
