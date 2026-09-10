@@ -1989,3 +1989,12 @@ dialog.scanner-dialog{
 .label-zebra-device select{min-width:0;width:100%;height:42px}
 .label-zebra-device button{white-space:nowrap;min-height:42px}
 @media(max-width:700px){.label-zebra-device{grid-template-columns:1fr}.label-zebra-device label,.label-zebra-device select,.label-zebra-device button{grid-column:1}.label-zebra-device button{width:100%}}
+
+/* Khal Print v162: instalación guiada cuando el puente local no está disponible */
+.label-khal-print-install{margin:10px 0;padding:14px;border:1px solid rgba(245,158,11,.45);border-radius:14px;background:rgba(245,158,11,.08);display:grid;gap:10px}
+.label-khal-print-install[hidden]{display:none!important}
+.label-khal-print-install>div{display:grid;gap:4px}
+.label-khal-print-install b{font-weight:800}
+.label-khal-print-install span,.label-khal-print-install small{line-height:1.35}
+.label-khal-print-install>a,.label-khal-print-install>button{justify-self:start;text-decoration:none}
+@media(max-width:720px){.label-khal-print-install>a,.label-khal-print-install>button{width:100%;justify-content:center}}

@@ -12,10 +12,11 @@ function withTimeout(executor,timeout=DEFAULT_TIMEOUT,message='Tiempo de espera 
  });
 }
 
+function bridgeUnavailableError(message='Khal Print no está instalado o no está activo en este computador.'){const error=new Error(message);error.code='KHAL_PRINT_UNAVAILABLE';return error;}
 function friendlyBridgeError(error){
  const raw=String(error?.message||error||'').trim();
- if(/failed to fetch|networkerror|load failed|network request failed/i.test(raw))return new Error('Khal Print no está activo en este computador. Abre o instala Khal Print y vuelve a intentar.');
- if(error?.name==='AbortError')return new Error('Khal Print no respondió en este computador.');
+ if(/failed to fetch|networkerror|load failed|network request failed/i.test(raw))return bridgeUnavailableError();
+ if(error?.name==='AbortError')return bridgeUnavailableError('Khal Print está instalado pero no respondió. Comprueba que esté iniciado y vuelve a intentar.');
  return error instanceof Error?error:new Error(raw||'No se pudo conectar con Khal Print.');
 }
 
