@@ -97,7 +97,7 @@ function renderSalida(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
  const sku=fitText(ctx,skuText,usable,mm(7.8,dpmm),mm(5.5,dpmm),1);
  const name=fitText(ctx,title,usable,mm(4.5,dpmm),mm(2.8,dpmm),2);
  const caption=fitText(ctx,barcode,usable,mm(3.4,dpmm),mm(2.5,dpmm),1);
- const qty=fitText(ctx,`CANTIDAD: ${units} UNIDADES`,usable,mm(5.6,dpmm),mm(3.8,dpmm),1);
+ const qty=fitText(ctx,`CANTIDAD: ${units} ULD.`,usable,mm(5.6,dpmm),mm(3.8,dpmm),1);
  const geometry=barcodeGeometry(svg,usable,dpi);
  let y=top;
  y=drawCenteredText(ctx,sku,W,y,1.0)+mm(1.0,dpmm);
