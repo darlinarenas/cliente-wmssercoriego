@@ -2808,3 +2808,10 @@ dialog.scanner-dialog{
   .operator-existing-pallets-dialog{width:calc(100vw - 14px);max-width:none;margin:auto}
   .operator-existing-pallets-dialog .pallet-operation-card{max-height:94dvh;padding:10px!important}
 }
+
+/* Khal v189 · código manual: descripción + unidades sin alterar controles de impresión */
+.labels-operator-mode .label-manual-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(130px,.32fr);gap:10px;align-items:end}
+.labels-operator-mode .label-manual-units{display:grid;gap:5px;font-size:12px;font-weight:900;color:#334155}
+.labels-operator-mode .label-manual-units input{min-height:48px;padding:10px 11px;font-size:16px;font-weight:900;border:1px solid var(--line);border-radius:11px;text-align:center}
+.labels-operator-mode .label-manual-quantity{font-size:15px;line-height:1;font-weight:950;color:#111827}
+@media(max-width:700px){.labels-operator-mode .label-manual-fields{grid-template-columns:minmax(0,1fr) 118px;gap:7px}.labels-operator-mode .label-manual-units input{min-height:44px;padding:8px}.labels-operator-mode .label-manual-quantity{font-size:14px}}

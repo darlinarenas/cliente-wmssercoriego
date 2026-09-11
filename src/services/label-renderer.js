@@ -134,6 +134,31 @@ function renderPhysical(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm,type}){
  return {top,bottom:y+capHeight,margin,...bar};
 }
 
+
+function renderManual(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
+ const margin=mm(4,dpmm),usable=W-margin*2;
+ const top=Math.max(0,mm(2.4+Number(verticalOffsetMm||0),dpmm));
+ const code=String(data.code||'').trim(),description=String(data.description||data.lines?.[0]||'').trim();
+ const units=Math.max(1,Math.round(Number(data.quantity)||1));
+ const main=fitText(ctx,code,usable,mm(8.8,dpmm),mm(5.8,dpmm),1);
+ const desc=fitText(ctx,description||'Sin descripción',usable,mm(4.4,dpmm),mm(2.8,dpmm),2);
+ const caption=fitText(ctx,code,usable,mm(3.5,dpmm),mm(2.5,dpmm),1);
+ const qty=fitText(ctx,`${units} Unid`,usable,mm(5.2,dpmm),mm(3.6,dpmm),1);
+ const geometry=barcodeGeometry(svg,usable,dpi);
+ let y=top;
+ y=drawCenteredText(ctx,main,W,y,1.0)+mm(1.1,dpmm);
+ y=drawCenteredText(ctx,desc,W,y,1.05)+mm(1.0,dpmm);
+ const captionHeight=Math.ceil(caption.size*1.05),qtyHeight=Math.ceil(qty.size*1.05);
+ const captionGap=mm(.7,dpmm),qtyGap=mm(1.0,dpmm),bottomMargin=mm(1.8,dpmm);
+ const availableForBars=H-y-captionGap-captionHeight-qtyGap-qtyHeight-bottomMargin;
+ const barH=Math.min(mm(20,dpmm),availableForBars);
+ if(barH<mm(13,dpmm))throw new Error(`La etiqueta manual ${code} no tiene altura suficiente para un código legible.`);
+ const bar=drawBarcode(ctx,svg,W,y,barH,geometry);y+=barH+captionGap;
+ y=drawCenteredText(ctx,caption,W,y,1.0)+qtyGap;
+ drawCenteredText(ctx,qty,W,y,1.0);
+ return {top,bottom:y+qtyHeight,margin,...bar};
+}
+
 function renderGeneric(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm,brand,type}){
  const margin=mm(3,dpmm),usable=W-margin*2,code=String(data.code||'').trim();
  const title=fitText(ctx,data.title||code,usable,mm(5.2,dpmm),mm(3,dpmm),2);
@@ -159,7 +184,7 @@ export function renderLabelImage(data,{type,w,h,dpi=203,brand=false,verticalOffs
  if(!svg)throw new Error('El código no es compatible con Code 128.');
  ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);ctx.fillStyle='#000';ctx.textAlign='center';ctx.textBaseline='top';
  const args={data,W,H,dpmm,svg,dpi,verticalOffsetMm,brand,type};
- const geometry=type==='PRODUCTO'?renderProduct(ctx,args):type==='SALIDA'?renderSalida(ctx,args):['UBICACION','RACK'].includes(type)?renderPhysical(ctx,args):renderGeneric(ctx,args);
+ const geometry=type==='PRODUCTO'?renderProduct(ctx,args):type==='SALIDA'?renderSalida(ctx,args):type==='MANUAL'?renderManual(ctx,args):['UBICACION','RACK'].includes(type)?renderPhysical(ctx,args):renderGeneric(ctx,args);
  const output=quantizeAndBuildGraphics(ctx,W,H,canvas);
  return {...output,width:W,height:H,geometry};
 }
