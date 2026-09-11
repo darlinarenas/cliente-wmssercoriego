@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.11-puente-vista-ampliable-v181';
+const APP_VERSION = '2026.09.11-preview-premium-v182';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
