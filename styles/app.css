@@ -2105,3 +2105,54 @@ dialog.scanner-dialog{
  .labels-operator-mode .label-queue-row .label-remove{grid-column:1/-1;width:100%}
  .labels-operator-mode .label-print-bar{grid-template-columns:1fr auto!important}
 }
+
+/* Khal v171 · operador: controles grandes + secciones plegables */
+.labels-operator-mode .label-controls{display:grid;gap:10px}
+.labels-operator-mode .label-controls-top{grid-template-columns:minmax(190px,.8fr) minmax(320px,1.8fr)!important;gap:12px!important;align-items:end}
+.labels-operator-mode .label-type-control,.labels-operator-mode .label-search-control{font-size:12px!important;font-weight:900!important;gap:6px!important}
+.labels-operator-mode .label-type-control select,.labels-operator-mode .label-search-control input{min-height:54px!important;font-size:16px!important;padding:11px 12px!important;border-radius:12px!important}
+.labels-operator-mode .label-search-actions{grid-template-columns:minmax(0,1fr) 58px 58px!important;gap:8px!important}
+.labels-operator-mode #label-search-keyboard,.labels-operator-mode #label-search-camera{min-width:58px!important;width:58px!important;height:54px!important;min-height:54px!important;font-size:16px!important;border-radius:12px!important;font-weight:900!important}
+.labels-operator-mode .label-map-primary{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;padding:12px 14px!important;gap:12px!important;border-radius:14px!important}
+.labels-operator-mode .label-map-primary .eyebrow{display:block!important;font-size:9px!important}
+.labels-operator-mode .label-map-primary b{font-size:15px!important}
+.labels-operator-mode .label-map-primary button{min-height:50px!important;padding:10px 16px!important;font-size:14px!important;font-weight:900!important}
+.labels-operator-mode .label-operator-calibration{border:1px solid #dbe5df;border-radius:13px;background:#fff;overflow:hidden}
+.labels-operator-mode .label-operator-calibration>summary{min-height:46px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;cursor:pointer;list-style:none;font-size:13px;font-weight:900;color:#18372a}
+.labels-operator-mode .label-operator-calibration>summary::-webkit-details-marker{display:none}
+.labels-operator-mode .label-operator-calibration>summary span{font-size:10px;font-weight:700;color:var(--muted)}
+.labels-operator-mode .label-operator-calibration>summary::after{content:'⌄';font-size:16px;color:var(--muted)}
+.labels-operator-mode .label-operator-calibration[open]>summary::after{transform:rotate(180deg)}
+.labels-operator-mode .label-operator-calibration-body{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;padding:0 12px 12px}
+.labels-operator-mode .label-operator-calibration-body label{display:grid;gap:4px;font-size:11px;font-weight:900}
+.labels-operator-mode .label-operator-calibration-body label b{font-size:12px;color:#07883f}
+.labels-operator-mode .label-operator-calibration-body label small{font-size:9px;font-weight:600;color:var(--muted)}
+.labels-operator-mode .label-operator-calibration-body input[type="range"]{width:100%}
+.labels-operator-mode .label-operator-workspace{display:grid!important;grid-template-columns:1fr!important;gap:8px!important;min-height:0}
+.labels-operator-mode .label-operator-section{border:1px solid #dbe5df;border-radius:14px;background:#fff;overflow:hidden;min-height:0}
+.labels-operator-mode .label-operator-section>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;padding:9px 13px;cursor:pointer;list-style:none;font-size:14px;font-weight:900;color:#153426;background:#f8fbf9}
+.labels-operator-mode .label-operator-section>summary::-webkit-details-marker{display:none}
+.labels-operator-mode .label-operator-section>summary b{font-size:11px;color:#07883f}
+.labels-operator-mode .label-operator-section>summary::after{content:'⌄';font-size:16px;color:var(--muted)}
+.labels-operator-mode .label-operator-section[open]>summary{border-bottom:1px solid #e5ece8}
+.labels-operator-mode .label-operator-section[open]>summary::after{transform:rotate(180deg)}
+.labels-operator-mode .label-operator-section>.panel{border:0!important;border-radius:0!important;box-shadow:none!important;margin:0!important;padding:8px!important}
+.labels-operator-mode .label-operator-section:not([open])>.panel{display:none!important}
+.labels-operator-mode .label-source-list{max-height:43dvh!important;overflow:auto!important;overscroll-behavior:contain}
+.labels-operator-mode .label-queue-list{max-height:34dvh!important;overflow:auto!important;overscroll-behavior:contain}
+
+@media(max-width:760px){
+ .labels-operator-mode .label-controls{padding:9px!important;gap:8px!important}
+ .labels-operator-mode .label-controls-top{grid-template-columns:1fr!important;gap:8px!important}
+ .labels-operator-mode .label-type-control select,.labels-operator-mode .label-search-control input{min-height:52px!important;font-size:16px!important}
+ .labels-operator-mode .label-search-actions{grid-template-columns:minmax(0,1fr) 56px 56px!important;gap:7px!important}
+ .labels-operator-mode #label-search-keyboard,.labels-operator-mode #label-search-camera{width:56px!important;min-width:56px!important;height:52px!important;min-height:52px!important}
+ .labels-operator-mode .label-map-primary{grid-template-columns:1fr!important;padding:10px!important}
+ .labels-operator-mode .label-map-primary button{width:100%!important;min-height:48px!important;font-size:14px!important}
+ .labels-operator-mode .label-operator-calibration-body{grid-template-columns:1fr;gap:8px}
+ .labels-operator-mode .label-operator-calibration-body button{width:100%;min-height:42px}
+ .labels-operator-mode .label-operator-section>summary{min-height:46px;font-size:14px}
+ .labels-operator-mode .label-source-list{max-height:40dvh!important}
+ .labels-operator-mode .label-queue-list{max-height:30dvh!important}
+ .labels-operator-mode .label-print-bar{bottom:64px!important}
+}
