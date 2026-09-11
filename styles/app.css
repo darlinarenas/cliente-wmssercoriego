@@ -2777,3 +2777,13 @@ dialog.scanner-dialog{
 .operator-pending-sort details>summary::-webkit-details-marker{display:none}
 .operator-pending-sort details[open]>summary{border-bottom:1px solid var(--border,#e5e7eb)}
 .operator-pending-sort .pending-sort-list{max-height:55dvh;overflow-y:auto;overflow-x:hidden;padding:8px;overscroll-behavior:contain}
+
+/* v187 · Organizar pallet: mantener creación visible sin reabrir la vista larga */
+.operator-pallet-create-bar{display:flex;align-items:center;gap:10px;padding:10px 12px;margin:0 0 8px;border:1px solid #d8e9df;border-radius:14px;background:#fff}
+.operator-pallet-create-bar .primary{flex:0 0 auto;min-height:46px;white-space:nowrap}
+.operator-pallet-create-bar small{display:block;line-height:1.25;color:#64748b}
+@media (max-width:720px){
+  .operator-pallet-create-bar{display:grid;grid-template-columns:1fr;padding:8px;margin-bottom:7px}
+  .operator-pallet-create-bar .primary{width:100%;min-height:48px}
+  .operator-pallet-create-bar small{font-size:11px}
+}
