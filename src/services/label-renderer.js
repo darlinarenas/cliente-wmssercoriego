@@ -89,6 +89,30 @@ function renderProduct(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
  return {top,bottom:y+captionHeight,margin,...bar};
 }
 
+function renderSalida(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
+ const margin=mm(4,dpmm),usable=W-margin*2;
+ const top=Math.max(0,mm(2.4+Number(verticalOffsetMm||0),dpmm));
+ const barcode=String(data.code||'').trim(),skuText=String(data.sku||barcode).trim(),title=String(data.title||'Producto').trim();
+ const units=Math.max(1,Math.round(Number(data.quantity)||1));
+ const sku=fitText(ctx,skuText,usable,mm(7.8,dpmm),mm(5.5,dpmm),1);
+ const name=fitText(ctx,title,usable,mm(4.5,dpmm),mm(2.8,dpmm),2);
+ const caption=fitText(ctx,barcode,usable,mm(3.4,dpmm),mm(2.5,dpmm),1);
+ const qty=fitText(ctx,`CANTIDAD: ${units} UNIDADES`,usable,mm(5.6,dpmm),mm(3.8,dpmm),1);
+ const geometry=barcodeGeometry(svg,usable,dpi);
+ let y=top;
+ y=drawCenteredText(ctx,sku,W,y,1.0)+mm(1.0,dpmm);
+ y=drawCenteredText(ctx,name,W,y,1.05)+mm(1.0,dpmm);
+ const captionHeight=Math.ceil(caption.size*1.05),qtyHeight=Math.ceil(qty.size*1.05);
+ const captionGap=mm(.7,dpmm),qtyGap=mm(1.2,dpmm),bottomMargin=mm(2,dpmm);
+ const availableForBars=H-y-captionGap-captionHeight-qtyGap-qtyHeight-bottomMargin;
+ const barH=Math.min(mm(21,dpmm),availableForBars);
+ if(barH<mm(14,dpmm))throw new Error(`La etiqueta de salida ${skuText} no tiene altura suficiente para un código legible.`);
+ const bar=drawBarcode(ctx,svg,W,y,barH,geometry);y+=barH+captionGap;
+ y=drawCenteredText(ctx,caption,W,y,1.0)+qtyGap;
+ drawCenteredText(ctx,qty,W,y,1.0);
+ return {top,bottom:y+qtyHeight,margin,...bar};
+}
+
 function renderPhysical(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm,type}){
  const margin=mm(3,dpmm),usable=W-margin*2,code=String(data.code||'').trim();
  const rackLine=String(data.lines?.[0]||data.eyebrow||'POSICIÓN').trim();
@@ -135,7 +159,7 @@ export function renderLabelImage(data,{type,w,h,dpi=203,brand=false,verticalOffs
  if(!svg)throw new Error('El código no es compatible con Code 128.');
  ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);ctx.fillStyle='#000';ctx.textAlign='center';ctx.textBaseline='top';
  const args={data,W,H,dpmm,svg,dpi,verticalOffsetMm,brand,type};
- const geometry=type==='PRODUCTO'?renderProduct(ctx,args):['UBICACION','RACK'].includes(type)?renderPhysical(ctx,args):renderGeneric(ctx,args);
+ const geometry=type==='PRODUCTO'?renderProduct(ctx,args):type==='SALIDA'?renderSalida(ctx,args):['UBICACION','RACK'].includes(type)?renderPhysical(ctx,args):renderGeneric(ctx,args);
  const output=quantizeAndBuildGraphics(ctx,W,H,canvas);
  return {...output,width:W,height:H,geometry};
 }

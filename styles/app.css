@@ -2246,3 +2246,39 @@ dialog.scanner-dialog{
  .labels-operator-mode .label-pallet-card{grid-template-columns:1fr;padding:8px}
  .labels-operator-mode .label-pallet-card button{grid-column:1;grid-row:auto;min-height:42px;width:100%}
 }
+
+/* Khal v175 · etiqueta de salida / pedido para todos los roles */
+.label-salida-direct{display:grid;gap:10px;min-width:0}
+.label-salida-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.label-salida-head h3{margin:2px 0 0;font-size:22px;line-height:1.05;overflow-wrap:anywhere}
+.label-salida-head small{display:block;margin-top:4px;color:var(--muted);font-size:12px;line-height:1.25}
+.label-salida-product{display:grid;grid-template-columns:minmax(110px,.6fr) minmax(220px,1.4fr) minmax(150px,.8fr);gap:8px;padding:10px;border:1px solid #dbe5df;border-radius:13px;background:#f8fbf9}
+.label-salida-product>div{display:grid;gap:3px;min-width:0}
+.label-salida-product span{font-size:9px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;color:#07883f}
+.label-salida-product b{font-size:20px;line-height:1.05;overflow-wrap:anywhere}
+.label-salida-product strong{font-size:13px;line-height:1.2;color:#334155;overflow-wrap:anywhere}
+.label-salida-product code{font-size:14px;font-weight:900;color:#111827;overflow-wrap:anywhere}
+.label-salida-units{display:grid;grid-template-columns:minmax(160px,220px) minmax(110px,160px) 1fr;align-items:center;gap:8px;font-size:13px;font-weight:900;color:#253b31}
+.label-salida-units input{min-height:50px;padding:8px 10px;text-align:center;font-size:22px;font-weight:950;border:1px solid var(--line);border-radius:11px}
+.label-salida-units small{font-size:10px;font-weight:600;color:var(--muted)}
+.label-salida-add{min-height:50px;font-size:15px;font-weight:900}
+.label-salida-ready{margin:0!important}
+.label-salida-results{display:grid;gap:7px;max-height:42vh;overflow:auto;overscroll-behavior:contain}
+.label-queue-units{display:block;margin-top:3px;font-size:12px;color:#07883f}
+.labels-operator-mode .label-operator-salida>.panel{padding:9px!important}
+@media(max-width:760px){
+ .label-salida-direct{gap:7px}
+ .label-salida-head{align-items:center}
+ .label-salida-head h3{font-size:18px}
+ .label-salida-head small{font-size:10px}
+ .label-salida-product{grid-template-columns:1fr;gap:6px;padding:8px}
+ .label-salida-product>div{grid-template-columns:92px 1fr;align-items:center;gap:7px}
+ .label-salida-product b{font-size:18px}
+ .label-salida-product strong,.label-salida-product code{font-size:12px}
+ .label-salida-units{grid-template-columns:1fr 120px;gap:6px}
+ .label-salida-units small{grid-column:1/-1}
+ .label-salida-units input{min-height:48px;font-size:21px}
+ .label-salida-add{min-height:48px;width:100%}
+ .label-salida-results{max-height:36vh}
+ .labels-operator-mode .label-operator-salida>.panel{padding:7px!important}
+}

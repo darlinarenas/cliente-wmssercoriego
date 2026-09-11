@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.10-manual-pallet-compact-v174';
+const APP_VERSION = '2026.09.10-etiqueta-salida-pedido-v175';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
