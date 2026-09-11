@@ -1,0 +1,33 @@
+KHAL v166 - IMPRESION REMOTA POR PC PUENTE
+
+CAMBIO QUIRURGICO
+- Conserva impresión Zebra local directa ya aprobada.
+- Agrega impresión remota desde Android/iPhone/web mediante una PC Windows puente.
+- No modifica inventarios, órdenes, productos ni lógica de stock.
+
+FLUJO
+Khal web -> backend HTTPS -> cola print_jobs -> Khal Print Agent en PC -> Zebra Windows RAW/ZPL.
+
+SEGURIDAD
+- Token aleatorio de estación; en PostgreSQL se guarda únicamente SHA-256 del token.
+- Aislamiento por company_id + site_id + station_id.
+- El agente solo realiza conexiones SALIENTES HTTPS al backend.
+- No abre puertos del router ni expone Windows a Internet.
+- Khal Print local solo acepta CORS desde localhost y dominios oficiales del frontend Khal/Vercel.
+
+BASE DE DATOS
+- Se crean automáticamente al iniciar backend:
+  print_stations
+  print_jobs
+- No se modifica ni migra contenido de tablas operativas existentes.
+
+USO PRIMERA VEZ
+1. Desplegar frontend y backend v166.
+2. En la PC conectada a la Zebra, reinstalar Khal Print v1.4 usando tools/khal-print-installer.zip.
+3. Abrir Khal en ESA PC, entrar a Etiquetas > Vista previa e imprimir.
+4. Comprobar que detecta la Zebra local.
+5. Con usuario Administrador/Encargado pulsar "Usar esta PC como puente".
+6. Desde Android/iPhone seleccionar "Imprimir por PC de bodega".
+
+CONDICION
+La PC puente debe estar encendida, con Internet, Khal Print activo y la Zebra conectada.

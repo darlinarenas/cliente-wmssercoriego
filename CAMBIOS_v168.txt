@@ -1,0 +1,8 @@
+KHAL v168 - impresión remota automática
+
+- Eliminada cualquier noción de aprobación humana en la impresión remota.
+- Flujo visible: enviado -> PC recibió -> imprimiendo -> impreso.
+- Si la PC puente está fuera de línea, el backend rechaza el envío con un mensaje claro en vez de dejar un trabajo confuso.
+- Espera visible ampliada a 30 s y seguimiento del estado claimed.
+- Khal Print Agent v1.5 se conserva sin cambios: no hace falta reinstalarlo.
+- No se modifican tamaños, calibraciones, etiquetas, inventarios, órdenes ni stock.

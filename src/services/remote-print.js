@@ -17,12 +17,14 @@ export async function enqueueRemotePrint({siteId,stationId='',zpl,labelType='',c
   return apiRequest('/print/jobs',{method:'POST',body:JSON.stringify({siteId,stationId:stationId||undefined,zpl,labelType,copies})});
 }
 export async function getRemotePrintJob(jobId){return apiRequest(`/print/jobs/${encodeURIComponent(jobId)}`);}
-export async function waitRemotePrint(jobId,{timeout=15000,interval=700}={}){
-  const started=Date.now();let latest=null;
+export async function waitRemotePrint(jobId,{timeout=30000,interval=600,onStatus=null}={}){
+  const started=Date.now();let latest=null,lastStatus='';
   while(Date.now()-started<timeout){
     latest=(await getRemotePrintJob(jobId))?.job||null;
+    if(latest?.status&&latest.status!==lastStatus){lastStatus=latest.status;if(typeof onStatus==='function')onStatus(latest);}
     if(latest?.status==='printed'||latest?.status==='error')return latest;
     await sleep(interval);
   }
   return latest||{id:jobId,status:'pending'};
 }
+

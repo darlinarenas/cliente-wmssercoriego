@@ -1,0 +1,17 @@
+KHAL v167 - CORRECCION KHAL PRINT AGENT
+
+CAMBIO QUIRURGICO
+- Corrige exclusivamente el agente Windows de impresión.
+- KhalPrint.exe vuelve a compilarse como aplicación Windows GUI/en segundo plano.
+- Ya no queda una consola negra abierta.
+- La impresión local RAW/ZPL arranca con prioridad.
+- El modo remoto se inicia 3 segundos después y queda aislado de la impresión local.
+- Un fallo del backend remoto ya no puede tumbar la detección ni la impresión Zebra local.
+- Se agrega VERIFICAR_KHAL_PRINT.bat para comprobar versión e impresora detectada.
+- No se modificó la cola remota, BD, inventarios, órdenes, productos ni diseño de etiquetas.
+
+INSTALACION
+1. Desinstalar/reinstalar no es necesario manualmente: ejecutar INSTALAR_KHAL_PRINT.bat reemplaza el agente anterior.
+2. El instalador cierra la versión anterior, copia Khal Print 1.5 y lo inicia en segundo plano.
+3. Debe mostrar KHAL PRINT INSTALADO CORRECTAMENTE.
+4. Volver a Khal y pulsar detectar Zebra.
