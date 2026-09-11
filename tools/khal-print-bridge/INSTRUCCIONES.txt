@@ -1,16 +1,18 @@
-KHAL PRINT 1.4 - IMPRESION ZEBRA LOCAL + PC PUENTE
+KHAL PRINT 1.5 - IMPRESION ZEBRA LOCAL + PC PUENTE
 
 1. Descomprime este ZIP en una carpeta.
 2. Haz doble clic en INSTALAR_KHAL_PRINT.bat.
 3. Espera el mensaje "KHAL PRINT INSTALADO CORRECTAMENTE".
-4. Vuelve a Khal y pulsa "Ya lo instalé · detectar Zebra".
-5. Un administrador o encargado puede pulsar "Usar esta PC como puente" una sola vez.
+4. Khal Print queda funcionando EN SEGUNDO PLANO: no debe quedar una consola negra abierta.
+5. Vuelve a Khal y pulsa "Ya lo instalé · detectar Zebra".
+6. Un administrador o encargado puede pulsar "Usar esta PC como puente" una sola vez.
 
 IMPORTANTE
 - NO necesitas Python, pip ni pywin32.
 - NO necesitas IP fija de la Zebra.
 - Khal Print detecta la Zebra instalada en ESTE Windows.
-- Como PC puente, Khal Print consulta de forma saliente y segura al backend HTTPS de Khal.
+- La impresión local RAW/ZPL arranca primero y funciona aunque el backend remoto esté caído.
+- El modo PC puente consulta de forma saliente y segura al backend HTTPS de Khal.
 - No abre puertos del router ni expone esta PC a Internet.
 - Android/iPhone no necesitan instalar Khal Print: envían el trabajo al backend y esta PC lo imprime.
 - La PC debe estar encendida, con Internet, Khal Print activo y la Zebra conectada.

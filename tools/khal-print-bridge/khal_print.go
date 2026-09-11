@@ -28,7 +28,7 @@ const (
     maxZPLBytes = 12 * 1024 * 1024
     printerEnumLocal = 0x00000002
     printerEnumConnections = 0x00000004
-    agentVersion = "1.4"
+    agentVersion = "1.5"
 )
 
 var (
@@ -76,7 +76,18 @@ func remoteLoop(){for{c:=loadConfig();if !c.Enabled||c.APIBaseURL==""||c.Station
 
 func main(){
     if runtime.GOOS!="windows"{log.Fatal("Khal Print debe ejecutarse en Windows")}
-    go remoteLoop()
+    // La impresión local es prioritaria. El modo remoto arranca después y aislado:
+    // si el backend remoto falla o entra en pánico, nunca debe tumbar localhost ni RAW/ZPL.
+    go func(){
+        time.Sleep(3*time.Second)
+        defer func(){
+            if recovered:=recover(); recovered!=nil {
+                msg:=fmt.Sprintf("Khal Print remoto se recuperó de un error: %v",recovered)
+                _=os.WriteFile(filepath.Join(os.TempDir(),"khal-print-remote-error.txt"),[]byte(msg),0644)
+            }
+        }()
+        remoteLoop()
+    }()
     mux:=http.NewServeMux()
     mux.HandleFunc("/health",func(w http.ResponseWriter,r *http.Request){if r.Method==http.MethodOptions{reply(w,r,200,map[string]any{"ok":true,"version":agentVersion});return};if r.Method!=http.MethodGet{reply(w,r,405,map[string]any{"ok":false,"error":"Método no permitido."});return};rows,err:=enumPrinters();if err!=nil{reply(w,r,500,map[string]any{"ok":false,"error":err.Error()});return};chosen:="";if len(rows)>0{chosen,_=choosePrinter("")};c:=loadConfig();reply(w,r,200,map[string]any{"ok":true,"service":"Khal Print","version":agentVersion,"printer":chosen,"printers":len(rows),"remoteEnabled":c.Enabled,"remoteSiteId":c.SiteID,"remoteStationName":c.StationName})})
     mux.HandleFunc("/printers",func(w http.ResponseWriter,r *http.Request){if r.Method==http.MethodOptions{reply(w,r,200,map[string]any{"ok":true});return};if r.Method!=http.MethodGet{reply(w,r,405,map[string]any{"ok":false,"error":"Método no permitido."});return};rows,err:=enumPrinters();if err!=nil{reply(w,r,500,map[string]any{"ok":false,"error":err.Error()});return};reply(w,r,200,map[string]any{"ok":true,"printers":rows})})
