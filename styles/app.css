@@ -2302,3 +2302,64 @@ dialog.scanner-dialog{
  .labels-operator-mode .label-review-queue{min-width:94px;padding:4px 6px!important}
  .labels-operator-mode .label-salida-queue-review .label-queue-list{max-height:220px}
 }
+
+/* Khal v177 · vista previa de etiquetas amplia y usable */
+#labels-preview.labels-preview-compact .issued-preview-card{
+  width:min(960px,calc(100vw - 28px));
+  height:min(940px,calc(100dvh - 28px));
+  max-height:calc(100dvh - 28px);
+  grid-template-rows:auto minmax(360px,1fr) auto auto auto;
+  gap:10px;
+  padding:14px;
+  overflow:hidden;
+}
+#labels-preview .labels-preview-stage{
+  min-height:360px;
+  overflow:hidden;
+}
+#labels-preview .labels-preview-stage iframe{
+  width:100%;
+  height:100%;
+  min-height:360px;
+}
+#labels-preview .labels-print-options-body{
+  max-height:min(34dvh,360px);
+  overflow:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+}
+#labels-preview .labels-footer-actions{
+  position:relative;
+  z-index:2;
+  background:#fff;
+}
+#labels-preview.labels-preview-operator .issued-preview-card{
+  width:min(760px,calc(100vw - 24px));
+  height:min(900px,calc(100dvh - 24px));
+  max-height:calc(100dvh - 24px);
+  grid-template-rows:auto minmax(360px,1fr) auto auto auto;
+}
+#labels-preview.labels-preview-operator .labels-preview-stage,
+#labels-preview.labels-preview-operator .labels-preview-stage iframe{
+  min-height:360px;
+}
+@media(max-width:700px){
+  #labels-preview.labels-preview-compact .issued-preview-card,
+  #labels-preview.labels-preview-operator .issued-preview-card{
+    width:100vw;
+    height:100dvh;
+    max-height:100dvh;
+    border-radius:0;
+    padding:7px;
+    gap:6px;
+    grid-template-rows:auto minmax(280px,1fr) auto auto auto;
+  }
+  #labels-preview .labels-preview-stage,
+  #labels-preview .labels-preview-stage iframe,
+  #labels-preview.labels-preview-operator .labels-preview-stage,
+  #labels-preview.labels-preview-operator .labels-preview-stage iframe{
+    min-height:280px;
+  }
+  #labels-preview .labels-print-options-body{max-height:30dvh}
+  #labels-preview .dialog-head{position:relative;z-index:2;background:#fff}
+}
