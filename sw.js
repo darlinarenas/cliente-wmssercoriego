@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.11-organizar-pallet-v187';
+const APP_VERSION = '2026.09.11-organizar-pallet-v188';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
