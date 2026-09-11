@@ -2282,3 +2282,23 @@ dialog.scanner-dialog{
  .label-salida-results{max-height:36vh}
  .labels-operator-mode .label-operator-salida>.panel{padding:7px!important}
 }
+
+
+/* Khal v176 · revisión compacta de cola en Salida / pedido */
+.labels-operator-mode .label-operator-queue-tools{display:flex;align-items:stretch;gap:7px;min-width:0}
+.labels-operator-mode .label-operator-queue-tools .label-operator-quick-copies{flex:1;min-width:0}
+.labels-operator-mode .label-review-queue{min-width:108px;display:grid!important;grid-template-columns:1fr auto;align-items:center;gap:0 6px!important;padding:5px 8px!important;text-align:left!important}
+.labels-operator-mode .label-review-queue span{font-size:10px;font-weight:900;color:#18372a}
+.labels-operator-mode .label-review-queue b{font-size:15px;line-height:1;color:#18372a}
+.labels-operator-mode .label-review-queue small{grid-column:1/-1;font-size:9px!important;color:var(--muted)}
+.labels-operator-mode .label-salida-queue-review{margin-top:7px;border:1px solid #dbe5df;border-radius:12px;background:#fff;overflow:hidden}
+.labels-operator-mode .label-salida-queue-review>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;cursor:pointer;font-weight:900;color:#18372a;list-style:none}
+.labels-operator-mode .label-salida-queue-review>summary::-webkit-details-marker{display:none}
+.labels-operator-mode .label-salida-queue-review>summary b{font-size:11px;padding:3px 7px;border-radius:999px;background:#edf4f0;color:#355c49}
+.labels-operator-mode .label-salida-queue-review>.panel{margin:0!important;border:0!important;border-top:1px solid #e5ece8!important;border-radius:0!important;padding:8px!important;box-shadow:none!important}
+.labels-operator-mode .label-salida-queue-review .label-queue-list{max-height:260px;overflow:auto;overscroll-behavior:contain}
+@media(max-width:700px){
+ .labels-operator-mode .label-operator-queue-tools{gap:5px}
+ .labels-operator-mode .label-review-queue{min-width:94px;padding:4px 6px!important}
+ .labels-operator-mode .label-salida-queue-review .label-queue-list{max-height:220px}
+}
