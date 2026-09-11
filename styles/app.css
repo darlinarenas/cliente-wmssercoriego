@@ -2659,3 +2659,53 @@ dialog.scanner-dialog{
   #labels-preview .labels-operator-status{margin:0 8px 7px}
   #labels-preview .labels-footer-actions{padding:0 8px 8px}
 }
+
+/* Khal v183 · vista previa escritorio ancha y sin scroll lateral del modal */
+@media (min-width: 901px){
+  #labels-preview{
+    width:92vw!important;
+    max-width:1500px!important;
+    height:auto!important;
+    overflow:visible!important;
+  }
+  #labels-preview.labels-preview-compact .issued-preview-card,
+  #labels-preview.labels-preview-operator .issued-preview-card{
+    width:92vw!important;
+    max-width:1380px!important;
+    height:min(900px,calc(100dvh - 36px))!important;
+    max-height:calc(100dvh - 36px)!important;
+    margin:0 auto!important;
+    grid-template-rows:auto minmax(440px,1fr) auto auto auto!important;
+  }
+  #labels-preview .labels-preview-stage{
+    width:100%!important;
+    min-width:0!important;
+    min-height:440px!important;
+    padding:12px!important;
+    overflow:hidden!important;
+  }
+  #labels-preview .labels-preview-stage iframe{
+    width:100%!important;
+    min-width:0!important;
+    min-height:440px!important;
+  }
+  #labels-preview .labels-quick-print{
+    grid-template-columns:minmax(0,1fr) auto!important;
+    align-items:center!important;
+  }
+  #labels-preview .labels-footer-actions{
+    display:flex!important;
+    justify-content:flex-end!important;
+  }
+  #labels-preview.labels-preview-expanded{
+    width:calc(100vw - 24px)!important;
+    max-width:none!important;
+  }
+  #labels-preview.labels-preview-expanded .issued-preview-card{
+    width:calc(100vw - 24px)!important;
+    max-width:none!important;
+    height:calc(100dvh - 24px)!important;
+    max-height:calc(100dvh - 24px)!important;
+    grid-template-rows:auto minmax(520px,1fr) auto auto auto!important;
+  }
+}
