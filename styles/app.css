@@ -2742,3 +2742,38 @@ dialog.scanner-dialog{
  #label-operator-queue-dialog-body .label-queue-row{grid-template-columns:minmax(0,1fr) 74px!important;gap:7px!important}
  #label-operator-queue-dialog-body .label-remove{grid-column:1/-1!important;width:100%!important}
 }
+
+/* Khal v186 · Organizar pallet operario: flujo compacto y guiado */
+.operator-pallet-finder{display:grid;gap:8px;padding:12px!important;margin-bottom:8px!important}
+.operator-pallet-finder .pallet-filter-grid{grid-template-columns:minmax(0,1fr) auto!important;align-items:end;gap:8px!important}
+.operator-pallet-finder label{margin:0!important}
+.operator-pallet-finder #clear-pallet-filters{min-height:46px}
+.operator-pallet-content-button{width:100%;margin-top:8px}
+.operator-pallet-content-dialog{width:min(94vw,760px);max-width:760px;border:0;padding:0;background:transparent}
+.operator-pallet-content-dialog::backdrop{background:rgba(15,23,42,.52);backdrop-filter:blur(2px)}
+.operator-pallet-content-dialog .pallet-operation-card{max-height:90dvh;overflow:hidden;display:grid;grid-template-rows:auto minmax(0,1fr)}
+#operator-pallet-content-body{min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
+@media(max-width:700px){
+ .operator-page-intro{display:none!important}
+ .operator-pallet-finder{position:sticky;top:0;z-index:4}
+ .operator-pallet-finder>div:first-child small{display:block}
+ .operator-pallet-finder .pallet-filter-grid{grid-template-columns:minmax(0,1fr) 70px!important}
+ #pallet-list-grid{grid-template-columns:1fr!important;gap:7px!important;margin-top:6px!important}
+ #pallet-list-grid .rack-card{min-height:0!important}
+ #pallet-list-grid .pallet-card-body{padding:10px!important}
+ .operator-pallet-compact{padding:9px!important;margin:0!important}
+ .operator-pallet-compact .pallet-detail-head{margin-bottom:5px!important}
+ .operator-pallet-compact .pallet-head-actions{gap:5px!important}
+ .operator-pallet-compact .operator-primary-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:7px!important}
+ .operator-pallet-compact .operator-primary-actions>button{min-height:50px!important}
+ .operator-pallet-compact .pallet-search-box{margin-top:7px!important;padding:8px!important}
+ .operator-pallet-compact .pallet-search-box small{display:none!important}
+ .operator-pallet-content-dialog{width:calc(100vw - 14px);max-width:none;margin:auto}
+ .operator-pallet-content-dialog .pallet-operation-card{max-height:94dvh;padding:10px!important}
+ .pallet-operation-dialog .pallet-operation-card,.pallet-operation-dialog .dialog-card{max-height:94dvh!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain}
+}
+.operator-pending-sort{padding:0!important;overflow:hidden}
+.operator-pending-sort details>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;cursor:pointer;list-style:none}
+.operator-pending-sort details>summary::-webkit-details-marker{display:none}
+.operator-pending-sort details[open]>summary{border-bottom:1px solid var(--border,#e5e7eb)}
+.operator-pending-sort .pending-sort-list{max-height:55dvh;overflow-y:auto;overflow-x:hidden;padding:8px;overscroll-behavior:contain}
