@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.11-preview-escritorio-v183';
+const APP_VERSION = '2026.09.11-impresion-adaptativa-puente-v184';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
