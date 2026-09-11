@@ -2477,3 +2477,23 @@ dialog.scanner-dialog{
   .labels-salida-mode .label-salida-queue-review .label-queue-list{max-height:none!important;overflow:visible!important;padding-bottom:22px!important}
   .labels-salida-mode .label-salida-queue-review .label-queue-row:last-child{margin-bottom:4px}
 }
+
+
+/* Khal v181 · puente visible y vista previa expandible */
+#labels-preview .labels-preview-head-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+#labels-preview .labels-preview-expand{white-space:nowrap;min-width:104px}
+#labels-preview .labels-bridge-setup{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;border:1px solid #dbe4ef;border-radius:14px;background:#f8fafc}
+#labels-preview .labels-bridge-setup[hidden]{display:none!important}
+#labels-preview .labels-bridge-setup>div{display:grid;gap:3px;min-width:0}
+#labels-preview .labels-bridge-setup span{font-size:12px;color:#64748b;line-height:1.35}
+#labels-preview.labels-preview-expanded .issued-preview-card{width:calc(100vw - 12px);height:calc(100dvh - 12px);max-width:none;max-height:none;padding:10px;grid-template-rows:auto minmax(460px,1fr) auto auto auto}
+#labels-preview.labels-preview-expanded .labels-preview-stage,#labels-preview.labels-preview-expanded .labels-preview-stage iframe{min-height:460px}
+#labels-preview.labels-preview-expanded .labels-print-options-body{max-height:min(30dvh,390px)}
+@media(max-width:700px){
+ #labels-preview .labels-preview-head-actions{gap:4px}
+ #labels-preview .labels-preview-expand{min-width:auto;padding-inline:8px!important}
+ #labels-preview .labels-bridge-setup{align-items:stretch;flex-direction:column;padding:10px}
+ #labels-preview .labels-bridge-setup button{width:100%}
+ #labels-preview.labels-preview-expanded .issued-preview-card{width:100vw;height:100dvh;padding:5px;grid-template-rows:auto minmax(300px,1fr) auto auto auto}
+ #labels-preview.labels-preview-expanded .labels-preview-stage,#labels-preview.labels-preview-expanded .labels-preview-stage iframe{min-height:300px}
+}
