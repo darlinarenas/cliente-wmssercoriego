@@ -4,7 +4,7 @@ cd /d "%~dp0"
 title Khal Print - Instalacion
 
 echo ===============================================
-echo   KHAL PRINT 1.5 - IMPRESION ZEBRA
+echo   KHAL PRINT 1.6 - IMPRESION ZEBRA
 echo ===============================================
 echo.
 echo Instalando Khal Print en segundo plano...

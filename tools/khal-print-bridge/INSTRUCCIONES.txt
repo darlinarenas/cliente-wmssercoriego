@@ -1,4 +1,4 @@
-KHAL PRINT 1.5 - IMPRESION ZEBRA LOCAL + PC PUENTE
+KHAL PRINT 1.6 - IMPRESION ZEBRA LOCAL + PC PUENTE
 
 1. Descomprime este ZIP en una carpeta.
 2. Haz doble clic en INSTALAR_KHAL_PRINT.bat.
