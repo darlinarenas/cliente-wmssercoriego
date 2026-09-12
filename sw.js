@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.12-restaurar-controles-impresion-v193';
+const APP_VERSION = '2026.09.12-restaurar-deteccion-khalprint-v194';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
