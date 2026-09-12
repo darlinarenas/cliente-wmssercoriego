@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.12-selector-pc-puente-v190';
+const PWA_RELEASE = '2026.09.12-nombre-estacion-puente-v191';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 

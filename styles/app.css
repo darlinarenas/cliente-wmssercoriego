@@ -2486,6 +2486,10 @@ dialog.scanner-dialog{
 #labels-preview .labels-bridge-setup[hidden]{display:none!important}
 #labels-preview .labels-bridge-setup>div{display:grid;gap:3px;min-width:0}
 #labels-preview .labels-bridge-setup span{font-size:12px;color:#64748b;line-height:1.35}
+#labels-preview .labels-bridge-name{display:grid;gap:4px;margin-top:6px}
+#labels-preview .labels-bridge-name small{font-size:11px;font-weight:800;color:#475569}
+#labels-preview .labels-bridge-name input{width:min(360px,100%);min-height:38px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text);font:inherit}
+#labels-preview .labels-bridge-name input:focus{outline:2px solid color-mix(in srgb,var(--primary) 28%,transparent);outline-offset:1px;border-color:var(--primary)}
 #labels-preview.labels-preview-expanded .issued-preview-card{width:calc(100vw - 12px);height:calc(100dvh - 12px);max-width:none;max-height:none;padding:10px;grid-template-rows:auto minmax(460px,1fr) auto auto auto}
 #labels-preview.labels-preview-expanded .labels-preview-stage,#labels-preview.labels-preview-expanded .labels-preview-stage iframe{min-height:460px}
 #labels-preview.labels-preview-expanded .labels-print-options-body{max-height:min(30dvh,390px)}
