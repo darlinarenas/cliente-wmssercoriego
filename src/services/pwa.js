@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.12-puente-nombrado-impresion-local-v196';
+const PWA_RELEASE = '2026.09.12-operador-solo-impresion-v197';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 

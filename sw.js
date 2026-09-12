@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.12-puente-nombrado-impresion-local-v196';
+const APP_VERSION = '2026.09.12-operador-solo-impresion-v197';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
