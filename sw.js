@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.12-nombre-estacion-puente-v191';
+const APP_VERSION = '2026.09.12-preview-lateral-driver-v192';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
