@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.12-operador-puente-remoto-v198';
+const APP_VERSION = '2026.09.12-android-preview-toast-v199';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

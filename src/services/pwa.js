@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.12-operador-puente-remoto-v198';
+const PWA_RELEASE = '2026.09.12-android-preview-toast-v199';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
