@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.12-panel-lateral-impresion-v195';
+const PWA_RELEASE = '2026.09.12-puente-nombrado-impresion-local-v196';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
