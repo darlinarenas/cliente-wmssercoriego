@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.12-restaurar-deteccion-khalprint-v194';
+const PWA_RELEASE = '2026.09.12-panel-lateral-impresion-v195';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
