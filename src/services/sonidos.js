@@ -10,6 +10,7 @@ const SONIDOS={
 
 let contexto=null;
 let habilitado=false;
+try{habilitado=sessionStorage.getItem('serco_audio_scanner')==='1';}catch{}
 let modalAbierto=null;
 
 function audioContext(){
@@ -97,5 +98,5 @@ export function sonidoPorCodigo(valor){
 export function sonidoEscaneoOk(){return reproducir('ok');}
 export function sonidoEscaneoNoEncontrado(){return reproducir('noEncontrado');}
 
-export async function sonidoOrdenAsignada(){if(!habilitado)return false;return reproducirWav(SONIDOS.ordenAsignada);}
+export async function sonidoOrdenAsignada(){if(!habilitado){try{habilitado=sessionStorage.getItem('serco_audio_scanner')==='1';}catch{}}if(!habilitado)return false;return reproducirWav(SONIDOS.ordenAsignada);}
 export async function sonidoOrdenCulminada(){if(!habilitado)return false;return reproducirWav(SONIDOS.ordenCulminada);}
