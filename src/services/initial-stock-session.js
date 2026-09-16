@@ -10,7 +10,7 @@ import { refreshInventoryStatuses } from './inventory-ops.js';
 function currentUser(){return (store.data.users||[]).find(u=>u.id===store.data.session?.userId);}
 export function canInitialStockLoad(){return codePermissionsForUser(currentUser(),activeSiteId(store.data)).initialStock===true;}
 function productLabel(p){return p?.name||p?.description||`Producto ${p?.code||''}`;}
-function existingQty(code,locationId,palletId){return (store.data.inventory||[]).filter(i=>String(i.productCode)===String(code)&&(i.locationId||null)===(effectiveLocationId||null)&&(i.palletId||null)===(palletId||null)).reduce((n,i)=>n+Number(i.qty||0),0);}
+function existingQty(code,locationId,palletId){return (store.data.inventory||[]).filter(i=>String(i.productCode)===String(code)&&(i.locationId||null)===(locationId||null)&&(i.palletId||null)===(palletId||null)).reduce((n,i)=>n+Number(i.qty||0),0);}
 function ensureDialog(){let dlg=document.querySelector('#initial-stock-session-dialog');if(!dlg){document.body.insertAdjacentHTML('beforeend','<dialog id="initial-stock-session-dialog" class="pallet-operation-dialog"></dialog>');dlg=document.querySelector('#initial-stock-session-dialog');}return dlg;}
 
 export async function openInitialStockSession({locationId,palletId=null,title='Carga desde cero',onFinished}={}){

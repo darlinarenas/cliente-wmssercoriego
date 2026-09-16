@@ -34,6 +34,7 @@ function operatorDashboard(d,user,siteId){
   ['recepciones','⇩','Recibir','Registrar mercadería que llega'],
   ['transferencias','⇄','Despachar','Preparar una salida o traspaso'],
   ['palets','▣','Organizar palets','Revisar y ubicar productos'],
+  ...(codePermissionsForUser(user,siteId).initialStock?[["racks","▦","Racks / posiciones","Escanear posición, usar mapa y cargar stock desde cero"]]:[]),
   ['movimientos','↔','Mover','Reubicar producto o pallet'],
   ['ordenes','✓','Órdenes / Mis tareas',`${orderTasks.length+putaway.length} pendiente(s)`],
   ...(hasInventoryAccess?[["inventarios","▦",inventoryTasks.length?"Inventario asignado":"Inventario / Levantamiento",inventoryTasks.length?`${inventoryTasks.length} tarea(s) · abrir conteo`:"Abrir conteo por rack"]]:[])
