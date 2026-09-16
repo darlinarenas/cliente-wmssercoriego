@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.12-android-preview-toast-v199';
+const APP_VERSION = '2026.09.15-cierre-stock-inicial-v200';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
@@ -67,6 +67,8 @@ const PRECACHE = [
   './src/services/ubicaciones.js',
   './src/services/inventory-ops.js',
   './src/services/pallet-ops.js',
+  './src/services/initial-stock-session.js',
+  './src/services/access-routing.js',
   './assets/sounds/scan-no-encontrado.wav',
   './assets/sounds/scan-ok.wav',
   './assets/sounds/orden-asignada.mp3',
