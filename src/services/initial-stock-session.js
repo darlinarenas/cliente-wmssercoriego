@@ -15,7 +15,7 @@ function norm(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/
 function searchProducts(raw){
  const q=norm(raw); if(!q)return [];
  return (store.data.products||[]).filter(p=>{
-  const aliases=productAliases(p.code,store.data).join(' ');
+  const aliases=productAliases(p,store.data).join(' ');
   return norm(`${p.code} ${p.name||''} ${p.description||''} ${p.family||''} ${aliases}`).includes(q);
  }).slice(0,12);
 }

@@ -2973,3 +2973,6 @@ dialog.scanner-dialog{
   }
   #labels-preview .labels-sidebar-title{display:grid;gap:2px;padding:2px 1px 8px}
 }
+
+/* Mobile: evita el zoom automático del navegador al enfocar campos operativos. */
+@media(max-width:760px){input,select,textarea{font-size:16px!important}}

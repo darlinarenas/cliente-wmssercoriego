@@ -208,7 +208,7 @@ function detallePalet(p){
 }
 
 function listaContenido(items,palletId,q){
-  const nq=normalizar(q), filtrados=items.filter(x=>{if(!nq)return true;const p=producto(x.code),aliases=productAliases(x.code).join(' ');return normalizar(`${x.code} ${p?.name||''} ${p?.description||''} ${p?.family||''} ${aliases}`).includes(nq);});
+  const nq=normalizar(q), filtrados=items.filter(x=>{if(!nq)return true;const p=producto(x.code),aliases=productAliases(p,store.data).join(' ');return normalizar(`${x.code} ${p?.name||''} ${p?.description||''} ${p?.family||''} ${aliases}`).includes(nq);});
   if(!filtrados.length)return empty('No está en este palet','Prueba otro código o descripción.');
   return `<div class="pallet-item-list">${filtrados.map(x=>itemProducto(x,palletId)).join('')}</div>`;
 }
@@ -282,7 +282,7 @@ function wireDetail(palletId){
   wireEditPallet(palletId);
   wireDeleteEmptyPallet(palletId);
   const reopenCode=params().get('product');
-  if(!permisosPalets().operate){const q=document.querySelector('#pallet-q'),out=document.querySelector('#pallet-results');const construir=()=>[...new Set(contenidoPalet(palletId).map(i=>i.productCode))].map(code=>({code,qty:contenidoPalet(palletId).filter(i=>i.productCode===code).reduce((a,b)=>a+b.qty,0)}));q.oninput=()=>{out.innerHTML=listaContenido(construir(),palletId,q.value);};wireInputModeToggle(document.querySelector('#pallet-q-keyboard'),q);document.querySelector('#pallet-camera').onclick=()=>abrirCamaraEn('pallet-q','Escanear producto del pallet','Apunta al código de barras de la caja');return;}
+  if(!permisosPalets().operate){const q=document.querySelector('#pallet-q'),out=document.querySelector('#pallet-results');const construir=()=>[...new Set(contenidoPalet(palletId).map(i=>i.productCode))].map(code=>({code,qty:contenidoPalet(palletId).filter(i=>i.productCode===code).reduce((a,b)=>a+b.qty,0)}));q.oninput=()=>{out.innerHTML=listaContenido(construir(),palletId,q.value);out.hidden=palletOperator()&&!q.value.trim();};wireInputModeToggle(document.querySelector('#pallet-q-keyboard'),q);document.querySelector('#pallet-camera').onclick=()=>abrirCamaraEn('pallet-q','Escanear producto del pallet','Apunta al código de barras de la caja');return;}
   const construirBase=()=>[...new Set(contenidoPalet(palletId).map(i=>i.productCode))].map(code=>({code,qty:contenidoPalet(palletId).filter(i=>i.productCode===code).reduce((a,b)=>a+b.qty,0)}));
   const wholeDialog=document.querySelector('#whole-pallet-dialog'),loadDialog=document.querySelector('#pallet-load-dialog');
   document.querySelector('#open-whole-pallet-dialog').onclick=()=>wholeDialog.showModal();document.querySelector('#close-whole-pallet-dialog').onclick=()=>wholeDialog.close();
@@ -303,7 +303,7 @@ function wireDetail(palletId){
   if(reopenCode){
     setTimeout(()=>{wireProductManager(palletId,reopenCode);const clean=`#/palets?id=${encodeURIComponent(palletId)}`;history.replaceState(null,'',clean);},40);
   }
-  const repintar=()=>{out.innerHTML=listaContenido(construirBase(),palletId,q.value);wireItems();};
+  const repintar=()=>{out.innerHTML=listaContenido(construirBase(),palletId,q.value);out.hidden=palletOperator()&&!q.value.trim();wireItems();};
   q.oninput=repintar;wireInputModeToggle(document.querySelector('#pallet-q-keyboard'),q);document.querySelector('#pallet-camera').onclick=()=>abrirCamaraEn('pallet-q','Escanear producto del pallet','Apunta al código de barras de la caja',valor=>{const found=resolveProduct(valor),inside=found&&construirBase().some(x=>x.code===found.code);if(inside){q.value=found.code;repintar();setTimeout(()=>wireProductManager(palletId,found.code),40);}else toast('El producto escaneado no está dentro de este pallet');});wireItems();
 }
 
