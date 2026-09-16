@@ -23,7 +23,8 @@ function setInputMode(button,input,numeric=false){
  if(!button||!input)return;
  const apply=mode=>{input.setAttribute('inputmode',mode?'numeric':'text');button.innerHTML=`<span class="numeric-mode-icon">⌨</span><span>${mode?'ABC':'123'}</span>`;button.title=mode?'Usar teclado completo':'Usar teclado numérico';button.setAttribute('aria-label',button.title);button.classList.toggle('is-numeric',mode);};
  apply(numeric);
- button.onclick=()=>{const next=(input.getAttribute('inputmode')||'').toLowerCase()!=='numeric',value=input.value;input.blur();apply(next);input.value=value;setTimeout(()=>{input.focus();try{input.setSelectionRange(input.value.length,input.value.length);}catch{}},80);};
+ button.onpointerdown=e=>e.preventDefault();
+ button.onclick=()=>{const next=(input.getAttribute('inputmode')||'').toLowerCase()!=='numeric';apply(next);input.focus({preventScroll:true});try{input.setSelectionRange(input.value.length,input.value.length);}catch{}};
 }
 
 function existingQty(code,locationId,palletId){return (store.data.inventory||[]).filter(i=>String(i.productCode)===String(code)&&(i.locationId||null)===(locationId||null)&&(i.palletId||null)===(palletId||null)).reduce((n,i)=>n+Number(i.qty||0),0);}

@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.15-cierre-stock-inicial-v200';
+const PWA_RELEASE = '2026.09.16-teclado-dinamico-v201';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 

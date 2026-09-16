@@ -149,11 +149,13 @@ function wireOperatorKeyboardButton(button,input){
   if(button.dataset.operatorKeyboardWired==='1')return;
   button.dataset.operatorKeyboardWired='1';
   setOperatorKeyboardButton(button,input);
+  button.addEventListener('pointerdown',e=>e.preventDefault());
   button.addEventListener('click',()=>{
-    const numeric=(input.getAttribute('inputmode')||'').toLowerCase()==='numeric',value=input.value;
-    input.blur();input.setAttribute('inputmode',numeric?'text':'numeric');input.value=value;
+    const numeric=(input.getAttribute('inputmode')||'').toLowerCase()==='numeric';
+    input.setAttribute('inputmode',numeric?'text':'numeric');
     setOperatorKeyboardButton(button,input);
-    setTimeout(()=>{input.focus();try{input.setSelectionRange(input.value.length,input.value.length);}catch{}},20);
+    input.focus({preventScroll:true});
+    try{input.setSelectionRange(input.value.length,input.value.length);}catch{}
   });
 }
 function enhanceOperatorInput(input){
