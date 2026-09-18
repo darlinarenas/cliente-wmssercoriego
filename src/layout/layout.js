@@ -160,6 +160,9 @@ function wireOperatorKeyboardButton(button,input){
 }
 function enhanceOperatorInput(input){
   if(!isOperatorLookupInput(input)||input.dataset.operatorToolsReady==='1')return;
+  // Prioridad global para captura de códigos: cada campo operativo abre primero el teclado numérico.
+  // El botón ABC/123 conserva el cambio inmediato al teclado alfabético sin perder el foco.
+  input.setAttribute('inputmode','numeric');
   if(!input.id)input.id=`operator-input-${Math.random().toString(36).slice(2,10)}`;
   let host=input.parentElement;
   const recognizedHost=host&&(host.classList.contains('entrada-con-camara')||host.classList.contains('search-box-camera')||host.classList.contains('pallet-search-input')||host.classList.contains('operator-global-input-tools'));
