@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.18-limpieza-sku-historico-v204';
+const APP_VERSION = '2026.09.18-limpieza-sku-historico-v205';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
