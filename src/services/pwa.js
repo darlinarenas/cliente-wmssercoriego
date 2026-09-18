@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.18-teclado-numerico-prioritario-v202';
+const PWA_RELEASE = '2026.09.18-limpieza-sku-historico-v204';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
