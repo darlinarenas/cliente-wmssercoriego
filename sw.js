@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.22-impresion-pallet-local-v206';
+const APP_VERSION = '2026.09.22-pallet-label-roles-v207';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

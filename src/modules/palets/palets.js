@@ -43,7 +43,7 @@ function resumenPaletDestino(p){
 function categoriaPalet(p){if(['POR_UBICAR','RECIBIENDO'].includes(p.status))return 'POR_UBICAR';if(p.status==='UBICADO')return 'UBICADO';if(p.status==='VACÍO'||totalUnidades(p.id)===0)return 'VACÍO';return 'OTRO';}
 function usuarioActual(){return store.data.users.find(x=>x.id===store.data.session.userId);}
 function permisosPalets(){return palletPermissionsForUser(usuarioActual(),activeSiteId(store.data));}
-function puedeImprimirEtiquetas(){return codePermissionsForUser(usuarioActual(),activeSiteId(store.data)).printLabels;}
+function puedeImprimirEtiquetas(){const user=usuarioActual(),site=activeSiteId(store.data),role=effectiveRole(user,site);return ['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role)||codePermissionsForUser(user,site).printLabels;}
 function palletOperator(){return ['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(effectiveRole(usuarioActual(),activeSiteId(store.data)));}
 function puedeRegistrarPalet(){return permisosPalets().register;}
 function setInputModeButton(button,numeric=false){if(!button)return;button.innerHTML=`<span class="numeric-mode-icon">⌨</span><span>${numeric?'ABC':'123'}</span>`;button.title=numeric?'Usar teclado completo':'Usar teclado numérico';button.setAttribute('aria-label',button.title);button.classList.toggle('is-numeric',numeric);}
