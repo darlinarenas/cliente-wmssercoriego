@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.22-pallet-sku-distance-v212';
+const APP_VERSION = '2026.09.22-pallet-sku-spacing-v212';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
