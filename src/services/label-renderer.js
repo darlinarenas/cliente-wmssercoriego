@@ -114,17 +114,41 @@ function renderSalida(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
  const barcode=String(data.code||'').trim(),skuText=String(data.sku||barcode).trim(),title=String(data.title||'Producto').trim();
  const units=Math.max(1,Math.round(Number(data.quantity)||1));
  // Las etiquetas generadas desde "contenido del pallet" necesitan lectura a distancia.
- // Se ajustan solo ellas: SKU mayor y descripción con altura de línea más holgada para
- // evitar que la ZT410 recorte ascendentes/descendentes al rasterizar el texto.
+ // Se ajustan solo ellas, sin alterar la plantilla normal de SALIDA ni las demás etiquetas.
  const palletContent=!!data.palletContent;
- const sku=palletContent?fitSpacedCode(ctx,skuText,usable,mm(11.6,dpmm),mm(7.2,dpmm),mm(1.15,dpmm)):fitText(ctx,skuText,usable,mm(7.8,dpmm),mm(5.5,dpmm),1);
- const name=fitText(ctx,title,usable,palletContent?mm(4.2,dpmm):mm(4.5,dpmm),mm(2.8,dpmm),2);
+ if(palletContent){
+  // Contenido de pallet 100x70: lectura a distancia. Plantilla aislada del resto de SALIDA.
+  // Sin descripción: SKU dominante, Code 128 compacto y cantidad grande centrada.
+  const palletMargin=mm(2.5,dpmm),palletUsable=W-palletMargin*2;
+  const palletSku=fitSpacedCode(ctx,skuText,palletUsable,mm(20,dpmm),mm(10.5,dpmm),mm(.8,dpmm));
+  const caption=fitText(ctx,barcode,palletUsable,mm(3.4,dpmm),mm(2.5,dpmm),1);
+  const qty=fitText(ctx,`${units} UND.`,palletUsable,mm(10.5,dpmm),mm(7.0,dpmm),1);
+  const nativeWidth=Number(svg.match(/viewBox="0 0 ([\d.]+)"/)?.[1]);
+  if(!nativeWidth)throw new Error('No se pudo calcular el código de barras.');
+  const compactModule=Math.max(2,Math.round(.38*dpmm));
+  const geometry={nativeWidth,module:Math.min(compactModule,Math.floor(palletUsable/nativeWidth))};
+  geometry.width=geometry.nativeWidth*geometry.module;
+  if(geometry.module<2)throw new Error('El código es demasiado largo para imprimirlo con barras legibles en este ancho.');
+  let y=top;
+  y=drawCenteredSpacedCode(ctx,palletSku,W,y)+mm(2.0,dpmm);
+  const captionHeight=Math.ceil(caption.size*1.05),qtyHeight=Math.ceil(qty.size*1.05);
+  const captionGap=mm(.7,dpmm),qtyGap=mm(1.4,dpmm),bottomMargin=mm(2,dpmm);
+  const availableForBars=H-y-captionGap-captionHeight-qtyGap-qtyHeight-bottomMargin;
+  const barH=Math.min(mm(18,dpmm),availableForBars);
+  if(barH<mm(12,dpmm))throw new Error(`La etiqueta de contenido del pallet ${skuText} no tiene altura suficiente para un código legible.`);
+  const bar=drawBarcode(ctx,svg,W,y,barH,geometry);y+=barH+captionGap;
+  y=drawCenteredText(ctx,caption,W,y,1.0)+qtyGap;
+  drawCenteredText(ctx,qty,W,y,1.0);
+  return {top,bottom:y+qtyHeight,margin:palletMargin,...bar};
+ }
+ const sku=fitText(ctx,skuText,usable,mm(7.8,dpmm),mm(5.5,dpmm),1);
+ const name=fitText(ctx,title,usable,mm(4.5,dpmm),mm(2.8,dpmm),2);
  const caption=fitText(ctx,barcode,usable,mm(3.4,dpmm),mm(2.5,dpmm),1);
  const qty=fitText(ctx,`CANTIDAD: ${units} UND.`,usable,mm(5.6,dpmm),mm(3.8,dpmm),1);
  const geometry=barcodeGeometry(svg,usable,dpi);
  let y=top;
- y=(palletContent?drawCenteredSpacedCode(ctx,sku,W,y):drawCenteredText(ctx,sku,W,y,1.0))+mm(palletContent?1.5:1.0,dpmm);
- y=drawCenteredText(ctx,name,W,y,palletContent?1.24:1.05)+mm(palletContent?1.2:1.0,dpmm);
+ y=drawCenteredText(ctx,sku,W,y,1.0)+mm(1.0,dpmm);
+ y=drawCenteredText(ctx,name,W,y,1.05)+mm(1.0,dpmm);
  const captionHeight=Math.ceil(caption.size*1.05),qtyHeight=Math.ceil(qty.size*1.05);
  const captionGap=mm(.7,dpmm),qtyGap=mm(1.2,dpmm),bottomMargin=mm(2,dpmm);
  const availableForBars=H-y-captionGap-captionHeight-qtyGap-qtyHeight-bottomMargin;
