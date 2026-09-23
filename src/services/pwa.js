@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.22-pallet-sku-spacing-v212';
+const PWA_RELEASE = '2026.09.22-print-bridge-roles-v213';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
