@@ -59,6 +59,27 @@ function drawCenteredText(ctx,fit,W,y,lineHeight=1.12){
  return y;
 }
 
+function fitSpacedText(ctx,text,maxWidth,startSize,minSize,spacing){
+ const value=String(text||'').trim();
+ for(let size=startSize;size>=minSize;size--){
+  ctx.font=`900 ${size}px "Arial Black", Arial, sans-serif`;
+  const width=ctx.measureText(value).width+Math.max(0,value.length-1)*spacing;
+  if(width<=maxWidth)return {size,rows:[value],spacing,width};
+ }
+ return fitText(ctx,value,maxWidth,startSize,minSize,1);
+}
+
+function drawCenteredSpacedText(ctx,fit,W,y,lineHeight=1.08){
+ const row=String(fit.rows?.[0]||'');
+ if(!row||!Number(fit.spacing))return drawCenteredText(ctx,fit,W,y,lineHeight);
+ ctx.font=`900 ${fit.size}px "Arial Black", Arial, sans-serif`;ctx.textAlign='left';ctx.textBaseline='top';
+ const widths=[...row].map(ch=>ctx.measureText(ch).width);
+ const total=widths.reduce((sum,w)=>sum+w,0)+Math.max(0,widths.length-1)*fit.spacing;
+ let x=(W-total)/2;
+ [...row].forEach((ch,i)=>{ctx.fillText(ch,x,y);ctx.fillText(ch,x+1,y);x+=widths[i]+fit.spacing;});
+ return y+Math.ceil(fit.size*lineHeight);
+}
+
 function drawBarcode(ctx,svg,W,y,height,geometry){
  const barX=Math.floor((W-geometry.width)/2);
  for(const match of svg.matchAll(/<rect x="([\d.]+)" y="0" width="([\d.]+)" height="1"\/>/g)){
@@ -98,13 +119,13 @@ function renderSalida(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
  // Se ajustan solo ellas: SKU mayor y descripción con altura de línea más holgada para
  // evitar que la ZT410 recorte ascendentes/descendentes al rasterizar el texto.
  const palletContent=!!data.palletContent;
- const sku=fitText(ctx,skuText,usable,palletContent?mm(10.4,dpmm):mm(7.8,dpmm),palletContent?mm(6.6,dpmm):mm(5.5,dpmm),1);
+ const sku=palletContent?fitSpacedText(ctx,skuText,usable,mm(11.6,dpmm),mm(7.2,dpmm),mm(.85,dpmm)):fitText(ctx,skuText,usable,mm(7.8,dpmm),mm(5.5,dpmm),1);
  const name=fitText(ctx,title,usable,palletContent?mm(4.2,dpmm):mm(4.5,dpmm),mm(2.8,dpmm),2);
  const caption=fitText(ctx,barcode,usable,mm(3.4,dpmm),mm(2.5,dpmm),1);
  const qty=fitText(ctx,`CANTIDAD: ${units} UND.`,usable,mm(5.6,dpmm),mm(3.8,dpmm),1);
  const geometry=barcodeGeometry(svg,usable,dpi);
  let y=top;
- y=drawCenteredText(ctx,sku,W,y,palletContent?1.08:1.0)+mm(palletContent?1.2:1.0,dpmm);
+ y=(palletContent?drawCenteredSpacedText(ctx,sku,W,y,1.08):drawCenteredText(ctx,sku,W,y,1.0))+mm(palletContent?1.2:1.0,dpmm);
  y=drawCenteredText(ctx,name,W,y,palletContent?1.24:1.05)+mm(palletContent?1.2:1.0,dpmm);
  const captionHeight=Math.ceil(caption.size*1.05),qtyHeight=Math.ceil(qty.size*1.05);
  const captionGap=mm(.7,dpmm),qtyGap=mm(1.2,dpmm),bottomMargin=mm(2,dpmm);
