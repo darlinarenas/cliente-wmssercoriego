@@ -17,6 +17,32 @@ export async function enqueueRemotePrint({siteId,stationId='',zpl,labelType='',c
   return apiRequest('/print/jobs',{method:'POST',body:JSON.stringify({siteId,stationId:stationId||undefined,zpl,labelType,copies})});
 }
 export async function getRemotePrintJob(jobId){return apiRequest(`/print/jobs/${encodeURIComponent(jobId)}`);}
+
+const REMOTE_ZPL_LABELS_PER_BATCH=8;
+export function splitRemoteZpl(zpl,{labelsPerBatch=REMOTE_ZPL_LABELS_PER_BATCH}={}){
+  const payload=String(zpl||'').trim();
+  if(!payload)return [];
+  const labels=payload.match(/\^XA[\s\S]*?\^XZ/g);
+  if(!labels||labels.length<=labelsPerBatch)return [payload];
+  const size=Math.max(1,Number(labelsPerBatch)||REMOTE_ZPL_LABELS_PER_BATCH),batches=[];
+  for(let i=0;i<labels.length;i+=size)batches.push(labels.slice(i,i+size).join('\n'));
+  return batches;
+}
+export async function printRemoteZplBatched({siteId,stationId='',zpl,labelType='',copies=1,onProgress=null,labelsPerBatch=REMOTE_ZPL_LABELS_PER_BATCH}){
+  const batches=splitRemoteZpl(zpl,{labelsPerBatch});
+  if(!batches.length)throw new Error('No hay impresión preparada.');
+  let last=null;
+  for(let i=0;i<batches.length;i++){
+    if(typeof onProgress==='function')onProgress({phase:'queue',batch:i+1,total:batches.length});
+    const queued=await enqueueRemotePrint({siteId,stationId,zpl:batches[i],labelType,copies});
+    const jobId=queued?.job?.id;
+    if(!jobId)throw new Error('No se pudo confirmar el trabajo de impresión.');
+    last=await waitRemotePrint(jobId,{timeout:30000,interval:600,onStatus:job=>{if(typeof onProgress==='function')onProgress({phase:job?.status||'pending',batch:i+1,total:batches.length,job});}});
+    if(last?.status==='error')throw new Error(last.error||'La impresora devolvió un error.');
+    if(last?.status!=='printed')throw new Error(`El puente de impresión no confirmó el lote ${i+1} de ${batches.length}.`);
+  }
+  return {...last,batches:batches.length};
+}
 export async function waitRemotePrint(jobId,{timeout=30000,interval=600,onStatus=null}={}){
   const started=Date.now();let latest=null,lastStatus='';
   while(Date.now()-started<timeout){
