@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.22-racksource-hotfix-v209';
+const PWA_RELEASE = '2026.09.22-print-bridge-visible-v210';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
