@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.22-print-bridge-visible-v210';
+const PWA_RELEASE = '2026.09.22-pallet-label-zebra-v211';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 

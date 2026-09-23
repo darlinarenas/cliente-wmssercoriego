@@ -94,14 +94,18 @@ function renderSalida(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
  const top=Math.max(0,mm(2.4+Number(verticalOffsetMm||0),dpmm));
  const barcode=String(data.code||'').trim(),skuText=String(data.sku||barcode).trim(),title=String(data.title||'Producto').trim();
  const units=Math.max(1,Math.round(Number(data.quantity)||1));
- const sku=fitText(ctx,skuText,usable,mm(7.8,dpmm),mm(5.5,dpmm),1);
- const name=fitText(ctx,title,usable,mm(4.5,dpmm),mm(2.8,dpmm),2);
+ // Las etiquetas generadas desde "contenido del pallet" necesitan lectura a distancia.
+ // Se ajustan solo ellas: SKU mayor y descripción con altura de línea más holgada para
+ // evitar que la ZT410 recorte ascendentes/descendentes al rasterizar el texto.
+ const palletContent=!!data.palletContent;
+ const sku=fitText(ctx,skuText,usable,palletContent?mm(10.4,dpmm):mm(7.8,dpmm),palletContent?mm(6.6,dpmm):mm(5.5,dpmm),1);
+ const name=fitText(ctx,title,usable,palletContent?mm(4.2,dpmm):mm(4.5,dpmm),mm(2.8,dpmm),2);
  const caption=fitText(ctx,barcode,usable,mm(3.4,dpmm),mm(2.5,dpmm),1);
  const qty=fitText(ctx,`CANTIDAD: ${units} UND.`,usable,mm(5.6,dpmm),mm(3.8,dpmm),1);
  const geometry=barcodeGeometry(svg,usable,dpi);
  let y=top;
- y=drawCenteredText(ctx,sku,W,y,1.0)+mm(1.0,dpmm);
- y=drawCenteredText(ctx,name,W,y,1.05)+mm(1.0,dpmm);
+ y=drawCenteredText(ctx,sku,W,y,palletContent?1.08:1.0)+mm(palletContent?1.2:1.0,dpmm);
+ y=drawCenteredText(ctx,name,W,y,palletContent?1.24:1.05)+mm(palletContent?1.2:1.0,dpmm);
  const captionHeight=Math.ceil(caption.size*1.05),qtyHeight=Math.ceil(qty.size*1.05);
  const captionGap=mm(.7,dpmm),qtyGap=mm(1.2,dpmm),bottomMargin=mm(2,dpmm);
  const availableForBars=H-y-captionGap-captionHeight-qtyGap-qtyHeight-bottomMargin;
