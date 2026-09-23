@@ -2976,3 +2976,8 @@ dialog.scanner-dialog{
 
 /* Mobile: evita el zoom automático del navegador al enfocar campos operativos. */
 @media(max-width:760px){input,select,textarea{font-size:16px!important}}
+
+/* Khal Print: acceso visible y discreto a la instalación del puente Windows */
+.label-print-bridge-setup{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 14px;border-color:#dbe7df;background:#fbfefc;box-shadow:0 8px 22px rgba(15,23,42,.04)}
+.label-print-bridge-setup>div{display:grid;gap:3px;min-width:0}.label-print-bridge-setup small{color:var(--muted);line-height:1.4;max-width:820px}.label-print-bridge-setup>a{white-space:nowrap;text-decoration:none}
+@media(max-width:700px){.label-print-bridge-setup{display:grid}.label-print-bridge-setup>a{width:100%;justify-content:center}}

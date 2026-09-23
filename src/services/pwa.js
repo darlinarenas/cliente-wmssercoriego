@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.22-pallet-label-roles-v207';
+const PWA_RELEASE = '2026.09.22-khal-print-bridge-v208';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
