@@ -123,12 +123,12 @@ function renderSalida(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
   const palletSku=fitSpacedCode(ctx,skuText,palletUsable,mm(20,dpmm),mm(10.5,dpmm),mm(.8,dpmm));
   const caption=fitText(ctx,barcode,palletUsable,mm(3.4,dpmm),mm(2.5,dpmm),1);
   const qty=fitText(ctx,`${units} UND.`,palletUsable,mm(10.5,dpmm),mm(7.0,dpmm),1);
-  const nativeWidth=Number(svg.match(/viewBox="0 0 ([\d.]+)"/)?.[1]);
-  if(!nativeWidth)throw new Error('No se pudo calcular el código de barras.');
+  // Reutiliza el cálculo Code 128 ya probado por el resto de etiquetas y solo
+  // limita el módulo para que el barcode de contenido de pallet sea más compacto.
+  const geometry=barcodeGeometry(svg,palletUsable,dpi);
   const compactModule=Math.max(2,Math.round(.38*dpmm));
-  const geometry={nativeWidth,module:Math.min(compactModule,Math.floor(palletUsable/nativeWidth))};
+  geometry.module=Math.min(geometry.module,compactModule);
   geometry.width=geometry.nativeWidth*geometry.module;
-  if(geometry.module<2)throw new Error('El código es demasiado largo para imprimirlo con barras legibles en este ancho.');
   let y=top;
   y=drawCenteredSpacedCode(ctx,palletSku,W,y)+mm(2.0,dpmm);
   const captionHeight=Math.ceil(caption.size*1.05),qtyHeight=Math.ceil(qty.size*1.05);
