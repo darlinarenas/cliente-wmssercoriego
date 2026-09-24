@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.22-print-bridge-roles-v213';
+const APP_VERSION = '2026.09.23-oscuridad-zebra-v214';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
