@@ -37,7 +37,7 @@ async function khalBridgeRequest(path,{method='GET',body=null,timeout=DEFAULT_TI
    });
    let payload={};
    try{payload=await response.json();}catch{payload={};}
-   if(!response.ok||payload?.ok===false)throw new Error(payload?.error||payload?.message||`Khal Print respondió ${response.status}`);
+   if(!response.ok||payload?.ok===false){const e=new Error(payload?.error||payload?.message||`Khal Print respondió ${response.status}`);if(payload?.code)e.code=String(payload.code);throw e;}
    return {...payload,bridgeUrl:base};
   }catch(error){lastError=friendlyBridgeError(error);}
   finally{if(timer)clearTimeout(timer);}
@@ -154,6 +154,7 @@ export async function printZplToZebra(zpl,{printer=''}={}){
   saveZebraPrinter(result?.device?.name||preferred);
   return result;
  }catch(error){bridgeError=error;}
+ if(['PRINTER_OFFLINE','PRINTER_UNAVAILABLE'].includes(String(bridgeError?.code||'')))throw bridgeError;
  try{
   const result=await sendWithBrowserPrint(payload,preferred);
   saveZebraPrinter(result?.device?.name||preferred);

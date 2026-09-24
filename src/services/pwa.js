@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.23-khal-printer-presence-v216';
+const PWA_RELEASE = '2026.09.23-zebra-usb-state-v216';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
