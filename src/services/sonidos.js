@@ -98,5 +98,5 @@ export function sonidoPorCodigo(valor){
 export function sonidoEscaneoOk(){return reproducir('ok');}
 export function sonidoEscaneoNoEncontrado(){return reproducir('noEncontrado');}
 
-export async function sonidoOrdenAsignada(){if(!habilitado){try{habilitado=sessionStorage.getItem('serco_audio_scanner')==='1';}catch{}}if(!habilitado)return false;const ctx=audioContext();try{if(ctx?.state==='suspended')await ctx.resume();}catch{}return reproducirWav(SONIDOS.ordenAsignada);}
+export async function sonidoOrdenAsignada(){if(!habilitado){try{habilitado=sessionStorage.getItem('serco_audio_scanner')==='1';}catch{}}if(!habilitado)return false;const ctx=audioContext();try{if(ctx?.state==='suspended')await ctx.resume();}catch{}const ok=await reproducirWav(SONIDOS.ordenAsignada);if(ok)return true;return tono('ok')||reproducirWav(SONIDOS.ok);}
 export async function sonidoOrdenCulminada(){if(!habilitado)return false;return reproducirWav(SONIDOS.ordenCulminada);}
