@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -24,11 +23,12 @@ import (
 )
 
 const (
-	host                   = "127.0.0.1"
-	maxZPLBytes            = 12 * 1024 * 1024
-	printerEnumLocal       = 0x00000002
-	printerEnumConnections = 0x00000004
-	agentVersion           = "1.10"
+	host                        = "127.0.0.1"
+	maxZPLBytes                 = 12 * 1024 * 1024
+	printerEnumLocal            = 0x00000002
+	printerEnumConnections      = 0x00000004
+	printerAttributeWorkOffline = 0x00000400
+	agentVersion                = "1.11"
 )
 
 var (
@@ -49,13 +49,15 @@ type printerInfo2 struct {
 }
 type docInfo1 struct{ DocName, OutputFile, Datatype uintptr }
 type printerRow struct {
-	Name   string `json:"name"`
-	Ready  bool   `json:"ready"`
-	Status uint32 `json:"status"`
-	Jobs   uint32 `json:"jobs"`
-	Port   string `json:"port"`
-	Driver string `json:"driver"`
-	Zebra  bool   `json:"zebra"`
+	Name       string `json:"name"`
+	Ready      bool   `json:"ready"`
+	Offline    bool   `json:"offline"`
+	Status     uint32 `json:"status"`
+	Attributes uint32 `json:"attributes"`
+	Jobs       uint32 `json:"jobs"`
+	Port       string `json:"port"`
+	Driver     string `json:"driver"`
+	Zebra      bool   `json:"zebra"`
 }
 type remoteConfig struct {
 	Enabled          bool   `json:"enabled"`
@@ -89,21 +91,6 @@ func ptrToString(p uintptr) string {
 	}
 	return syscall.UTF16ToString(u16)
 }
-func physicalPrinterReady(name, port string) bool {
-	// Winspool conserva la cola aunque una Zebra USB esté físicamente desconectada.
-	// Para puertos USB validamos además que Windows tenga un dispositivo Zebra PRESENTE.
-	if !strings.HasPrefix(strings.ToUpper(strings.TrimSpace(port)), "USB") {
-		return true
-	}
-	ps := `$ErrorActionPreference='SilentlyContinue';$n=$env:KHAL_PRINTER_NAME;$p=Get-CimInstance Win32_Printer|Where-Object{$_.Name -eq $n}|Select-Object -First 1;if(-not $p){Write-Output '0';exit};if($p.WorkOffline -or [int]$p.PrinterStatus -eq 7){Write-Output '0';exit};if(Get-Command Get-PnpDevice -ErrorAction SilentlyContinue){$d=Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue|Where-Object{($_.Class -eq 'Printer' -or $_.Class -eq 'PrintQueue' -or $_.Class -eq 'USB') -and ($_.FriendlyName -like '*Zebra*' -or $_.FriendlyName -like '*ZDesigner*')};if(@($d).Count -eq 0){Write-Output '0';exit}};Write-Output '1'`
-	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", ps)
-	cmd.Env = append(os.Environ(), "KHAL_PRINTER_NAME="+name)
-	out, err := cmd.Output()
-	if err != nil {
-		return false
-	}
-	return strings.TrimSpace(string(out)) == "1"
-}
 func enumPrinters() ([]printerRow, error) {
 	flags := uintptr(printerEnumLocal | printerEnumConnections)
 	var needed, returned uint32
@@ -125,7 +112,6 @@ func enumPrinters() ([]printerRow, error) {
 		pi := (*printerInfo2)(unsafe.Pointer(uintptr(unsafe.Pointer(&buf[0])) + uintptr(i)*size))
 		name := ptrToString(pi.PrinterName)
 		driver := ptrToString(pi.DriverName)
-		port := ptrToString(pi.PortName)
 		text := strings.ToLower(name + " " + driver)
 		isZebra := false
 		for _, word := range zebraWords {
@@ -138,8 +124,8 @@ func enumPrinters() ([]printerRow, error) {
 			continue
 		}
 		bad := uint32(0x80 | 0x2 | 0x10 | 0x8 | 0x400000 | 0x100000 | 0x1000 | 0x1)
-		ready := (pi.Status&bad) == 0 && physicalPrinterReady(name, port)
-		rows = append(rows, printerRow{Name: name, Ready: ready, Status: pi.Status, Jobs: pi.CJobs, Port: port, Driver: driver, Zebra: true})
+		offline := (pi.Attributes & printerAttributeWorkOffline) != 0
+		rows = append(rows, printerRow{Name: name, Ready: !offline && (pi.Status&bad) == 0, Offline: offline, Status: pi.Status, Attributes: pi.Attributes, Jobs: pi.CJobs, Port: ptrToString(pi.PortName), Driver: driver, Zebra: true})
 	}
 	sort.Slice(rows, func(i, j int) bool { return strings.ToLower(rows[i].Name) < strings.ToLower(rows[j].Name) })
 	return rows, nil
@@ -154,7 +140,7 @@ func choosePrinter(requested string) (string, error) {
 		for _, row := range rows {
 			if strings.ToLower(strings.TrimSpace(row.Name)) == wanted {
 				if !row.Ready {
-					return "", fmt.Errorf("La impresora '%s' está desconectada o fuera de línea. Conecta la Zebra por USB y vuelve a intentar.", row.Name)
+					return "", fmt.Errorf("PRINTER_OFFLINE: La Zebra %s está desconectada o fuera de línea. Conecta el USB y pulsa Actualizar.", row.Name)
 				}
 				return row.Name, nil
 			}
@@ -167,7 +153,7 @@ func choosePrinter(requested string) (string, error) {
 		}
 	}
 	if len(rows) > 0 {
-		return "", errors.New("La Zebra está instalada en Windows, pero está desconectada o fuera de línea. Conecta el USB y vuelve a intentar.")
+		return rows[0].Name, nil
 	}
 	return "", errors.New("No se encontró una impresora Zebra/ZPL instalada en Windows.")
 }
@@ -459,11 +445,7 @@ func main() {
 		}
 		printer, err := choosePrinter(requested)
 		if err != nil {
-			code := "PRINTER_UNAVAILABLE"
-			if strings.Contains(strings.ToLower(err.Error()), "desconectada") || strings.Contains(strings.ToLower(err.Error()), "fuera de línea") {
-				code = "PRINTER_OFFLINE"
-			}
-			reply(w, r, 409, map[string]any{"ok": false, "code": code, "error": err.Error()})
+			reply(w, r, 400, map[string]any{"ok": false, "error": err.Error()})
 			return
 		}
 		job, err := sendRaw(p.ZPL, printer)

@@ -37,7 +37,7 @@ async function khalBridgeRequest(path,{method='GET',body=null,timeout=DEFAULT_TI
    });
    let payload={};
    try{payload=await response.json();}catch{payload={};}
-   if(!response.ok||payload?.ok===false){const e=new Error(payload?.error||payload?.message||`Khal Print respondió ${response.status}`);if(payload?.code)e.code=String(payload.code);throw e;}
+   if(!response.ok||payload?.ok===false){const err=new Error(payload?.error||payload?.message||`Khal Print respondió ${response.status}`);err.code=String(payload?.code||(/PRINTER_OFFLINE/i.test(err.message)?'PRINTER_OFFLINE':'')||'');throw err;}
    return {...payload,bridgeUrl:base};
   }catch(error){lastError=friendlyBridgeError(error);}
   finally{if(timer)clearTimeout(timer);}
@@ -49,7 +49,7 @@ export async function khalBridgeHealth(){return khalBridgeRequest('/health',{tim
 async function bridgePrinters(){
  const result=await khalBridgeRequest('/printers',{timeout:3500});
  return (Array.isArray(result?.printers)?result.printers:[]).filter(p=>p?.zebra!==false).map(p=>({
-  name:String(p?.name||''),ready:p?.ready!==false,status:Number(p?.status||0),jobs:Number(p?.jobs||0),port:String(p?.port||''),driver:String(p?.driver||''),transport:'khal-print-bridge'
+  name:String(p?.name||''),ready:p?.ready!==false,offline:p?.offline===true,status:Number(p?.status||0),jobs:Number(p?.jobs||0),port:String(p?.port||''),driver:String(p?.driver||''),transport:'khal-print-bridge'
  })).filter(p=>p.name);
 }
 async function sendWithKhalBridge(zpl,printer=''){
@@ -153,8 +153,7 @@ export async function printZplToZebra(zpl,{printer=''}={}){
   const result=await sendWithKhalBridge(payload,preferred);
   saveZebraPrinter(result?.device?.name||preferred);
   return result;
- }catch(error){bridgeError=error;}
- if(['PRINTER_OFFLINE','PRINTER_UNAVAILABLE'].includes(String(bridgeError?.code||'')))throw bridgeError;
+ }catch(error){bridgeError=error;if(error?.code==='PRINTER_OFFLINE'||/PRINTER_OFFLINE|desconectada|fuera de línea/i.test(String(error?.message||'')))throw error;}
  try{
   const result=await sendWithBrowserPrint(payload,preferred);
   saveZebraPrinter(result?.device?.name||preferred);
