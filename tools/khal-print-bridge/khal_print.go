@@ -24,11 +24,11 @@ import (
 
 const (
     host = "127.0.0.1"
-    port = "17891"
+    port = "17892"
     maxZPLBytes = 12 * 1024 * 1024
     printerEnumLocal = 0x00000002
     printerEnumConnections = 0x00000004
-    agentVersion = "1.7"
+    agentVersion = "1.8"
 )
 
 var (

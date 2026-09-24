@@ -4,7 +4,7 @@ cd /d "%~dp0"
 title Khal Print - Instalacion
 
 echo ===============================================
-echo   KHAL PRINT 1.7 - IMPRESION ZEBRA
+echo   KHAL PRINT 1.8 - IMPRESION ZEBRA
 echo ===============================================
 echo.
 echo Instalando Khal Print en segundo plano...
@@ -42,7 +42,7 @@ reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "KhalPrint" /t R
 start "" "%DEST%\KhalPrint.exe"
 timeout /t 3 /nobreak >nul
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $r=Invoke-RestMethod -UseBasicParsing -TimeoutSec 4 http://127.0.0.1:17891/health; if ($r.ok) { Write-Host ('Khal Print ' + $r.version + ' activo. Zebra detectadas: ' + $r.printers); if($r.printer){Write-Host ('Impresora: ' + $r.printer)}; exit 0 } else { exit 1 } } catch { exit 1 }"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $r=Invoke-RestMethod -UseBasicParsing -TimeoutSec 4 http://127.0.0.1:17892/health; if ($r.ok) { Write-Host ('Khal Print ' + $r.version + ' activo. Zebra detectadas: ' + $r.printers); if($r.printer){Write-Host ('Impresora: ' + $r.printer)}; exit 0 } else { exit 1 } } catch { exit 1 }"
 if errorlevel 1 (
   echo.
   echo ERROR: Khal Print no respondio en este computador.

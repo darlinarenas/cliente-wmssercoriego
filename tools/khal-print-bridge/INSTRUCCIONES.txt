@@ -1,4 +1,4 @@
-KHAL PRINT 1.7
+KHAL PRINT 1.8
 
 INSTALACION
 1. Descomprime COMPLETO este ZIP en una carpeta.
