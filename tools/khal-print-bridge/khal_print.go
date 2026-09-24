@@ -13,6 +13,7 @@ import (
     "net/http"
     "net/url"
     "os"
+    "os/exec"
     "path/filepath"
     "runtime"
     "sort"
@@ -27,7 +28,7 @@ const (
     maxZPLBytes = 12 * 1024 * 1024
     printerEnumLocal = 0x00000002
     printerEnumConnections = 0x00000004
-    agentVersion = "1.9"
+    agentVersion = "2.0"
 )
 
 var (
@@ -60,7 +61,23 @@ func enumPrinters() ([]printerRow,error){
     for i:=uint32(0);i<returned;i++{pi:=(*printerInfo2)(unsafe.Pointer(uintptr(unsafe.Pointer(&buf[0]))+uintptr(i)*size));name:=ptrToString(pi.PrinterName);driver:=ptrToString(pi.DriverName);text:=strings.ToLower(name+" "+driver);isZebra:=false;for _,word:=range zebraWords{if strings.Contains(text,word){isZebra=true;break}};if !isZebra{continue};bad:=uint32(0x80|0x2|0x10|0x8|0x400000|0x100000|0x1000|0x1);rows=append(rows,printerRow{Name:name,Ready:(pi.Status&bad)==0,Status:pi.Status,Jobs:pi.CJobs,Port:ptrToString(pi.PortName),Driver:driver,Zebra:true})}
     sort.Slice(rows,func(i,j int)bool{return strings.ToLower(rows[i].Name)<strings.ToLower(rows[j].Name)});return rows,nil
 }
-func choosePrinter(requested string)(string,error){rows,err:=enumPrinters();if err!=nil{return "",err};wanted:=strings.TrimSpace(strings.ToLower(requested));if wanted!=""{for _,row:=range rows{if strings.ToLower(strings.TrimSpace(row.Name))==wanted{return row.Name,nil}};return "",fmt.Errorf("La impresora '%s' no está instalada como Zebra/ZPL en este Windows.",requested)};for _,row:=range rows{if row.Ready{return row.Name,nil}};if len(rows)>0{return rows[0].Name,nil};return "",errors.New("No se encontró una impresora Zebra/ZPL instalada en Windows.")}
+func psQuote(s string) string { return "'"+strings.ReplaceAll(s,"'","''")+"'" }
+func usbPrinterPresent(row printerRow) bool {
+    port:=strings.ToUpper(strings.TrimSpace(row.Port))
+    if !strings.HasPrefix(port,"USB") { return row.Ready }
+    // Para colas USB, Windows puede conservar la cola como Ready aun con el cable desconectado.
+    // Get-PnpDevice -PresentOnly comprueba que exista ahora mismo un dispositivo de impresión presente.
+    script:=fmt.Sprintf(`$n=%s;$d=%s;$x=Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'OK' -and (($_.Class -eq 'Printer') -or ($_.Class -eq 'PrintQueue')) -and (($_.FriendlyName -like ('*'+$n+'*')) -or ($n -like ('*'+$_.FriendlyName+'*')) -or ($_.FriendlyName -like '*Zebra*') -or ($_.FriendlyName -like '*ZDesigner*') -or ($_.FriendlyName -like ('*'+$d+'*'))) } | Select-Object -First 1;if($x){'PRESENT'}else{'ABSENT'}`,psQuote(row.Name),psQuote(row.Driver))
+    out,err:=exec.Command("powershell","-NoProfile","-NonInteractive","-Command",script).CombinedOutput()
+    if err!=nil { return false }
+    return strings.Contains(string(out),"PRESENT")
+}
+func printerUsable(row printerRow) bool { return row.Ready && usbPrinterPresent(row) }
+func markPhysicalState(rows []printerRow) []printerRow {
+    for i:=range rows { rows[i].Ready=printerUsable(rows[i]) }
+    return rows
+}
+func choosePrinter(requested string)(string,error){rows,err:=enumPrinters();if err!=nil{return "",err};rows=markPhysicalState(rows);wanted:=strings.TrimSpace(strings.ToLower(requested));if wanted!=""{for _,row:=range rows{if strings.ToLower(strings.TrimSpace(row.Name))==wanted{if !row.Ready{return "",fmt.Errorf("La impresora '%s' está instalada en Windows, pero está desconectada o fuera de línea.",requested)};return row.Name,nil}};return "",fmt.Errorf("La impresora '%s' no está instalada como Zebra/ZPL en este Windows.",requested)};for _,row:=range rows{if row.Ready{return row.Name,nil}};if len(rows)>0{return "",errors.New("Windows conserva la Zebra instalada, pero está desconectada o fuera de línea.")};return "",errors.New("No se encontró una impresora Zebra/ZPL instalada en Windows.")}
 func sendRaw(zpl,printer string)(uint32,error){data:=[]byte(zpl);if len(data)==0||!strings.Contains(zpl,"^XA")||!strings.Contains(zpl,"^XZ"){return 0,errors.New("El trabajo recibido no parece ZPL válido.")};if len(data)>maxZPLBytes{return 0,errors.New("El trabajo ZPL es demasiado grande; divide la cola en lotes.")};pName,_:=syscall.UTF16PtrFromString(printer);var h uintptr;r,_,err:=procOpenPrinterW.Call(uintptr(unsafe.Pointer(pName)),uintptr(unsafe.Pointer(&h)),0);if r==0{return 0,fmt.Errorf("No se pudo abrir la impresora %s: %v",printer,err)};defer procClosePrinter.Call(h);docName,_:=syscall.UTF16PtrFromString("Khal - Etiquetas");datatype,_:=syscall.UTF16PtrFromString("RAW");di:=docInfo1{DocName:uintptr(unsafe.Pointer(docName)),Datatype:uintptr(unsafe.Pointer(datatype))};job,_,err:=procStartDocPrinterW.Call(h,1,uintptr(unsafe.Pointer(&di)));if job==0{return 0,fmt.Errorf("StartDocPrinterW: %v",err)};okDoc:=false;defer func(){if !okDoc{procEndDocPrinter.Call(h)}}();r,_,err=procStartPagePrinter.Call(h);if r==0{return 0,fmt.Errorf("StartPagePrinter: %v",err)};pageEnded:=false;defer func(){if !pageEnded{procEndPagePrinter.Call(h)}}();var written uint32;r,_,err=procWritePrinter.Call(h,uintptr(unsafe.Pointer(&data[0])),uintptr(len(data)),uintptr(unsafe.Pointer(&written)));if r==0{return 0,fmt.Errorf("WritePrinter: %v",err)};if int(written)!=len(data){return 0,fmt.Errorf("Windows recibió %d de %d bytes del trabajo.",written,len(data))};procEndPagePrinter.Call(h);pageEnded=true;procEndDocPrinter.Call(h);okDoc=true;return uint32(job),nil}
 
 func allowedOrigin(origin string) bool { if origin==""{return true};u,err:=url.Parse(origin);if err!=nil{return false};h:=strings.ToLower(u.Hostname());if (u.Scheme=="http"||u.Scheme=="https")&&(h=="localhost"||h=="127.0.0.1"){return true};if u.Scheme!="https"{return false};return h=="cliente-wmssercoriego.vercel.app"||(strings.HasPrefix(h,"cliente-wmssercoriego-")&&strings.HasSuffix(h,".vercel.app")) }
@@ -99,8 +116,8 @@ func main(){
         remoteLoop()
     }()
     mux:=http.NewServeMux()
-    mux.HandleFunc("/health",func(w http.ResponseWriter,r *http.Request){if r.Method==http.MethodOptions{reply(w,r,200,map[string]any{"ok":true,"version":agentVersion});return};if r.Method!=http.MethodGet{reply(w,r,405,map[string]any{"ok":false,"error":"Método no permitido."});return};rows,err:=enumPrinters();if err!=nil{reply(w,r,500,map[string]any{"ok":false,"error":err.Error()});return};chosen:="";if len(rows)>0{chosen,_=choosePrinter("")};c:=loadConfig();hostName,_:=os.Hostname();reply(w,r,200,map[string]any{"ok":true,"service":"Khal Print","version":agentVersion,"hostName":hostName,"printer":chosen,"printers":len(rows),"remoteEnabled":c.Enabled,"remoteSiteId":c.SiteID,"remoteStationName":c.StationName})})
-    mux.HandleFunc("/printers",func(w http.ResponseWriter,r *http.Request){if r.Method==http.MethodOptions{reply(w,r,200,map[string]any{"ok":true});return};if r.Method!=http.MethodGet{reply(w,r,405,map[string]any{"ok":false,"error":"Método no permitido."});return};rows,err:=enumPrinters();if err!=nil{reply(w,r,500,map[string]any{"ok":false,"error":err.Error()});return};reply(w,r,200,map[string]any{"ok":true,"printers":rows})})
+    mux.HandleFunc("/health",func(w http.ResponseWriter,r *http.Request){if r.Method==http.MethodOptions{reply(w,r,200,map[string]any{"ok":true,"version":agentVersion});return};if r.Method!=http.MethodGet{reply(w,r,405,map[string]any{"ok":false,"error":"Método no permitido."});return};rows,err:=enumPrinters();if err!=nil{reply(w,r,500,map[string]any{"ok":false,"error":err.Error()});return};rows=markPhysicalState(rows);chosen:="";if len(rows)>0{chosen,_=choosePrinter("")};c:=loadConfig();hostName,_:=os.Hostname();reply(w,r,200,map[string]any{"ok":true,"service":"Khal Print","version":agentVersion,"hostName":hostName,"printer":chosen,"printers":len(rows),"remoteEnabled":c.Enabled,"remoteSiteId":c.SiteID,"remoteStationName":c.StationName})})
+    mux.HandleFunc("/printers",func(w http.ResponseWriter,r *http.Request){if r.Method==http.MethodOptions{reply(w,r,200,map[string]any{"ok":true});return};if r.Method!=http.MethodGet{reply(w,r,405,map[string]any{"ok":false,"error":"Método no permitido."});return};rows,err:=enumPrinters();if err!=nil{reply(w,r,500,map[string]any{"ok":false,"error":err.Error()});return};rows=markPhysicalState(rows);reply(w,r,200,map[string]any{"ok":true,"printers":rows})})
     mux.HandleFunc("/print",func(w http.ResponseWriter,r *http.Request){if r.Method==http.MethodOptions{reply(w,r,200,map[string]any{"ok":true});return};if r.Method!=http.MethodPost{reply(w,r,405,map[string]any{"ok":false,"error":"Método no permitido."});return};r.Body=http.MaxBytesReader(w,r.Body,maxZPLBytes*2);body,err:=io.ReadAll(r.Body);if err!=nil{reply(w,r,400,map[string]any{"ok":false,"error":"Trabajo vacío o demasiado grande."});return};var p struct{ZPL string `json:"zpl"`;Printer *string `json:"printer"`};if err=json.Unmarshal(body,&p);err!=nil{reply(w,r,400,map[string]any{"ok":false,"error":"Solicitud de impresión no válida."});return};requested:="";if p.Printer!=nil{requested=*p.Printer};printer,err:=choosePrinter(requested);if err!=nil{reply(w,r,400,map[string]any{"ok":false,"error":err.Error()});return};job,err:=sendRaw(p.ZPL,printer);if err!=nil{reply(w,r,400,map[string]any{"ok":false,"error":err.Error()});return};reply(w,r,200,map[string]any{"ok":true,"printer":printer,"jobId":job})})
     mux.HandleFunc("/remote/config",func(w http.ResponseWriter,r *http.Request){if r.Method==http.MethodOptions{reply(w,r,200,map[string]any{"ok":true});return};if r.Method!=http.MethodPost{reply(w,r,405,map[string]any{"ok":false,"error":"Método no permitido."});return};r.Body=http.MaxBytesReader(w,r.Body,64*1024);var c remoteConfig;if err:=json.NewDecoder(r.Body).Decode(&c);err!=nil{reply(w,r,400,map[string]any{"ok":false,"error":"Configuración no válida."});return};if err:=saveConfig(c);err!=nil{reply(w,r,400,map[string]any{"ok":false,"error":err.Error()});return};reply(w,r,200,map[string]any{"ok":true,"remoteEnabled":c.Enabled,"stationName":c.StationName,"siteId":c.SiteID})})
     mux.HandleFunc("/remote/status",func(w http.ResponseWriter,r *http.Request){if r.Method==http.MethodOptions{reply(w,r,200,map[string]any{"ok":true});return};c:=loadConfig();reply(w,r,200,map[string]any{"ok":true,"enabled":c.Enabled,"stationName":c.StationName,"siteId":c.SiteID,"companyId":c.CompanyID,"apiBaseUrl":c.APIBaseURL})})
