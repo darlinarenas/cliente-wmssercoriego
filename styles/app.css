@@ -3036,3 +3036,18 @@ dialog.scanner-dialog{
 @media(max-width:700px){.operator-order-simple .operator-popup-launchers{grid-template-columns:1fr 1fr}.operator-list-dialog{width:100vw;height:100dvh;max-width:none;max-height:none;margin:0}.operator-list-dialog-card{border-radius:0;padding:9px}.operator-popup-scan-actions{grid-template-columns:1fr auto}.operator-popup-scan-actions #operator-popup-keyboard{grid-column:1/-1}.operator-popup-item{grid-template-columns:1fr;gap:7px;padding:9px}.operator-popup-item-actions{justify-content:stretch}.operator-popup-item-actions button{flex:1}.operator-list-dialog-footer button{width:100%}.operator-order-simple .pick-smart-next.compact{padding:8px 9px}.operator-order-simple .pick-smart-next.compact h3{font-size:16px}.operator-order-simple .pick-smart-next.compact p{font-size:11px}.operator-order-simple .pick-smart-next.compact .pick-smart-open{padding:8px 10px;min-height:38px}}
 .operator-popup-scan-actions input{min-width:0;min-height:42px;font-size:16px}
 @media(max-width:700px){.operator-popup-scan-actions{grid-template-columns:minmax(0,1fr) auto auto}.operator-popup-scan-actions input{grid-column:1/-1}.operator-popup-scan-actions button[type="submit"]{grid-column:1/-1}.operator-popup-scan-actions #operator-popup-keyboard{grid-column:auto}}
+
+/* 2026-09-24 · v220 · Operador: descripción y ubicación con mayor jerarquía visual */
+.operator-order-simple .pick-smart-product-name{font-size:16px;font-weight:900;line-height:1.25;color:var(--ink);margin-top:2px}
+.operator-order-simple .pick-smart-next.compact p{font-size:13px;line-height:1.3}
+.operator-order-simple .pick-smart-next.compact p b:first-child{font-weight:900}
+.operator-popup-product-info{display:grid;gap:4px;min-width:0}
+.operator-popup-description{font-size:17px!important;line-height:1.25!important;font-weight:900;color:var(--ink);overflow-wrap:anywhere}
+.operator-popup-sku{font-size:12px!important;font-weight:800;color:#166534!important}
+.operator-popup-location{display:grid;gap:1px;margin-top:3px;padding:7px 9px;border-radius:9px;background:#f1f5f9;border:1px solid #dbe4ea}
+.operator-popup-location small{font-size:9px!important;font-weight:900;letter-spacing:.07em;color:#64748b!important}
+.operator-popup-location b{font-size:16px!important;line-height:1.15;color:#0f172a}
+.operator-popup-progress{font-size:11px!important;color:var(--muted)!important}
+.operator-order-simple .pick-item-title{font-size:15px!important;line-height:1.25;font-weight:900}
+.operator-order-simple .pick-readable-location b{font-size:15px;line-height:1.2;color:#0f172a}
+@media(max-width:700px){.operator-popup-description{font-size:16px!important}.operator-popup-location b{font-size:15px!important}.operator-order-simple .pick-smart-product-name{font-size:15px}}
