@@ -8,50 +8,47 @@ echo   KHAL PRINT 1.7 - IMPRESION ZEBRA
 echo ===============================================
 echo.
 echo Instalando Khal Print en segundo plano...
+
 set "DEST=%LOCALAPPDATA%\KhalPrint"
-set "EXE=%DEST%\KhalPrint.exe"
 set "STARTUP=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
-set "LNK=%STARTUP%\Khal Print.lnk"
+set "STARTCMD=%STARTUP%\KhalPrint.cmd"
+
 if not exist "%DEST%" mkdir "%DEST%"
+if not exist "%STARTUP%" mkdir "%STARTUP%"
 
 taskkill /IM KhalPrint.exe /F >nul 2>nul
 timeout /t 1 /nobreak >nul
-copy /Y "%~dp0KhalPrint.exe" "%EXE%" >nul
+
+copy /Y "%~dp0KhalPrint.exe" "%DEST%\KhalPrint.exe" >nul
 if errorlevel 1 (
   echo ERROR: No se pudo copiar KhalPrint.exe.
-  echo Comprueba que el ZIP este descomprimido y vuelve a intentar.
+  echo Descomprime primero el ZIP completo y ejecuta este instalador.
   pause
   exit /b 1
 )
 
-rem Quita el metodo anterior para evitar dobles arranques.
-reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "KhalPrint" /f >nul 2>nul
+> "%STARTCMD%" echo @echo off
+>>"%STARTCMD%" echo start "" "%DEST%\KhalPrint.exe"
 
-rem Inicio automatico persistente para el usuario actual.
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ws=New-Object -ComObject WScript.Shell; $s=$ws.CreateShortcut($env:APPDATA+'\Microsoft\Windows\Start Menu\Programs\Startup\Khal Print.lnk'); $s.TargetPath=$env:LOCALAPPDATA+'\KhalPrint\KhalPrint.exe'; $s.WorkingDirectory=$env:LOCALAPPDATA+'\KhalPrint'; $s.WindowStyle=7; $s.Description='Khal Print - puente Zebra'; $s.Save()"
-if errorlevel 1 (
-  echo ERROR: Windows no permitio registrar el inicio automatico.
+if not exist "%STARTCMD%" (
+  echo ERROR: No se pudo registrar Khal Print en el inicio de Windows.
   pause
-  exit /b 3
-)
-if not exist "%LNK%" (
-  echo ERROR: No se creo el acceso de inicio automatico.
-  pause
-  exit /b 3
+  exit /b 2
 )
 
-start "" "%EXE%"
+rem Compatibilidad adicional con Inicio de Windows.
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "KhalPrint" /t REG_SZ /d "\"%DEST%\KhalPrint.exe\"" /f >nul 2>nul
+
+start "" "%DEST%\KhalPrint.exe"
 timeout /t 3 /nobreak >nul
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $r=Invoke-RestMethod -UseBasicParsing -TimeoutSec 4 http://127.0.0.1:17891/health; if ($r.ok) { Write-Host ('Zebra detectadas: ' + $r.printers); if($r.printer){Write-Host ('Impresora: ' + $r.printer)}; exit 0 } else { exit 1 } } catch { exit 1 }"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $r=Invoke-RestMethod -UseBasicParsing -TimeoutSec 4 http://127.0.0.1:17891/health; if ($r.ok) { Write-Host ('Khal Print ' + $r.version + ' activo. Zebra detectadas: ' + $r.printers); if($r.printer){Write-Host ('Impresora: ' + $r.printer)}; exit 0 } else { exit 1 } } catch { exit 1 }"
 if errorlevel 1 (
   echo.
   echo ERROR: Khal Print no respondio en este computador.
-  echo Cierra esta ventana y vuelve a ejecutar el instalador.
   echo Si persiste, envia el archivo %%TEMP%%\khal-print-error.txt.
-  echo.
   pause
-  exit /b 2
+  exit /b 3
 )
 
 echo.
@@ -59,12 +56,10 @@ echo ===============================================
 echo   KHAL PRINT INSTALADO CORRECTAMENTE
 echo ===============================================
 echo.
-echo Khal Print queda activo EN SEGUNDO PLANO.
-echo Inicio automatico de Windows: CONFIGURADO.
-echo NO debe quedar una consola negra abierta.
-echo No necesita Python, pip ni pywin32.
+echo Ejecutable: %DEST%\KhalPrint.exe
+echo Configuracion: %DEST%\config.json
+echo Inicio Windows: %STARTCMD%
 echo.
-echo Ya puedes volver a Khal y pulsar:
-echo   "Ya lo instale - detectar Zebra"
+echo Ya puedes volver a Khal y configurar esta PC como puente.
 echo.
 pause

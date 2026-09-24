@@ -28,7 +28,7 @@ const (
     maxZPLBytes = 12 * 1024 * 1024
     printerEnumLocal = 0x00000002
     printerEnumConnections = 0x00000004
-    agentVersion = "1.6"
+    agentVersion = "1.7"
 )
 
 var (
@@ -68,7 +68,18 @@ func allowedOrigin(origin string) bool { if origin==""{return true};u,err:=url.P
 func cors(w http.ResponseWriter,r *http.Request) bool {origin:=r.Header.Get("Origin");if !allowedOrigin(origin){http.Error(w,"Origen no autorizado",http.StatusForbidden);return false};if origin!=""{w.Header().Set("Access-Control-Allow-Origin",origin);w.Header().Set("Vary","Origin")};w.Header().Set("Access-Control-Allow-Methods","GET, POST, OPTIONS");w.Header().Set("Access-Control-Allow-Headers","Content-Type");w.Header().Set("Access-Control-Allow-Private-Network","true");w.Header().Set("Cache-Control","no-store");w.Header().Set("Content-Type","application/json; charset=utf-8");return true}
 func reply(w http.ResponseWriter,r *http.Request,status int,payload any){if !cors(w,r){return};w.WriteHeader(status);_ = json.NewEncoder(w).Encode(payload)}
 
-func configPath() string { exe,err:=os.Executable();if err==nil{return filepath.Join(filepath.Dir(exe),"config.json")};return filepath.Join(os.TempDir(),"khal-print-config.json") }
+func configPath() string {
+    base,err:=os.UserConfigDir()
+    if err!=nil||strings.TrimSpace(base)=="" {
+        base=os.Getenv("LOCALAPPDATA")
+    }
+    if strings.TrimSpace(base)=="" {
+        base=os.TempDir()
+    }
+    dir:=filepath.Join(base,"KhalPrint")
+    _=os.MkdirAll(dir,0700)
+    return filepath.Join(dir,"config.json")
+}
 func loadConfig() remoteConfig {var c remoteConfig;b,err:=os.ReadFile(configPath());if err==nil{_ = json.Unmarshal(b,&c)};c.APIBaseURL=strings.TrimRight(strings.TrimSpace(c.APIBaseURL),"/");return c}
 func saveConfig(c remoteConfig) error {c.APIBaseURL=strings.TrimRight(strings.TrimSpace(c.APIBaseURL),"/");if c.APIBaseURL==""||!strings.HasPrefix(c.APIBaseURL,"https://"){return errors.New("La URL del backend debe usar HTTPS.")};if len(strings.TrimSpace(c.StationToken))<20{return errors.New("El token de estación no es válido.")};b,_:=json.MarshalIndent(c,"","  ");return os.WriteFile(configPath(),b,0600)}
 func apiRequest(method,path string,body any,c remoteConfig)(map[string]any,error){var data []byte;if body!=nil{data,_=json.Marshal(body)};req,err:=http.NewRequest(method,c.APIBaseURL+path,bytes.NewReader(data));if err!=nil{return nil,err};req.Header.Set("Authorization","Bearer "+c.StationToken);if body!=nil{req.Header.Set("Content-Type","application/json")};client:=&http.Client{Timeout:12*time.Second};resp,err:=client.Do(req);if err!=nil{return nil,err};defer resp.Body.Close();raw,_:=io.ReadAll(io.LimitReader(resp.Body,2*1024*1024));if resp.StatusCode<200||resp.StatusCode>=300{var e map[string]any;_ = json.Unmarshal(raw,&e);if msg,ok:=e["error"].(string);ok&&msg!=""{return nil,errors.New(msg)};return nil,fmt.Errorf("Backend respondió %d",resp.StatusCode)};if len(raw)==0{return map[string]any{},nil};var out map[string]any;if err=json.Unmarshal(raw,&out);err!=nil{return nil,err};return out,nil}
