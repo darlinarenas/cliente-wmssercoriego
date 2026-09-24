@@ -1,5 +1,5 @@
 const DEFAULT_TIMEOUT=7000;
-const KHAL_BRIDGE_BASES=['http://127.0.0.1:17892','http://localhost:17892'];
+const KHAL_BRIDGE_BASES=['http://127.0.0.1:17891','http://localhost:17891','http://127.0.0.1:17892','http://localhost:17892','http://127.0.0.1:17893','http://localhost:17893'];
 const ZEBRA_PRINTER_KEY='khal.zebraPrinter.v1';
 
 function withTimeout(executor,timeout=DEFAULT_TIMEOUT,message='Tiempo de espera agotado'){

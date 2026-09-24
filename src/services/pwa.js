@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.23-oscuridad-zebra-v214';
+const PWA_RELEASE = '2026.09.23-khal-print-v19-v215';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
