@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.24-operator-popup-v220';
+const APP_VERSION = '2026.09.24-picking-support-v221';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

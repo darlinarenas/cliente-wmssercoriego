@@ -3051,3 +3051,8 @@ dialog.scanner-dialog{
 .operator-order-simple .pick-item-title{font-size:15px!important;line-height:1.25;font-weight:900}
 .operator-order-simple .pick-readable-location b{font-size:15px;line-height:1.2;color:#0f172a}
 @media(max-width:700px){.operator-popup-description{font-size:16px!important}.operator-popup-location b{font-size:15px!important}.operator-order-simple .pick-smart-product-name{font-size:15px}}
+
+/* v221 · soporte de preparación para jefe de bodega */
+.order-support-export{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;margin:10px 0;border:1px solid #dbe4ee;border-radius:14px;background:#f8fafc}
+.order-support-export h3{margin:2px 0 3px;font-size:1rem}.order-support-export small{color:#64748b}.order-support-export-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.order-support-export-actions button{white-space:nowrap}
+@media(max-width:700px){.order-support-export{align-items:stretch;flex-direction:column}.order-support-export-actions{display:grid;grid-template-columns:1fr 1fr}.order-support-export-actions button{width:100%}}
