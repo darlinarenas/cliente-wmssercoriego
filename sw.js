@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.24-picking-support-v223';
+const APP_VERSION = '2026.09.24-manager-correction-v224';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
