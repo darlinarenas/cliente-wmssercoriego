@@ -3068,3 +3068,5 @@ dialog.scanner-dialog{
 .manager-inline-pick-correction>div:first-child{display:grid;gap:3px}.manager-inline-pick-correction b{font-size:16px}.manager-inline-pick-correction small{line-height:1.35;color:var(--muted,#5f6f7b)}
 .manager-inline-pick-correction-control{display:flex;align-items:center;gap:8px;flex:0 0 auto}.manager-inline-pick-correction-control input{width:92px;min-height:44px;text-align:center;font-size:18px;font-weight:800}
 @media(max-width:700px){.manager-inline-pick-correction{align-items:stretch;flex-direction:column}.manager-inline-pick-correction-control{width:100%}.manager-inline-pick-correction-control input{width:90px}.manager-inline-pick-correction-control button{flex:1}}
+
+.operation-confirm-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:8px}.operation-confirm-actions .primary,.operation-confirm-actions .ghost{min-width:140px}.operation-confirm .operation-notice-card{max-width:460px}
