@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.24-manager-correction-save-v225';
+const APP_VERSION = '2026.09.24-manager-correction-click-v226';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
