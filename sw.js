@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.24-styled-manager-confirm-v227';
+const APP_VERSION = '2026.09.27-product-images-v228';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
@@ -57,6 +57,7 @@ const PRECACHE = [
   './src/services/escaner.js',
   './src/services/product-codes.js',
   './src/services/product-editor.js',
+  './src/services/product-images.js',
   './src/services/pwa.js',
   './src/services/repository.js',
   './src/services/storage.js',

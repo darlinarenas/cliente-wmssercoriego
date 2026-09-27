@@ -5,6 +5,7 @@ import { activeSiteId,inventorySiteId } from '../../services/stock.js';
 import { resolveProduct,productAliases } from '../../services/product-codes.js';
 import { vistaCodigoUbicacion } from '../../services/ubicaciones.js';
 import { enlazarBotonEscaner } from '../../services/camara-ui.js';
+import { productPhotoHtml,hydrateProductImages,wireProductPhotoViewer } from '../../services/product-images.js';
 
 const REC_LAYOUT={
  R1:{x:3,y:13,w:4,h:72},R2:{x:16,y:13,w:4,h:42},R3:{x:20,y:13,w:4,h:42},
@@ -72,7 +73,7 @@ function detailsHtml(key,rack,siteId,product){
  const total=inv.reduce((a,b)=>a+Number(b.qty||0),0);
  const rows=inv.slice(0,18).map(i=>{const loc=store.data.locations.find(l=>l.id===i.locationId);return `<article><div><b>${esc(vistaCodigoUbicacion(loc||{id:i.locationId},store.data))}</b><small>${i.palletId?`Palet ${esc(i.palletId)}`:'Ubicación directa'}</small></div><strong>${Number(i.qty||0).toLocaleString('es-CL')} un.</strong></article>`}).join('');
  return `<div class="map3d-detail-head"><span>${product?'PRODUCTO LOCALIZADO':'RACK SELECCIONADO'}</span><h3>${esc(key)} · ${esc(rack.name||key)}</h3><small>${rack.modules||0} módulos · ${rack.levels||0} niveles · ${esc(rack.usage||'Sin uso definido')}</small></div>
- ${product?`<div class="map3d-product-card"><span>Código ${esc(product.code)}</span><b>${esc(product.name||product.description||product.code)}</b><small>${esc(product.description||'')}</small><strong>${total.toLocaleString('es-CL')} un. en este rack</strong></div>`:''}
+ ${product?`<div class="map3d-product-card">${productPhotoHtml(product,{className:'map3d-product-photo'})}<span>Código ${esc(product.code)}</span><b>${esc(product.name||product.description||product.code)}</b><small>${esc(product.description||'')}</small><strong>${total.toLocaleString('es-CL')} un. en este rack</strong></div>`:''}
  <div class="map3d-location-list">${rows||`<div class="map3d-detail-empty compact"><b>${product?'Sin stock de este producto aquí':'Rack sin stock localizado'}</b><small>${product?'Prueba otra ubicación resaltada.':'Las ubicaciones aparecerán cuando tengan inventario.'}</small></div>`}</div>
  ${product?`<div class="map3d-detail-actions"><a class="primary" href="#/movimientos?code=${encodeURIComponent(product.code)}">Mover / reubicar</a><a class="ghost" href="#/buscar?code=${encodeURIComponent(product.code)}">Ver producto</a></div>`:''}`;
 }
@@ -91,7 +92,7 @@ export function renderMap3d(root){
  const allKeys=()=>[...new Set([...Object.keys(layout),...racks.map(r=>rackKey(r))])].sort((a,b)=>rackNum(a)-rackNum(b));
  const paint=()=>{
    floor.innerHTML=allKeys().map(key=>visualRack(key,rackByKey(key),layout[key]||{x:5,y:5,w:5,h:20,baseModules:rackByKey(key)?.modules||1},siteId,selectedKey,hitKeys,edit)).join('');
-   detail.innerHTML=detailsHtml(selectedKey,rackByKey(selectedKey),siteId,product);
+   detail.innerHTML=detailsHtml(selectedKey,rackByKey(selectedKey),siteId,product);hydrateProductImages(detail);wireProductPhotoViewer(detail);
    const rotateBtn=document.querySelector('#map3d-rotate');if(rotateBtn)rotateBtn.hidden=!(edit&&selectedKey&&layout[selectedKey]);
    floor.querySelectorAll('.map3d-rack').forEach(btn=>{
      btn.onclick=()=>{selectedKey=btn.dataset.rackKey;paint();};
