@@ -3090,3 +3090,9 @@ dialog.scanner-dialog{
   .label-source-row>.label-product-photo{width:88px!important;height:88px!important;min-width:88px!important;min-height:88px!important;padding:4px!important;margin:0!important}
   .label-source-row>.label-product-photo.product-photo-frame{width:88px!important;max-width:88px!important}
 }
+
+/* v233 · miniatura persistente al ingresar cantidad en picking */
+.pick-item-qty-photo{display:flex;justify-content:flex-start;margin:6px 0 4px}.pick-qty-product-photo{width:72px;height:72px}.operator-popup-item .operator-popup-product-photo{flex:0 0 auto;object-fit:contain}@media(max-width:640px){.pick-qty-product-photo{width:68px;height:68px}}
+
+.operator-popup-item.prepared-product .operator-popup-product-photo{width:82px;height:82px}
+@media(max-width:640px){.operator-popup-item.prepared-product .operator-popup-product-photo{width:76px;height:76px}}
