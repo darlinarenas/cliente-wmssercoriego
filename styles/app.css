@@ -3077,3 +3077,6 @@ dialog.scanner-dialog{
 
 /* Fotos de producto reutilizadas en consulta de códigos y etiquetas */
 .code-product-visual{display:flex;align-items:center;gap:12px;min-width:0}.code-product-photo,.label-product-photo{flex:0 0 auto;width:82px;height:82px}.label-source-row>.label-product-photo{margin-right:10px}.label-salida-product>.label-product-photo{width:96px;height:96px}@media(max-width:640px){.code-product-photo,.label-product-photo{width:72px;height:72px}.label-salida-product>.label-product-photo{width:84px;height:84px}}
+
+/* Picking: identificación visual rápida del producto */
+.pick-row-product-visual{display:flex;align-items:center;gap:10px;min-width:0;margin-bottom:6px}.pick-row-product-photo{width:74px;height:74px}.operator-popup-product-visual{display:flex;align-items:center;gap:10px;min-width:0}.operator-popup-product-visual>div{display:grid;gap:3px;min-width:0}.operator-popup-product-photo{width:82px;height:82px}@media(max-width:640px){.pick-row-product-photo{width:68px;height:68px}.operator-popup-product-photo{width:76px;height:76px}}
