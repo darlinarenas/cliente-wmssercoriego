@@ -3080,3 +3080,13 @@ dialog.scanner-dialog{
 
 /* Picking: identificación visual rápida del producto */
 .pick-row-product-visual{display:flex;align-items:center;gap:10px;min-width:0;margin-bottom:6px}.pick-row-product-photo{width:74px;height:74px}.operator-popup-product-visual{display:flex;align-items:center;gap:10px;min-width:0}.operator-popup-product-visual>div{display:grid;gap:3px;min-width:0}.operator-popup-product-photo{width:82px;height:82px}@media(max-width:640px){.pick-row-product-photo{width:68px;height:68px}.operator-popup-product-photo{width:76px;height:76px}}
+
+/* v232 · Etiquetas > Producto: miniatura legible sin deformar */
+.label-source-row:has(>.label-product-photo){grid-template-columns:auto minmax(0,1fr) auto}
+.label-source-row>.label-product-photo{width:96px;height:96px;margin-right:2px;padding:4px;align-self:center;justify-self:start;box-sizing:border-box}
+.label-source-row>.label-product-photo img{width:100%;height:100%;object-fit:contain;object-position:center;background:#fff;border-radius:10px}
+@media(max-width:700px){
+  .label-source-row:has(>.label-product-photo){grid-template-columns:88px minmax(0,1fr) auto!important;align-items:center}
+  .label-source-row>.label-product-photo{width:88px!important;height:88px!important;min-width:88px!important;min-height:88px!important;padding:4px!important;margin:0!important}
+  .label-source-row>.label-product-photo.product-photo-frame{width:88px!important;max-width:88px!important}
+}
