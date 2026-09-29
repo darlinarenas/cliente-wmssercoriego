@@ -1,7 +1,8 @@
 import { store } from './store.js';
 import { esc } from '../components/ui.js';
 import { toast,notice } from '../layout/layout.js';
-import { activeSiteId } from './stock.js';
+import { activeSiteId, inventorySiteId } from './stock.js';
+import { activeCompanyId, siteCompanyId } from './company.js';
 import { codePermissionsForUser } from './access-routing.js';
 import { refreshInventoryStatuses } from './inventory-ops.js';
 import { palletDisplayName } from './pallet-ops.js';
@@ -20,8 +21,8 @@ function parseDestination(value=''){
   if(kind==='LOCATION')return {locationId:id,palletId:null};
   return null;
 }
-function existingQty(code,{locationId,palletId}){
-  return (store.data.inventory||[]).filter(i=>String(i.productCode)===String(code)&&i.locationId===locationId&&(i.palletId||null)===(palletId||null)).reduce((sum,i)=>sum+Number(i.qty||0),0);
+function existingQty(code,{locationId,palletId},siteId=activeSiteId(store.data)){
+  return (store.data.inventory||[]).filter(i=>String(i.productCode)===String(code)&&inventorySiteId(i,store.data)===siteId&&i.locationId===locationId&&(i.palletId||null)===(palletId||null)).reduce((sum,i)=>sum+Number(i.qty||0),0);
 }
 function options(siteId,presetPalletId=null,presetLocationId=null){
   const pallets=(store.data.pallets||[]).filter(p=>p.siteId===siteId&&p.status!=='CERRADO');
@@ -37,7 +38,7 @@ function ensureDialog(){let dlg=document.querySelector('#physical-stock-dialog')
 export async function openPhysicalStockEntry(code,{presetPalletId=null,presetLocationId=null,presetQty=null,presetReason='',onSaved}={}){
   const p=product(code);if(!p){toast('Producto no reconocido','warning');return;}
   if(!allowed()){toast('Tu permiso no autoriza registrar o corregir stock físico','warning');return;}
-  const siteId=activeSiteId(store.data),dlg=ensureDialog(),destination=document.querySelector('#physical-stock-destination'),qty=document.querySelector('#physical-stock-qty'),reason=document.querySelector('#physical-stock-reason');
+  const siteId=activeSiteId(store.data);if(!siteId||(store.data.sites||[]).find(s=>s.id===siteId&&siteCompanyId(s,store.data)===activeCompanyId(store.data))==null){toast('No hay un centro válido para la empresa activa','warning');return;}const companyId=activeCompanyId(store.data),dlg=ensureDialog(),destination=document.querySelector('#physical-stock-destination'),qty=document.querySelector('#physical-stock-qty'),reason=document.querySelector('#physical-stock-reason');
   document.querySelector('#physical-stock-subtitle').textContent=`${p.code} · ${p.name||p.description||'Producto'}`;
   document.querySelector('#physical-stock-product').innerHTML=`<span class="sku">${esc(p.code)}</span><b>${esc(p.name||'Producto')}</b><small>${esc(p.description||'Sin descripción')}</small>`;
   destination.innerHTML=options(siteId,presetPalletId,presetLocationId);qty.value=Number.isFinite(Number(presetQty))?String(Number(presetQty)):'';reason.value=presetReason||'Levantamiento físico / producto encontrado';
@@ -46,13 +47,17 @@ export async function openPhysicalStockEntry(code,{presetPalletId=null,presetLoc
   const close=()=>dlg.close();document.querySelector('#physical-stock-close').onclick=close;document.querySelector('#physical-stock-cancel').onclick=close;dlg.oncancel=e=>{e.preventDefault();close();};
   document.querySelector('#physical-stock-save').onclick=async()=>{
     const dest=parseDestination(destination.value),after=Number(qty.value),why=reason.value.trim();
+    if(activeCompanyId(store.data)!==companyId||activeSiteId(store.data)!==siteId){await notice('Contexto modificado','Cambiaste de empresa o centro. Abre nuevamente el registro.','warning');return;}
+    const location=(store.data.locations||[]).find(l=>l.id===dest?.locationId&&l.siteId===siteId);
+    const pallet=dest?.palletId?(store.data.pallets||[]).find(p=>p.id===dest.palletId&&p.siteId===siteId&&p.locationId===dest.locationId):null;
+    if(!location||(dest?.palletId&&!pallet)){await notice('Destino inválido','La ubicación o pallet no pertenece al centro activo.','warning');return;}
     if(!dest?.locationId){await notice('Falta el destino físico','Selecciona el pallet o la ubicación exacta donde encontraste el producto.','warning');destination.focus();return;}
-    if(!Number.isFinite(after)||after<0){await notice('Cantidad inválida','Escribe la cantidad física real encontrada. Puede ser 0 o un número mayor.','warning');qty.focus();return;}
+    if(!Number.isSafeInteger(after)||after<0){await notice('Cantidad inválida','Escribe la cantidad física real encontrada. Puede ser 0 o un número mayor.','warning');qty.focus();return;}
     if(!why){await notice('Falta el motivo','Indica por qué estás registrando o corrigiendo esta existencia.','warning');reason.focus();return;}
     const before=existingQty(p.code,dest),at=new Date().toISOString();
     if(before===after){toast('La cantidad física ya coincide con lo registrado');return;}
     try{await store.commit(data=>{
-      const rows=(data.inventory||[]).filter(i=>String(i.productCode)===String(p.code)&&i.locationId===dest.locationId&&(i.palletId||null)===(dest.palletId||null));
+      const rows=(data.inventory||[]).filter(i=>String(i.productCode)===String(p.code)&&inventorySiteId(i,data)===siteId&&i.locationId===dest.locationId&&(i.palletId||null)===(dest.palletId||null));
       if(rows.length){rows[0].qty=after;rows[0].siteId=siteId;for(const extra of rows.slice(1))extra.qty=0;}
       else if(after>0)data.inventory.push({id:`INV-FIS-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,siteId,productCode:p.code,locationId:dest.locationId,palletId:dest.palletId||null,qty:after});
       data.inventory=data.inventory.filter(i=>Number(i.qty)>0);
