@@ -161,6 +161,13 @@ export function openProductEditor(code,{onSaved}={}){
       qtyChanges.forEach(ch=>{const loc=s.locations.find(l=>l.id===ch.locationId);if(loc&&!['BLOQUEADA','RESERVADA','INHABILITADA'].includes(loc.status)){loc.status=s.inventory.some(i=>i.locationId===ch.locationId&&Number(i.qty)>0)?'OCUPADA':'LIBRE';}});
       if(masterChanged)s.audit.unshift({id:`AUD-PROD-${Date.now()}`,type:'PRODUCT_CORRECTION',message:`Producto ${oldCode}${newCode!==oldCode?` → ${newCode}`:''} corregido. Motivo: ${reason}`,userId:s.session.userId,at});
     },`Edición controlada de producto ${oldCode}${newCode!==oldCode?` → ${newCode}`:''}`,{operations});
+    if(qtyChanges.length){
+      try{
+        await store.reload({emit:false});
+        const mismatch=qtyChanges.find(ch=>Number(store.data.inventory.find(i=>i.id===ch.id)?.qty||0)!==ch.after);
+        if(mismatch)throw new Error(`La existencia ${mismatch.id} no coincide con la cantidad solicitada. Revisa el inventario antes de repetir el ajuste.`);
+      }catch(error){await notice('Verificación de inventario pendiente',error.message||'No se pudo comprobar el stock persistido. No repitas el ajuste sin consultar el inventario.','warning');return;}
+    }
     close();onSaved?.(newCode);await notice('Cambios guardados',`El producto ${newCode} y su inventario se actualizaron correctamente.`,'success');
   };
   dlg.showModal();

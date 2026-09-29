@@ -127,8 +127,17 @@ window.addEventListener('serco:logout',()=>{
   renderLogin(root,enterApp);
 });
 
-window.addEventListener('serco:context-changed',()=>{
+window.addEventListener('serco:context-changed',async()=>{
   if(!store.data)return;
+  const selected=localStorage.getItem('serco_wms_active_company');
+  if(selected&&selected!==store.loadedCompanyId){
+    store.contextSwitching=true;
+    renderBoot('Cargando inventario de la empresa seleccionada…');
+    try{await store.reload({emit:false});buildRouter().render();}
+    catch(error){renderBootError(error);}
+    finally{store.contextSwitching=false;}
+    return;
+  }
   buildRouter().render();
 });
 

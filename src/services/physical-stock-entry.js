@@ -60,6 +60,11 @@ export async function openPhysicalStockEntry(code,{presetPalletId=null,presetLoc
       refreshInventoryStatuses(data,siteId);
     },`Stock físico ${p.code}: ${before} → ${after} en ${dest.palletId||dest.locationId}`,{operations:['physicalStockAdjust']});}
     catch(error){await notice('No se pudo guardar',error.message||'No fue posible registrar el stock físico.','error');return;}
+    try{
+      await store.reload({emit:false});
+      const persisted=existingQty(p.code,dest);
+      if(persisted!==after)throw new Error(`La base de datos devolvió ${persisted} unidades; se esperaban ${after}. Revisa el inventario antes de repetir el ajuste.`);
+    }catch(error){await notice('Verificación de stock pendiente',error.message||'No fue posible comprobar el valor guardado. No repitas la operación hasta consultar el inventario.','warning');return;}
     close();await notice('Stock físico guardado',`${p.code}: ${before} → ${after} un. en ${dest.palletId||dest.locationId}. El cambio quedó auditado.`,'success');onSaved?.(p.code);
   };
   dlg.showModal();setTimeout(()=>{if(!destination.value)destination.focus();else qty.focus();},40);

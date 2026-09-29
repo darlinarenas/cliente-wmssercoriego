@@ -1,6 +1,6 @@
 import { store } from './store.js';
 import { activeCompanyId,siteCompanyId,userCanCompany } from './company.js';
-export function inventorySiteId(inv,state=store.data){ return state.locations?.find(l=>l.id===inv.locationId)?.siteId||state.pallets?.find(p=>p.id===inv.palletId)?.siteId||'REC'; }
+export function inventorySiteId(inv,state=store.data){ return state.locations?.find(l=>l.id===inv.locationId)?.siteId||state.pallets?.find(p=>p.id===inv.palletId)?.siteId||inv.siteId||null; }
 export function stockBySite(productCode,state=store.data){
   const out={}; for(const i of state.inventory||[]){if(i.productCode!==productCode||Number(i.qty)<=0)continue;const site=inventorySiteId(i,state);out[site]=(out[site]||0)+Number(i.qty||0);} return out;
 }
