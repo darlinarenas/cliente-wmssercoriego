@@ -18,7 +18,7 @@ function priority(data,p){
   if(!p.palletId) return 1;
   return 2;
 }
-function inventorySite(data,inv){return inv.siteId||(data.locations||[]).find(l=>l.id===inv.locationId)?.siteId||(data.pallets||[]).find(p=>p.id===inv.palletId)?.siteId||'REC';}
+function inventorySite(data,inv){return inv.siteId||(data.locations||[]).find(l=>l.id===inv.locationId)?.siteId||(data.pallets||[]).find(p=>p.id===inv.palletId)?.siteId||null;}
 function rowsFor(data,code,sourceKey='AUTO',siteId=null){
   let rows=(data.inventory||[]).filter(i=>String(i.productCode)===String(code)&&n(i.qty)>0&&(!siteId||inventorySite(data,i)===siteId));
   if(sourceKey && sourceKey!=='AUTO') rows=rows.filter(i=>positionKey(i)===sourceKey);
@@ -44,6 +44,7 @@ export function refreshInventoryStatuses(data,siteId=null){
 
 export function deductStock(data,{code,qty,sourceKey='AUTO',siteId=null}){
   qty=n(qty); if(qty<=0)return {ok:false,message:'Cantidad inválida',allocations:[]};
+  if(!siteId)return {ok:false,message:'Selecciona un centro de origen válido para descontar stock.',allocations:[]};
   const available=availableFrom(data,code,sourceKey,siteId);
   if(available<qty)return {ok:false,message:`Existencia insuficiente. Disponible: ${available}`,allocations:[]};
   let need=qty; const allocations=[];
@@ -61,6 +62,9 @@ export function deductStock(data,{code,qty,sourceKey='AUTO',siteId=null}){
 export function addStock(data,{code,qty,locationId,palletId=null}){
   qty=n(qty); if(qty<=0)return {ok:false,message:'Cantidad inválida'};
   const siteId=(data.locations||[]).find(l=>l.id===locationId)?.siteId||(data.pallets||[]).find(p=>p.id===palletId)?.siteId||null;
+  if(!siteId)return {ok:false,message:'La ubicación o pallet de destino no pertenece a un centro válido.'};
+  const pallet=(data.pallets||[]).find(p=>p.id===palletId);
+  if(palletId&&(!pallet||pallet.siteId!==siteId||pallet.locationId!==locationId))return {ok:false,message:'El pallet y la ubicación de destino no corresponden al mismo centro.'};
   let target=(data.inventory||[]).find(i=>String(i.productCode)===String(code)&&i.locationId===locationId&&(i.palletId||null)===(palletId||null));
   const before=target?n(target.qty):0;
   if(target){target.qty=before+qty;if(siteId)target.siteId=siteId;}
@@ -69,8 +73,12 @@ export function addStock(data,{code,qty,locationId,palletId=null}){
   return {ok:true,beforeQty:before,afterQty:before+qty,inventoryId:target.id};
 }
 
-export function moveStock(data,{code,qty,sourceKey,destinationLocationId,destinationPalletId=null}){
-  const deducted=deductStock(data,{code,qty,sourceKey}); if(!deducted.ok)return deducted;
+export function moveStock(data,{code,qty,sourceKey,siteId,destinationLocationId,destinationPalletId=null}){
+  const destinationSite=(data.locations||[]).find(l=>l.id===destinationLocationId)?.siteId;
+  if(!siteId||destinationSite!==siteId)return {ok:false,message:'El movimiento debe permanecer en el mismo centro. Usa el flujo de traspasos para otro centro.'};
+  const snapshot=structuredClone(data.inventory||[]);
+  const deducted=deductStock(data,{code,qty,sourceKey,siteId}); if(!deducted.ok)return deducted;
   const added=addStock(data,{code,qty,locationId:destinationLocationId,palletId:destinationPalletId});
+  if(!added.ok){data.inventory=snapshot;refreshInventoryStatuses(data,siteId);return added;}
   return {...deducted,added};
 }

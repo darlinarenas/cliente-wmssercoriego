@@ -33,7 +33,7 @@ export function activeSiteId(state=store.data){
   const sites=state.sites||[],user=(state.users||[]).find(u=>u.id===state.session?.userId),stored=typeof localStorage!=='undefined'?localStorage.getItem('serco_wms_active_site'):'',requested=stored||state.session?.activeSiteId,company=activeCompanyId(state);
   if(requested&&sites.some(s=>s.id===requested&&s.active!==false&&siteCompanyId(s,state)===company)&&(user?.role==='ADMIN_GLOBAL'||!(user?.siteIds||[]).length||(user.siteIds||[]).includes(requested)))return requested;
   const firstAllowed=(user?.siteIds||[]).find(id=>sites.some(s=>s.id===id&&s.active!==false&&siteCompanyId(s,state)===company));
-  return firstAllowed||sites.find(s=>s.id==='REC'&&s.active!==false&&siteCompanyId(s,state)===company)?.id||sites.find(s=>s.active!==false&&siteCompanyId(s,state)===company)?.id||sites[0]?.id||'REC';
+  return firstAllowed||sites.find(s=>s.id==='REC'&&s.active!==false&&siteCompanyId(s,state)===company)?.id||sites.find(s=>s.active!==false&&siteCompanyId(s,state)===company)?.id||null;
 }
 export function stockSitesOrdered(productCode,state=store.data){
   const active=activeSiteId(state),company=activeCompanyId(state),by=stockBySite(productCode,state),sites=state.sites||[];

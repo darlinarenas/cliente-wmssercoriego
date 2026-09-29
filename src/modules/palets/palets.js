@@ -247,9 +247,10 @@ async function moverDesdePalet({palletId,code,qty,codigoManual='',selectValue=''
   const dest=resolverDestino(code,palletId,codigoManual,selectValue), error=validarDestino(code,palletId,dest);if(error)return {ok:false,message:error};
   const {to,destPallet,location}=dest, now=new Date().toISOString();
   await store.commit(d=>{
-    const result=deductStock(d,{code,qty,sourceKey:`${sourceRows[0].locationId}@@${palletId}`});
+    const result=deductStock(d,{code,qty,sourceKey:`${sourceRows[0].locationId}@@${palletId}`,siteId:site});
     if(!result.ok)throw new Error(result.message);
     const added=addStock(d,{code,qty,locationId:to,palletId:destPallet});
+    if(!added.ok)throw new Error(added.message);
     d.movements.unshift({id:`MOV-${Date.now()}`,siteId:activeSiteId(d),type:'MOVIMIENTO_DESDE_PALET',productCode:code,qty,from:`${palletId} / ${palletBefore?.locationId||'POR UBICAR'}`,to:destPallet?`${destPallet} / ${to}`:to,reason:destPallet?'Consolidación / reposición desde palet':'Ubicación desde palet por doble escaneo',userId:d.session.userId,palletId,at:now,method:codigoManual?'ESCANEO_O_CODIGO':'SELECCION_MANUAL',beforeQty:available,afterQty:available-qty,destinationBeforeQty:added.beforeQty,destinationAfterQty:added.afterQty,allocations:result.allocations});
     const pal=d.pallets.find(x=>x.id===palletId), remains=d.inventory.some(i=>i.palletId===palletId&&i.qty>0);if(pal)pal.status=remains?'POR_UBICAR':'VACÍO';if(!remains){const task=(d.tasks||[]).find(t=>t.type==='UBICAR_CARGA'&&t.palletId===palletId&&t.status!=='CERRADA'),closedAt=new Date().toISOString();if(task){task.status='CERRADA';task.closedAt=closedAt;task.closedBy=d.session.userId;task.events=task.events||[];task.events.push({at:closedAt,userId:d.session.userId,message:'Todos los productos del pallet fueron ubicados'});const shipment=(d.shipments||[]).find(s=>s.id===task.shipmentId);if(shipment){shipment.status='CERRADA';shipment.closedAt=closedAt;shipment.events=shipment.events||[];shipment.events.push({at:closedAt,userId:d.session.userId,message:'Ubicación de la carga completada'});}}}
   },`${code}: ${qty} un. descontadas de ${palletId} y sumadas a ${to}`,{operations:['palletsOperate']});
