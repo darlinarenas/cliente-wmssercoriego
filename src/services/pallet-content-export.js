@@ -44,16 +44,16 @@ const pdfText=v=>String(v??'').replace(/[\u2018\u2019]/g,"'").replace(/[\u201c\u
 const pdfBytes=v=>{const out=[];for(const ch of String(v??'')){const cp=ch.codePointAt(0);out.push(cp===0x20ac?128:cp<=255?cp:63);}return out;};
 const pdfLiteral=v=>'('+pdfText(v).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)')+')';
 function createContentPdf(snapshot,type){
- const width=842,height=595,left=35,top=height-38,bottom=35;
- const columns=[35,160,290,380,755],limits=[20,20,14,54,12];
+ const width=595,height=842,left=35,top=height-38,bottom=35;
+ const columns=[35,126,218,288,528],limits=[14,14,11,38,9];
  const label=type==='rack'?'RACKS':'PALLETS';
  const rows=snapshot.rows.length?snapshot.rows.map(r=>[r.pallet,r.location,r.code,r.name,String(r.qty)]):[['Sin existencias registradas','','','','']];
  const pages=[];let commands=[],y=top;
  const line=(parts,yy,size=9,bold=false)=>{commands.push(`BT /${bold?'F2':'F1'} ${size} Tf 1 0 0 1 ${left} ${yy} Tm ${pdfLiteral(parts)} Tj ET`);};
  const cell=(value,x,yy,max,size=8,bold=false)=>{const str=pdfText(value);const cut=str.length>max?str.slice(0,max-3)+'...':str;commands.push(`BT /${bold?'F2':'F1'} ${size} Tf 1 0 0 1 ${x} ${yy} Tm ${pdfLiteral(cut)} Tj ET`);};
- const header=()=>{line(`CONTENIDO DE ${label} - STOCK REGISTRADO EN WMS`,y,14,true);y-=20;line(`Empresa: ${snapshot.company}    Centro: ${snapshot.center}`,y,9);y-=14;line(`Generado: ${snapshot.generated}    ${label}: ${snapshot.pallets.length}    Total unidades: ${snapshot.total}`,y,9);y-=24;commands.push(`0.9 g ${left-3} ${y-6} 778 19 re f 0 g`);['Pallet / Rack','Ubicacion','SKU','Descripcion','Cantidad'].forEach((h,i)=>cell(h,columns[i],y,limits[i],9,true));y-=19;};
+ const header=()=>{line(`CONTENIDO DE ${label} - STOCK REGISTRADO EN WMS`,y,14,true);y-=20;line(`Empresa: ${snapshot.company}    Centro: ${snapshot.center}`,y,9);y-=14;line(`Generado: ${snapshot.generated}    ${label}: ${snapshot.pallets.length}    Total unidades: ${snapshot.total}`,y,9);y-=24;commands.push(`0.9 g ${left-3} ${y-6} 532 19 re f 0 g`);['Pallet / Rack','Ubicacion','SKU','Descripcion','Cantidad'].forEach((h,i)=>cell(h,columns[i],y,limits[i],9,true));y-=19;};
  header();
- for(const r of rows){if(y<bottom+20){pages.push(commands.join('\n'));commands=[];y=top;header();}r.forEach((v,i)=>cell(v,columns[i],y,limits[i]));commands.push(`0.8 G ${left-3} ${y-5} m 813 ${y-5} l S 0 G`);y-=15;}
+ for(const r of rows){if(y<bottom+20){pages.push(commands.join('\n'));commands=[];y=top;header();}r.forEach((v,i)=>cell(v,columns[i],y,limits[i]));commands.push(`0.8 G ${left-3} ${y-5} m 560 ${y-5} l S 0 G`);y-=15;}
  pages.push(commands.join('\n'));
  const objects=[null],add=x=>(objects.push(x),objects.length-1);
  const catalog=add(''),pageRoot=add(''),font=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'),bold=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
