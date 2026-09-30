@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.27-product-images-v233';
+const APP_VERSION = '2026.09.30-export-pdf-pwa-v234';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
@@ -68,6 +68,7 @@ const PRECACHE = [
   './src/services/ubicaciones.js',
   './src/services/inventory-ops.js',
   './src/services/pallet-ops.js',
+  './src/services/pallet-content-export.js',
   './src/services/initial-stock-session.js',
   './src/services/access-routing.js',
   './assets/sounds/scan-no-encontrado.wav',

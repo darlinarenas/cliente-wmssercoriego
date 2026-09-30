@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.09.24-khal-print-v21-v217';
+const PWA_RELEASE = '2026.09.30-export-pdf-pwa-v234';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
