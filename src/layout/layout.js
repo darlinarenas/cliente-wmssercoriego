@@ -20,9 +20,9 @@ const nav=[
  {id:'inventario',label:'Inventario',ico:'☷',items:[['inventarios','Inventarios','☷'],['conciliacion-inventarios','Conciliación de inventarios','✓']]},
  {id:'organizar',label:'Organizar productos',ico:'↔',items:[['organizar-recibidos','Organizar productos recibidos','↔'],['tareas-ubicacion','Tareas de ubicación','✓'],['palets','Organizar palets','▣'],['movimientos','Mover / reubicar','↔']]},
  {id:'etiquetas-grupo',label:'Etiquetas',ico:'▤',items:[['etiquetas-productos','Productos','◫'],['etiquetas-racks','Racks','▦'],['etiquetas-pallets','Pallets','▣']]},
- {id:'estructura-bodega',label:'Estructura de bodega',ico:'▦',items:[['productos','Productos','◫'],['racks','Racks','▦'],['mapa3d','Mapa 3D','◈']]},
+ {id:'estructura-bodega',label:'Estructura de bodega',ico:'▦',items:[['productos','Productos','◫'],['racks','Racks','▦'],['mapa3d','Mapa 3D','◈'],['estructura','Configurar estructura','⚙']]},
  {id:'control',label:'Control y trazabilidad',ico:'◷',items:[['conciliacion','Conciliación ERP','≋'],['historial','Historial','◷']]},
- {id:'administracion',label:'Administración',ico:'⚙',items:[['importar','Importar Excel','⇧'],['centros','Centros y Sucursales','⌂'],['usuarios','Usuarios','♙'],['estructura','Configurar estructura','⚙']]}
+ {id:'administracion',label:'Administración',ico:'⚙',items:[['importar','Importar Excel','⇧'],['centros','Centros y Sucursales','⌂'],['usuarios','Usuarios','♙']]}
 ];
 
 let navOrderAlertTimer=null;
