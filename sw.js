@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.01-khal-stock-alerts-v237';
+const APP_VERSION = '2026.10.01-khal-stock-alert-cards-v238';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
