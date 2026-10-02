@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.30-khal-pallet-selector-v236';
+const APP_VERSION = '2026.10.01-khal-stock-alerts-v237';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
@@ -27,6 +27,7 @@ const PRECACHE = [
   './src/data/seed.js',
   './src/layout/layout.js',
   './src/modules/auxiliares/auxiliares.js',
+  './src/modules/alertas-stock/alertas-stock.js',
   './src/modules/busqueda/busqueda.js',
   './src/modules/despachos/despachos.js',
   './src/modules/estructura/estructura.js',
