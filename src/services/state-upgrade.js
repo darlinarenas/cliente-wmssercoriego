@@ -1,6 +1,5 @@
 function rackNumber(r){return Number(String(r.rackCode||r.id||'').replace(/\D/g,''))||0;}
 function defaultLevelPositions(r,level){const n=rackNumber(r);return r.siteId==='REC'&&n>=1&&n<=5&&(level===2||level===3)?['A','B']:[''];}
-function moduleLevels(r,module){const n=Number(r.moduleLevels?.[String(module)]);return Number.isInteger(n)&&n>0?n:Number(r.levels||0);}
 function locationUsed(data,id){return (data.inventory||[]).some(i=>i.locationId===id&&Number(i.qty)>0)||(data.pallets||[]).some(p=>p.locationId===id&&p.status!=='CERRADO');}
 
 export function upgradeState(data){
@@ -25,7 +24,6 @@ if(!data.session.activeSiteId){const u=(data.users||[]).find(x=>x.id===data.sess
      changed=true;
    }
    if(!r.moduleLevelPositions||typeof r.moduleLevelPositions!=='object'){r.moduleLevelPositions={};changed=true;}
-   if(!r.moduleLevels||typeof r.moduleLevels!=='object'){r.moduleLevels={};changed=true;}
  }
 
  // Compatibilidad con la estructura aprobada: Racks 1–5, niveles 2 y 3, posiciones A/B.
@@ -33,7 +31,6 @@ if(!data.session.activeSiteId){const u=(data.users||[]).find(x=>x.id===data.sess
    const n=rackNumber(r);if(n<1||n>5||r.siteId!=='REC')continue;
    const rc=r.rackCode||`R${n}`;
    for(let m=1;m<=Number(r.modules||6);m++)for(const level of [2,3]){
-     if(level>moduleLevels(r,m))continue;
      const legacy=`REC-${rc}-M${m}-N${level}`;
      const legacyLoc=(data.locations||[]).find(l=>l.id===legacy);
      if(legacyLoc&&legacyLoc.active&&!locationUsed(data,legacy)){legacyLoc.active=false;changed=true;}

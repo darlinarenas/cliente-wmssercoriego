@@ -25,22 +25,14 @@ function positionId(r,module,level,position=''){
   const base=`${r.siteId}-${rackCode(r)}-M${module}-N${level}`;
   return position?`${base}-${position}`:base;
 }
-function moduleLevels(r,module){
-  const configured=Number(r.moduleLevels?.[String(module)]);
-  return Number.isInteger(configured)&&configured>0?configured:Number(r.levels||0);
-}
-function rackLevelsLabel(r){
-  const values=Array.from({length:Number(r.modules||0)},(_,i)=>moduleLevels(r,i+1));
-  return new Set(values).size>1?`Variable · máx. ${Math.max(0,...values)}`:String(values[0]??r.levels??'—');
-}
-
 function rackRows(site){
   const list=racksFor(site);
-  return list.length?list.map(r=>`<div class="structure-row"><div><b>${esc(r.name)}</b><small>${esc(r.usage||'Sin descripción')}</small></div><div>${r.modules??'—'}</div><div>${esc(rackLevelsLabel(r))}</div><div>${store.data.locations.filter(l=>l.rackId===r.id&&l.active).length}</div><div>${badge(String(r.status||'ACTIVO').replace('_',' '),r.status==='INACTIVO'?'warn':'ok')}</div><div class="structure-actions"><button class="secondary small view-rack-map" data-id="${esc(r.id)}">Ver mapa</button><button class="ghost small edit-rack" data-id="${esc(r.id)}">Editar</button></div></div>`).join(''):empty('Sin racks configurados','Crea el primer rack de este centro cuando corresponda.');
+  return list.length?list.map(r=>`<div class="structure-row"><div><b>${esc(r.name)}</b><small>${esc(r.usage||'Sin descripción')}</small></div><div>${r.modules??'—'}</div><div>${r.levels??'—'}</div><div>${store.data.locations.filter(l=>l.rackId===r.id&&l.active).length}</div><div>${badge(String(r.status||'ACTIVO').replace('_',' '),r.status==='INACTIVO'?'warn':'ok')}</div><div class="structure-actions"><button class="secondary small view-rack-map" data-id="${esc(r.id)}">Ver mapa</button><button class="ghost small edit-rack" data-id="${esc(r.id)}">Editar</button></div></div>`).join(''):empty('Sin racks configurados','Crea el primer rack de este centro cuando corresponda.');
 }
 function rackMapHtml(r){
   const mods=Array.from({length:Number(r.modules||0)},(_,i)=>i+1);
-  return `<section class="panel rack-ab-panel"><div class="panel-head"><div><span class="eyebrow">MAPA DE POSICIONES</span><h3>${esc(r.name)}</h3><small>Distribución física configurable por nivel. El Nivel 1 se muestra abajo.</small></div><button id="close-rack-map" class="ghost">Cerrar</button></div><div class="rack-ab-grid">${mods.map(m=>{const levels=Array.from({length:moduleLevels(r,m)},(_,i)=>moduleLevels(r,m)-i);return `<div class="rack-module-map editable-module" data-module="${m}"><div class="rack-module-head"><b>Módulo ${m} · ${moduleLevels(r,m)} niveles</b><button type="button" class="ghost small edit-module-layout" data-module="${m}">Editar</button></div>${levels.map(n=>{const positions=levelPositions(r,n,m);return `<div class="rack-level-map"><span>Nivel ${n}</span><div class="rack-position-list">${positions.map(pos=>{const id=positionId(r,m,n,pos),loc=store.data.locations.find(l=>l.id===id),pal=(store.data.pallets||[]).find(p=>p.locationId===id&&p.status!=='CERRADO'),label=pos||loc?.position||'Única';return `<button type="button" class="position-chip ${!pos?'single':''} ${pal?'occupied':''}" title="${esc(id)}"><b>${esc(label)}</b><small>${pal?esc(pal.id):(pos?'Libre':esc(id))}</small></button>`;}).join('')}</div></div>`;}).join('')}</div>`}).join('')}</div></section>`;
+  const levels=Array.from({length:Number(r.levels||0)},(_,i)=>Number(r.levels)-i);
+  return `<section class="panel rack-ab-panel"><div class="panel-head"><div><span class="eyebrow">MAPA DE POSICIONES</span><h3>${esc(r.name)}</h3><small>Distribución física configurable por nivel. El Nivel 1 se muestra abajo.</small></div><button id="close-rack-map" class="ghost">Cerrar</button></div><div class="rack-ab-grid">${mods.map(m=>`<div class="rack-module-map editable-module" data-module="${m}"><div class="rack-module-head"><b>Módulo ${m}</b><button type="button" class="ghost small edit-module-layout" data-module="${m}">Editar</button></div>${levels.map(n=>{const positions=levelPositions(r,n,m);return `<div class="rack-level-map"><span>Nivel ${n}</span><div class="rack-position-list">${positions.map(pos=>{const id=positionId(r,m,n,pos),loc=store.data.locations.find(l=>l.id===id),pal=(store.data.pallets||[]).find(p=>p.locationId===id&&p.status!=='CERRADO'),label=pos||loc?.position||'Única';return `<button type="button" class="position-chip ${!pos?'single':''} ${pal?'occupied':''}" title="${esc(id)}"><b>${esc(label)}</b><small>${pal?esc(pal.id):(pos?'Libre':esc(id))}</small></button>`;}).join('')}</div></div>`;}).join('')}</div>`).join('')}</div></section>`;
 }
 function demoCode(site){
   const demo={siteId:site,rackId:'DEMO-R1',rackCode:'R1',module:3,level:2,position:'A',scanCode:''};
@@ -75,12 +67,12 @@ function effectivePositions(r,module,level,baseLayout=r.levelPositions||{}){
 }
 function plannedSlotsForRack(r){
   let total=0;
-  for(let m=1;m<=Number(r.modules||0);m++)for(let n=1;n<=moduleLevels(r,m);n++)total+=effectivePositions(r,m,n).length;
+  for(let m=1;m<=Number(r.modules||0);m++)for(let n=1;n<=Number(r.levels||0);n++)total+=effectivePositions(r,m,n).length;
   return total;
 }
 function desiredLocationIds(r){
   const ids=new Set();
-  for(let m=1;m<=Number(r.modules||0);m++)for(let n=1;n<=moduleLevels(r,m);n++)for(const pos of effectivePositions(r,m,n))ids.add(positionId(r,m,n,pos));
+  for(let m=1;m<=Number(r.modules||0);m++)for(let n=1;n<=Number(r.levels||0);n++)for(const pos of effectivePositions(r,m,n))ids.add(positionId(r,m,n,pos));
   return ids;
 }
 function obsoleteOccupiedLocations(r){
@@ -100,7 +92,7 @@ function syncLocations(d,r){
     }
   }
   const rn=rackNumber(r);
-  for(let m=1;m<=r.modules;m++)for(let n=1;n<=moduleLevels(r,m);n++)for(const pos of effectivePositions(r,m,n)){
+  for(let m=1;m<=r.modules;m++)for(let n=1;n<=r.levels;n++)for(const pos of effectivePositions(r,m,n)){
     const id=positionId(r,m,n,pos),existing=d.locations.find(l=>l.id===id);
     const storageMode=pos?'SUBPOSITION_CONTAINER':'FULL_POSITION_CONTAINER';
     const notes=pos?'Subposición contenedora multiproducto independiente.':'Posición completa contenedora multiproducto.';
@@ -155,7 +147,7 @@ function showRackFeedback(message,type='error',target='#rack-feedback'){
 
 export function renderStructure(root){
   const sid=siteId(),site=store.data.sites.find(s=>s.id===sid)||store.data.sites[0],format=store.data.settings?.locationCodeFormat||FORMATO_UBICACION_PREDETERMINADO;
-  root.innerHTML=shell('Estructura',`<div class="page-intro"><div><span class="eyebrow">ESTRUCTURA POR CENTRO</span><h2>${esc(site?.name||sid)}</h2><p>Cada bodega o tienda organiza sus propias ubicaciones. Esta pantalla solo permite ver y modificar el centro activo.</p></div><div class="inline-site-select"><small>Centro activo</small><b>${esc(site?.name||sid)}</b></div></div><section class="panel"><div class="panel-head"><div><h3>Códigos físicos</h3><small>Ejemplo con posición A/B: <b id="location-preview"></b></small></div></div><div class="form-grid"><label>Formato<input id="location-format" value="${esc(format)}"><small>Variables: {SEDE}, {RACK}, {MODULO}, {NIVEL}, opcional {POSICION}</small></label></div><div class="dialog-actions"><button id="save-location-format" class="primary">Guardar formato</button></div></section><section class="panel"><div class="panel-head"><div><h3>Racks · ${esc(site?.name||sid)}</h3><small>Cada rack puede tener una distribución distinta de posiciones por nivel.</small></div><button id="new-rack" class="primary">+ Nuevo rack</button></div><div class="structure-table"><div class="structure-row head"><div>Rack</div><div>Módulos</div><div>Niveles</div><div>Ubic.</div><div>Estado</div><div></div></div>${rackRows(sid)}</div></section><div id="rack-map-detail"></div><dialog id="rack-dialog"><form id="rack-form"><div class="dialog-head"><h3>Configurar rack</h3><button type="button" id="close-rack" class="ghost">×</button></div><input type="hidden" id="rack-id"><label>Nombre<input id="rack-name" required></label><div class="form-grid"><label>Módulos<input id="rack-modules" type="number" min="1" max="100" required></label><label>Niveles<input id="rack-levels" type="number" min="1" max="20" required></label></div><label>Uso / descripción<input id="rack-usage"></label><label>Estado<select id="rack-status"><option>ACTIVO</option><option>EN_CONSTRUCCION</option><option>INACTIVO</option></select></label><div class="rack-layout-editor"><b>Modo de almacenamiento por nivel</b><small>Elige “Posición completa” para usar una ubicación multiproducto, o “Subdividida” para crear A/B/C/etc.; cada subposición funciona como un contenedor independiente.</small><div id="rack-level-layout"></div></div><div class="warning-box">Las ubicaciones con stock o pallets nunca se eliminan automáticamente. Al cambiar la distribución, las ubicaciones vacías que ya no correspondan quedan inactivas.</div><div id="rack-feedback" class="rack-feedback"></div><div class="dialog-actions rack-dialog-actions"><button type="button" id="delete-rack" class="danger-action" hidden>Eliminar rack</button><span class="dialog-actions-spacer"></span><button type="button" id="cancel-rack" class="ghost">Cancelar</button><button type="submit" class="primary">Guardar y generar</button></div></form></dialog><dialog id="module-dialog"><form id="module-form"><div class="dialog-head"><div><h3 id="module-dialog-title">Editar módulo</h3><small>Esta configuración reemplaza la distribución general solo para este módulo.</small></div><button type="button" id="close-module-dialog" class="ghost">×</button></div><input type="hidden" id="module-number"><label>Niveles de este módulo<input id="module-levels" type="number" min="1" max="20" required><small>Por defecto usa los niveles generales del rack. Puedes cambiar solo este módulo.</small></label><div class="rack-layout-editor"><b>Modo de almacenamiento por nivel</b><small>Esta selección solo afecta al módulo actual. Tanto la posición completa como cada subposición pueden contener múltiples SKU.</small><div id="module-level-layout"></div></div><div class="warning-box">Si una posición que quieres quitar contiene stock o un pallet, el sistema no permitirá guardarlo y te indicará cuál debes vaciar primero.</div><div id="module-feedback" class="rack-feedback"></div><div class="dialog-actions"><button type="button" id="reset-module-layout" class="ghost">Usar distribución general</button><button type="button" id="cancel-module-dialog" class="ghost">Cancelar</button><button type="submit" class="primary">Guardar módulo</button></div></form></dialog>`,'estructura');
+  root.innerHTML=shell('Estructura',`<div class="page-intro"><div><span class="eyebrow">ESTRUCTURA POR CENTRO</span><h2>${esc(site?.name||sid)}</h2><p>Cada bodega o tienda organiza sus propias ubicaciones. Esta pantalla solo permite ver y modificar el centro activo.</p></div><div class="inline-site-select"><small>Centro activo</small><b>${esc(site?.name||sid)}</b></div></div><section class="panel"><div class="panel-head"><div><h3>Códigos físicos</h3><small>Ejemplo con posición A/B: <b id="location-preview"></b></small></div></div><div class="form-grid"><label>Formato<input id="location-format" value="${esc(format)}"><small>Variables: {SEDE}, {RACK}, {MODULO}, {NIVEL}, opcional {POSICION}</small></label></div><div class="dialog-actions"><button id="save-location-format" class="primary">Guardar formato</button></div></section><section class="panel"><div class="panel-head"><div><h3>Racks · ${esc(site?.name||sid)}</h3><small>Cada rack puede tener una distribución distinta de posiciones por nivel.</small></div><button id="new-rack" class="primary">+ Nuevo rack</button></div><div class="structure-table"><div class="structure-row head"><div>Rack</div><div>Módulos</div><div>Niveles</div><div>Ubic.</div><div>Estado</div><div></div></div>${rackRows(sid)}</div></section><div id="rack-map-detail"></div><dialog id="rack-dialog"><form id="rack-form"><div class="dialog-head"><h3>Configurar rack</h3><button type="button" id="close-rack" class="ghost">×</button></div><input type="hidden" id="rack-id"><label>Nombre<input id="rack-name" required></label><div class="form-grid"><label>Módulos<input id="rack-modules" type="number" min="1" max="100" required></label><label>Niveles<input id="rack-levels" type="number" min="1" max="20" required></label></div><label>Uso / descripción<input id="rack-usage"></label><label>Estado<select id="rack-status"><option>ACTIVO</option><option>EN_CONSTRUCCION</option><option>INACTIVO</option></select></label><div class="rack-layout-editor"><b>Modo de almacenamiento por nivel</b><small>Elige “Posición completa” para usar una ubicación multiproducto, o “Subdividida” para crear A/B/C/etc.; cada subposición funciona como un contenedor independiente.</small><div id="rack-level-layout"></div></div><div class="warning-box">Las ubicaciones con stock o pallets nunca se eliminan automáticamente. Al cambiar la distribución, las ubicaciones vacías que ya no correspondan quedan inactivas.</div><div id="rack-feedback" class="rack-feedback"></div><div class="dialog-actions rack-dialog-actions"><button type="button" id="delete-rack" class="danger-action" hidden>Eliminar rack</button><span class="dialog-actions-spacer"></span><button type="button" id="cancel-rack" class="ghost">Cancelar</button><button type="submit" class="primary">Guardar y generar</button></div></form></dialog><dialog id="module-dialog"><form id="module-form"><div class="dialog-head"><div><h3 id="module-dialog-title">Editar módulo</h3><small>Esta configuración reemplaza la distribución general solo para este módulo.</small></div><button type="button" id="close-module-dialog" class="ghost">×</button></div><input type="hidden" id="module-number"><div class="rack-layout-editor"><b>Modo de almacenamiento por nivel</b><small>Esta selección solo afecta al módulo actual. Tanto la posición completa como cada subposición pueden contener múltiples SKU.</small><div id="module-level-layout"></div></div><div class="warning-box">Si una posición que quieres quitar contiene stock o un pallet, el sistema no permitirá guardarlo y te indicará cuál debes vaciar primero.</div><div id="module-feedback" class="rack-feedback"></div><div class="dialog-actions"><button type="button" id="reset-module-layout" class="ghost">Usar distribución general</button><button type="button" id="cancel-module-dialog" class="ghost">Cancelar</button><button type="submit" class="primary">Guardar módulo</button></div></form></dialog>`,'estructura');
   wireShell();
 
   const fmt=document.querySelector('#location-format'),preview=document.querySelector('#location-preview');
@@ -191,9 +183,7 @@ export function renderStructure(root){
     document.querySelector('#module-number').value=module;
     document.querySelector('#module-dialog-title').textContent=`${r.name} · Módulo ${module}`;
     document.querySelector('#module-feedback').className='rack-feedback';
-    const levels=moduleLevels(r,module);
-    document.querySelector('#module-levels').value=levels;
-    renderModuleLevelEditor(r,module,levels);
+    renderModuleLevelEditor(r,module,Number(r.levels||0));
     moduleDlg.showModal();
   };
   const requestedRack=new URLSearchParams(location.hash.split('?')[1]||'').get('rack');
@@ -201,29 +191,27 @@ export function renderStructure(root){
     const button=[...document.querySelectorAll('.view-rack-map')].find(b=>b.dataset.id===requestedRack);
     button?.click();
   }
-  document.querySelector('#module-levels').onchange=e=>{if(activeMapRack)renderModuleLevelEditor(activeMapRack,Number(document.querySelector('#module-number').value),Math.max(1,Number(e.target.value)||1));};
   document.querySelector('#close-module-dialog').onclick=()=>moduleDlg.close();
   document.querySelector('#cancel-module-dialog').onclick=()=>moduleDlg.close();
   document.querySelector('#reset-module-layout').onclick=async()=>{
     if(!activeMapRack)return;
     const module=Number(document.querySelector('#module-number').value);
-    const probe={...activeMapRack,moduleLevelPositions:{...(activeMapRack.moduleLevelPositions||{})},moduleLevels:{...(activeMapRack.moduleLevels||{})}};
+    const probe={...activeMapRack,moduleLevelPositions:{...(activeMapRack.moduleLevelPositions||{})}};
     delete probe.moduleLevelPositions[String(module)];
-    delete probe.moduleLevels[String(module)];
     const occupied=obsoleteOccupiedLocations(probe);
     if(occupied.length){showRackFeedback(`No se puede restablecer el módulo: ${occupied[0].id} contiene stock o un pallet. Muévelo primero y vuelve a intentarlo.`,'error','#module-feedback');return;}
-    await store.commit(d=>{const r=d.racks.find(x=>x.id===activeMapRack.id);if(!r)return;r.containerStorageEnabled=true;r.moduleLevelPositions={...(r.moduleLevelPositions||{})};r.moduleLevels={...(r.moduleLevels||{})};delete r.moduleLevelPositions[String(module)];delete r.moduleLevels[String(module)];r.plannedSlots=plannedSlotsForRack(r);syncLocations(d,r);recalcularCodigosEscaneables(d);},`Módulo ${module} de ${activeMapRack.rackCode||activeMapRack.id} restablecido`);
+    await store.commit(d=>{const r=d.racks.find(x=>x.id===activeMapRack.id);if(!r)return;r.containerStorageEnabled=true;r.moduleLevelPositions={...(r.moduleLevelPositions||{})};delete r.moduleLevelPositions[String(module)];r.plannedSlots=plannedSlotsForRack(r);syncLocations(d,r);recalcularCodigosEscaneables(d);},`Módulo ${module} de ${activeMapRack.rackCode||activeMapRack.id} restablecido`);
     moduleDlg.close();renderStructure(root);toast(`Módulo ${module} restablecido a la distribución general.`);
   };
   document.querySelector('#module-form').onsubmit=async e=>{
     e.preventDefault();
     if(!activeMapRack)return;
-    const module=Number(document.querySelector('#module-number').value),levels=Math.max(1,Number(document.querySelector('#module-levels').value)||1),layout=moduleLayoutFromDialog(levels);
+    const module=Number(document.querySelector('#module-number').value),layout=moduleLayoutFromDialog(Number(activeMapRack.levels||0));
     if(!layout){showRackFeedback('Revisa las posiciones. Usa “Única” sola o valores separados por coma, por ejemplo A, B, C.','error','#module-feedback');return;}
-    const probe={...activeMapRack,moduleLevels:{...(activeMapRack.moduleLevels||{}),[String(module)]:levels},moduleLevelPositions:{...(activeMapRack.moduleLevelPositions||{}),[String(module)]:layout}};
+    const probe={...activeMapRack,moduleLevelPositions:{...(activeMapRack.moduleLevelPositions||{}),[String(module)]:layout}};
     const occupied=obsoleteOccupiedLocations(probe);
     if(occupied.length){showRackFeedback(`No se puede guardar: ${occupied[0].id} contiene stock o un pallet. Muévelo primero desde Mover/Reubicar y vuelve a intentarlo.`,'error','#module-feedback');return;}
-    await store.commit(d=>{const r=d.racks.find(x=>x.id===activeMapRack.id);if(!r)return;r.containerStorageEnabled=true;r.moduleLevels={...(r.moduleLevels||{}),[String(module)]:levels};r.moduleLevelPositions={...(r.moduleLevelPositions||{}),[String(module)]:layout};r.plannedSlots=plannedSlotsForRack(r);syncLocations(d,r);recalcularCodigosEscaneables(d);},`Distribución del módulo ${module} actualizada en ${activeMapRack.rackCode||activeMapRack.id}`);
+    await store.commit(d=>{const r=d.racks.find(x=>x.id===activeMapRack.id);if(!r)return;r.containerStorageEnabled=true;r.moduleLevelPositions={...(r.moduleLevelPositions||{}),[String(module)]:layout};r.plannedSlots=plannedSlotsForRack(r);syncLocations(d,r);recalcularCodigosEscaneables(d);},`Distribución del módulo ${module} actualizada en ${activeMapRack.rackCode||activeMapRack.id}`);
     moduleDlg.close();renderStructure(root);toast(`Módulo ${module} actualizado correctamente.`);
   };
   let editingRack=null;
@@ -288,12 +276,9 @@ export function renderStructure(root){
       if(!r){r={id,siteId:sid,rackCode:rc,sectorId:null};d.racks.push(r);}
       Object.assign(r,{name:document.querySelector('#rack-name').value.trim()||rc,modules,levels,status:document.querySelector('#rack-status').value,usage:document.querySelector('#rack-usage').value.trim(),levelPositions:layout,containerStorageEnabled:true});
       r.moduleLevelPositions=r.moduleLevelPositions||{};
-      r.moduleLevels=r.moduleLevels||{};
-      for(const key of Object.keys(r.moduleLevels))if(Number(key)>modules)delete r.moduleLevels[key];
       for(const key of Object.keys(r.moduleLevelPositions)){
         if(Number(key)>modules){delete r.moduleLevelPositions[key];continue;}
-        const limit=moduleLevels(r,Number(key));
-        for(const levelKey of Object.keys(r.moduleLevelPositions[key]||{}))if(Number(levelKey)>limit)delete r.moduleLevelPositions[key][levelKey];
+        for(const levelKey of Object.keys(r.moduleLevelPositions[key]||{}))if(Number(levelKey)>levels)delete r.moduleLevelPositions[key][levelKey];
       }
       r.plannedSlots=plannedSlotsForRack(r);
       syncLocations(d,r);

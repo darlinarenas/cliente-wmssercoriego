@@ -54,7 +54,7 @@ function rackStatus(rack,siteId){
  return occupied>=Math.max(1,locs.length)?'full':'stock';
 }
 function visualRack(key,rack,slot,siteId,selectedKey,hitKeys,edit){
- const modules=Math.max(1,Number(rack?.modules||1)),moduleLevelValues=Array.from({length:modules},(_,i)=>Number(rack?.moduleLevels?.[String(i+1)]||rack?.levels||1)),levels=Math.max(1,...moduleLevelValues);
+ const modules=Math.max(1,Number(rack?.modules||1)),levels=Math.max(1,Number(rack?.levels||1));
  const baseModules=Math.max(1,Number(slot.baseModules||modules));
  const ratio=Math.max(.65,Math.min(1.55,modules/baseModules));
  const vertical=slot.h>=slot.w;
@@ -72,7 +72,7 @@ function detailsHtml(key,rack,siteId,product){
  const inv=rackInventory(rack,siteId,product?.code||'');
  const total=inv.reduce((a,b)=>a+Number(b.qty||0),0);
  const rows=inv.slice(0,18).map(i=>{const loc=store.data.locations.find(l=>l.id===i.locationId);return `<article><div><b>${esc(vistaCodigoUbicacion(loc||{id:i.locationId},store.data))}</b><small>${i.palletId?`Palet ${esc(i.palletId)}`:'Ubicación directa'}</small></div><strong>${Number(i.qty||0).toLocaleString('es-CL')} un.</strong></article>`}).join('');
- return `<div class="map3d-detail-head"><span>${product?'PRODUCTO LOCALIZADO':'RACK SELECCIONADO'}</span><h3>${esc(key)} · ${esc(rack.name||key)}</h3><small>${rack.modules||0} módulos · ${rack.moduleLevels&&Object.keys(rack.moduleLevels).length?`niveles por módulo (máx. ${Math.max(Number(rack.levels||0),...Object.values(rack.moduleLevels).map(Number))})`:`${rack.levels||0} niveles`} · ${esc(rack.usage||'Sin uso definido')}</small></div>
+ return `<div class="map3d-detail-head"><span>${product?'PRODUCTO LOCALIZADO':'RACK SELECCIONADO'}</span><h3>${esc(key)} · ${esc(rack.name||key)}</h3><small>${rack.modules||0} módulos · ${rack.levels||0} niveles · ${esc(rack.usage||'Sin uso definido')}</small></div>
  ${product?`<div class="map3d-product-card">${productPhotoHtml(product,{className:'map3d-product-photo'})}<span>Código ${esc(product.code)}</span><b>${esc(product.name||product.description||product.code)}</b><small>${esc(product.description||'')}</small><strong>${total.toLocaleString('es-CL')} un. en este rack</strong></div>`:''}
  <div class="map3d-location-list">${rows||`<div class="map3d-detail-empty compact"><b>${product?'Sin stock de este producto aquí':'Rack sin stock localizado'}</b><small>${product?'Prueba otra ubicación resaltada.':'Las ubicaciones aparecerán cuando tengan inventario.'}</small></div>`}</div>
  ${product?`<div class="map3d-detail-actions"><a class="primary" href="#/movimientos?code=${encodeURIComponent(product.code)}">Mover / reubicar</a><a class="ghost" href="#/buscar?code=${encodeURIComponent(product.code)}">Ver producto</a></div>`:''}`;
