@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.01-khal-map-rack-resize-v239';
+const APP_VERSION = '2026.10.01-khal-company-catalog-v240';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

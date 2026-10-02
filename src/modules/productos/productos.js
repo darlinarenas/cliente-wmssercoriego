@@ -41,7 +41,7 @@ function obtenerFiltrados(){
     const coincideTexto=!texto||`${productAliases(p).join(' ')} ${p.name} ${p.description||''} ${p.type||p.family||''} ${p.category||''} ${p.subcategory||''}`.toLowerCase().includes(texto);
     const qtyCentro=stockCentroActivo(p.code);
     const coincideStock=!stockCentro||(stockCentro==='con-stock'?qtyCentro>0:stockCentro==='sin-stock'?qtyCentro<=0:true);
-    const coincideAlcance=alcanceStock==='CENTRO'?qtyCentro>0:alcanceStock==='GLOBAL'?totalProducto(p.code)>0:true;
+    const coincideAlcance=alcanceStock==='GLOBAL'?totalProducto(p.code)>0:true;
     return coincideTexto&&(!rotacion||p.rotation===rotacion)&&(!tipo||(p.type||p.family)===tipo)&&coincideStock&&coincideAlcance;
   });
   lista=[...lista].sort((a,b)=>{
