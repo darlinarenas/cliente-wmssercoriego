@@ -3102,3 +3102,6 @@ dialog.scanner-dialog{
 @media(max-width:760px){.stock-alert-summary{grid-template-columns:1fr 1fr}.stock-alert-summary article:last-child{grid-column:1/-1}.stock-alert-toolbar{grid-template-columns:1fr}.stock-alert-bulk{grid-template-columns:1fr}.stock-alert-actions{width:100%}.stock-alert-actions button{flex:1}.stock-alert-table table{min-width:760px}}
 
 .stock-alert-summary-card{cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}.stock-alert-summary-card:hover,.stock-alert-summary-card:focus-visible{transform:translateY(-2px);box-shadow:0 12px 30px rgba(15,23,42,.10);border-color:#9bc5ca;outline:none}.stock-alert-summary-card:active{transform:translateY(0)}
+
+/* Editor de mapa 3D: ajuste quirúrgico de tamaño de rack (PC) */
+.map3d-size-controls{display:flex;align-items:center;gap:5px;padding-right:5px;border-right:1px solid var(--line)}.map3d-size-controls[hidden]{display:none}.map3d-size-controls>span{min-width:auto;margin-left:5px;font-size:10px;font-weight:900;color:#64748b}.map3d-size-controls>button{min-width:34px;padding-left:9px;padding-right:9px}
