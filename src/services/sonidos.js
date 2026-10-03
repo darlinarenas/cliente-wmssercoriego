@@ -10,8 +10,9 @@ const SONIDOS={
 
 let contexto=null;
 let habilitado=false;
-try{habilitado=sessionStorage.getItem('serco_audio_scanner')==='1';}catch{}
 let modalAbierto=null;
+const buffers=new Map();
+const audios=new Map();
 
 function audioContext(){
   if(contexto)return contexto;
@@ -21,40 +22,68 @@ function audioContext(){
   return contexto;
 }
 
-function tono(tipo){
+function audioPersistente(src){
+  let audio=audios.get(src);
+  if(audio)return audio;
+  audio=new Audio(src);
+  audio.preload='auto';
+  audio.playsInline=true;
+  audio.volume=.9;
+  try{audio.load();}catch{}
+  audios.set(src,audio);
+  return audio;
+}
+
+async function cargarBuffer(src){
+  if(buffers.has(src))return buffers.get(src);
   const ctx=audioContext();
-  if(!ctx||ctx.state!=='running')return false;
-  const ahora=ctx.currentTime;
-  const notas=tipo==='ok'?[[760,0,.16],[1180,.195,.19]]:[[520,0,.12],[330,.18,.18]];
+  if(!ctx)return null;
   try{
-    notas.forEach(([freq,inicio,duracion])=>{
-      const osc=ctx.createOscillator(),gain=ctx.createGain(),t=ahora+inicio;
-      osc.type='sine';osc.frequency.value=freq;
-      gain.gain.setValueAtTime(.0001,t);
-      gain.gain.exponentialRampToValueAtTime(.22,t+.012);
-      gain.gain.setValueAtTime(.22,t+Math.max(.013,duracion-.018));
-      gain.gain.exponentialRampToValueAtTime(.0001,t+duracion);
-      osc.connect(gain);gain.connect(ctx.destination);osc.start(t);osc.stop(t+duracion+.01);
-    });
+    const response=await fetch(src,{cache:'force-cache'});
+    if(!response.ok)throw new Error(`Audio ${response.status}`);
+    const buffer=await ctx.decodeAudioData(await response.arrayBuffer());
+    buffers.set(src,buffer);
+    return buffer;
+  }catch{return null;}
+}
+
+async function reproducirArchivo(src){
+  const ctx=audioContext();
+  try{
+    if(ctx?.state==='suspended')await ctx.resume();
+    const buffer=await cargarBuffer(src);
+    if(ctx&&ctx.state==='running'&&buffer){
+      const source=ctx.createBufferSource();
+      const gain=ctx.createGain();
+      gain.gain.value=.9;
+      source.buffer=buffer;
+      source.connect(gain);gain.connect(ctx.destination);source.start(0);
+      return true;
+    }
+  }catch{}
+  try{
+    const audio=audioPersistente(src);
+    audio.pause();audio.currentTime=0;
+    await audio.play();
     return true;
   }catch{return false;}
 }
 
-async function reproducirWav(src){
-  try{const a=new Audio(src);a.preload='auto';a.volume=.85;await a.play();return true;}catch{return false;}
-}
-
-async function reproducir(tipo){
-  if(tono(tipo))return true;
-  return reproducirWav(tipo==='ok'?SONIDOS.ok:SONIDOS.noEncontrado);
+async function prepararSonidos(){
+  const ctx=audioContext();
+  try{if(ctx?.state==='suspended')await ctx.resume();}catch{}
+  Object.values(SONIDOS).forEach(audioPersistente);
+  await Promise.all(Object.values(SONIDOS).map(cargarBuffer));
+  return Boolean(ctx?.state==='running'||audios.size);
 }
 
 export async function permitirSonidosEscaner(){
-  const ctx=audioContext();
-  try{if(ctx?.state==='suspended')await ctx.resume();}catch{}
-  const ok=await reproducir('ok');
-  habilitado=Boolean(ok || ctx?.state==='running');
-  if(habilitado)sessionStorage.setItem('serco_audio_scanner','1');
+  await prepararSonidos();
+  // La reproducción ocurre dentro del toque del usuario y deja el AudioContext
+  // habilitado para los avisos posteriores en iPhone/Android.
+  const ok=await reproducirArchivo(SONIDOS.ok);
+  habilitado=Boolean(ok||audioContext()?.state==='running');
+  try{if(habilitado)sessionStorage.setItem('serco_audio_scanner','1');}catch{}
   return habilitado;
 }
 
@@ -68,7 +97,7 @@ export async function solicitarPermisoSonidoGlobal(){
     const modal=document.createElement('div');
     modal.id='audio-scanner-permission';
     modal.className='audio-scanner-permission';
-    modal.innerHTML=`<div class="audio-scanner-card" role="dialog" aria-modal="true" aria-labelledby="audio-scanner-title"><button id="audio-scanner-close" class="audio-scanner-close" type="button" aria-label="Cerrar activación de sonido" title="Cerrar">×</button><div class="audio-scanner-icon">🔊</div><h2 id="audio-scanner-title">Activar sonido</h2><p>Activa los avisos sonoros de Khal, incluidas las órdenes asignadas y las órdenes culminadas.</p><button id="audio-scanner-allow" class="primary" type="button">Activar sonido</button><small>Es necesario tocar este botón una vez al abrir Khal en el teléfono para que Android/iPhone permita reproducir los avisos.</small></div>`;
+    modal.innerHTML=`<div class="audio-scanner-card" role="dialog" aria-modal="true" aria-labelledby="audio-scanner-title"><button id="audio-scanner-close" class="audio-scanner-close" type="button" aria-label="Cerrar activación de sonido" title="Cerrar">×</button><div class="audio-scanner-icon">🔊</div><h2 id="audio-scanner-title">Activar sonido</h2><p>Activa los avisos sonoros de Khal, incluidas las órdenes asignadas y las órdenes culminadas.</p><button id="audio-scanner-allow" class="primary" type="button">Activar sonido</button><small>Es necesario tocar este botón al abrir Khal en el teléfono para que Android/iPhone permita reproducir los avisos.</small></div>`;
     document.body.appendChild(modal);
     const btn=modal.querySelector('#audio-scanner-allow');
     const cerrar=modal.querySelector('#audio-scanner-close');
@@ -80,13 +109,12 @@ export async function solicitarPermisoSonidoGlobal(){
       btn.disabled=false;btn.textContent='Activar sonido';
       let error=modal.querySelector('.audio-scanner-error');
       if(!error){error=document.createElement('div');error.className='audio-scanner-error';modal.querySelector('.audio-scanner-card').appendChild(error);}
-      error.textContent='No fue posible activar el sonido. Verifica el modo silencio y vuelve a tocar Permitir sonido.';
+      error.textContent='No fue posible activar el sonido. Verifica el modo silencio y vuelve a tocar Activar sonido.';
     };
   });
   return modalAbierto;
 }
 
-function normalizar(v=''){return String(v).toLowerCase().replace(/[^a-z0-9]/g,'');}
 export function productoExistePorCodigo(valor){
   const codigo=String(valor||'').trim();
   return Boolean(codigo&&resolveProduct(codigo));
@@ -95,8 +123,7 @@ export function sonidoPorCodigo(valor){
   if(!habilitado)return;
   productoExistePorCodigo(valor)?sonidoEscaneoOk():sonidoEscaneoNoEncontrado();
 }
-export function sonidoEscaneoOk(){return reproducir('ok');}
-export function sonidoEscaneoNoEncontrado(){return reproducir('noEncontrado');}
-
-export async function sonidoOrdenAsignada(){if(!habilitado){try{habilitado=sessionStorage.getItem('serco_audio_scanner')==='1';}catch{}}if(!habilitado)return false;const ctx=audioContext();try{if(ctx?.state==='suspended')await ctx.resume();}catch{}return reproducirWav(SONIDOS.ordenAsignada);}
-export async function sonidoOrdenCulminada(){if(!habilitado){try{habilitado=sessionStorage.getItem('serco_audio_scanner')==='1';}catch{}}if(!habilitado)return false;const ctx=audioContext();try{if(ctx?.state==='suspended')await ctx.resume();}catch{}return reproducirWav(SONIDOS.ordenCulminada);}
+export function sonidoEscaneoOk(){return habilitado?reproducirArchivo(SONIDOS.ok):false;}
+export function sonidoEscaneoNoEncontrado(){return habilitado?reproducirArchivo(SONIDOS.noEncontrado):false;}
+export function sonidoOrdenAsignada(){return habilitado?reproducirArchivo(SONIDOS.ordenAsignada):false;}
+export function sonidoOrdenCulminada(){return habilitado?reproducirArchivo(SONIDOS.ordenCulminada):false;}
