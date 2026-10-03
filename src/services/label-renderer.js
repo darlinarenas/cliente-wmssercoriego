@@ -53,6 +53,33 @@ function fitText(ctx,text,maxWidth,startSize,minSize,maxLines=1){
  throw new Error('El texto no cabe en la etiqueta sin recortarlo.');
 }
 
+function fitTextClipped(ctx,text,maxWidth,startSize,minSize,maxLines=2){
+ const value=String(text||'').trim();
+ try{return fitText(ctx,value,maxWidth,startSize,minSize,maxLines);}catch(_){/* Etiqueta pequeña: recorte visual, nunca modifica el nombre maestro. */}
+ ctx.font=`900 ${minSize}px "Arial Black", Arial, sans-serif`;
+ const words=value.split(/\s+/).filter(Boolean),rows=[];let row='';
+ const pushWord=word=>{
+  const next=row?`${row} ${word}`:word;
+  if(ctx.measureText(next).width<=maxWidth){row=next;return true;}
+  if(row){rows.push(row);row='';if(rows.length>=maxLines)return false;}
+  let part='';
+  for(const ch of word){
+   if(ctx.measureText(part+ch).width>maxWidth&&part){rows.push(part);part='';if(rows.length>=maxLines)return false;}
+   part+=ch;
+  }
+  row=part;return rows.length<maxLines;
+ };
+ for(const word of words){if(!pushWord(word))break;}
+ if(row&&rows.length<maxLines)rows.push(row);
+ const consumed=rows.join(' ').replace(/…$/,'').trim();
+ if(consumed.length<value.length&&rows.length){
+  let last=rows.length-1,line=rows[last].replace(/…$/,'').trim();
+  while(line&&ctx.measureText(`${line}…`).width>maxWidth)line=line.slice(0,-1).trimEnd();
+  rows[last]=`${line}…`;
+ }
+ return {size:minSize,rows:rows.slice(0,maxLines)};
+}
+
 function drawCenteredText(ctx,fit,W,y,lineHeight=1.12){
  ctx.font=`900 ${fit.size}px "Arial Black", Arial, sans-serif`;ctx.textAlign='center';ctx.textBaseline='top';
  for(const row of fit.rows){ctx.fillText(row,W/2,y);ctx.fillText(row,W/2+1,y);y+=Math.ceil(fit.size*lineHeight);}
@@ -113,7 +140,7 @@ function renderSmallProduct(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
  const top=Math.max(0,mm(1.4+Number(verticalOffsetMm||0),dpmm));
  const code=String(data.sku||data.code||'').trim(),title=String(data.title||'Producto').trim();
  // CÓDIGO PEQUEÑO 50x29: descripción breve arriba, barras dominante y SKU debajo.
- const name=fitText(ctx,title,usable,mm(3.4,dpmm),mm(2.2,dpmm),2);
+ const name=fitTextClipped(ctx,title,usable,mm(3.4,dpmm),mm(2.2,dpmm),2);
  const caption=fitText(ctx,code,usable,mm(3.2,dpmm),mm(2.3,dpmm),1);
  const geometry=barcodeGeometry(svg,usable,dpi);
  let y=top;
