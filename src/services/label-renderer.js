@@ -108,6 +108,25 @@ function renderProduct(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
  return {top,bottom:y+captionHeight,margin,...bar};
 }
 
+function renderSmallProduct(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
+ const margin=mm(2.2,dpmm),usable=W-margin*2;
+ const top=Math.max(0,mm(1.4+Number(verticalOffsetMm||0),dpmm));
+ const code=String(data.sku||data.code||'').trim(),title=String(data.title||'Producto').trim();
+ // CÓDIGO PEQUEÑO 50x29: descripción breve arriba, barras dominante y SKU debajo.
+ const name=fitText(ctx,title,usable,mm(3.4,dpmm),mm(2.2,dpmm),2);
+ const caption=fitText(ctx,code,usable,mm(3.2,dpmm),mm(2.3,dpmm),1);
+ const geometry=barcodeGeometry(svg,usable,dpi);
+ let y=top;
+ y=drawCenteredText(ctx,name,W,y,1.0)+mm(.8,dpmm);
+ const captionHeight=Math.ceil(caption.size*1.05),bottomMargin=mm(1.0,dpmm),captionGap=mm(.7,dpmm);
+ const availableForBars=H-y-captionGap-captionHeight-bottomMargin;
+ const barH=Math.min(mm(13.5,dpmm),availableForBars);
+ if(barH<mm(9,dpmm))throw new Error(`La etiqueta pequeña ${code} no tiene altura suficiente para un código legible.`);
+ const bar=drawBarcode(ctx,svg,W,y,barH,geometry);y+=barH+captionGap;
+ drawCenteredText(ctx,caption,W,y,1.0);
+ return {top,bottom:y+captionHeight,margin,...bar};
+}
+
 function renderSalida(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
  const margin=mm(4,dpmm),usable=W-margin*2;
  const top=Math.max(0,mm(2.4+Number(verticalOffsetMm||0),dpmm));
@@ -231,7 +250,7 @@ export function renderLabelImage(data,{type,w,h,dpi=203,brand=false,verticalOffs
  if(!svg)throw new Error('El código no es compatible con Code 128.');
  ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);ctx.fillStyle='#000';ctx.textAlign='center';ctx.textBaseline='top';
  const args={data,W,H,dpmm,svg,dpi,verticalOffsetMm,brand,type};
- const geometry=type==='PRODUCTO'?renderProduct(ctx,args):type==='SALIDA'?renderSalida(ctx,args):type==='MANUAL'?renderManual(ctx,args):['UBICACION','RACK'].includes(type)?renderPhysical(ctx,args):renderGeneric(ctx,args);
+ const geometry=type==='PRODUCTO'?renderProduct(ctx,args):type==='PRODUCTO_PEQUENO'?renderSmallProduct(ctx,args):type==='SALIDA'?renderSalida(ctx,args):type==='MANUAL'?renderManual(ctx,args):['UBICACION','RACK'].includes(type)?renderPhysical(ctx,args):renderGeneric(ctx,args);
  const output=quantizeAndBuildGraphics(ctx,W,H,canvas);
  return {...output,width:W,height:H,geometry};
 }
