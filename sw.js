@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.03-khal-small-labels-v243';
+const APP_VERSION = '2026.10.03-khal-small-labels-v244';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
