@@ -32,19 +32,39 @@ let orderAlertScope=null;
 let orderAlertStartedAt=0;
 const orderAlertSeenAssignments=new Set();
 const orderAlertSeenCompletions=new Set();
+const orderAlertReminderTimers=new Map();
+const ORDER_ALERT_DELAYS=[0,60000,120000];
+function clearOrderAlertReminder(key){const timers=orderAlertReminderTimers.get(key)||[];timers.forEach(clearTimeout);orderAlertReminderTimers.delete(key);}
+function scheduleOrderAlertReminder(key,{sound,isPending,message}){
+  clearOrderAlertReminder(key);
+  const timers=ORDER_ALERT_DELAYS.map(delay=>setTimeout(()=>{
+    if(!isPending()){clearOrderAlertReminder(key);return;}
+    sound();
+    if(delay===0&&message)toast(message,'success');
+  },delay));
+  orderAlertReminderTimers.set(key,timers);
+}
 function orderAlertRole(user,siteId){return (user?.accessAssignments||[]).find(a=>a.siteId===siteId)?.role||user?.role;}
 function primeOrderAlertSnapshot(orders=[]){orderAlertSnapshot=new Map((orders||[]).map(o=>[o.id,{assignedTo:o.assignedTo||null,assignedAt:o.assignedAt||null,status:o.status,pickingCompletedAt:o.pickingCompletedAt||null}]));}
 function detectOrderSoundAlerts(previous,next,currentUser,siteId){
   if(!previous){primeOrderAlertSnapshot(next);return;}
-  const role=orderAlertRole(currentUser,siteId),activePickStatuses=new Set(['ASIGNADA','EN_PICKING']),warehouseManager=['ENCARGADO','ADMINISTRADOR'].includes(role);
+  const role=orderAlertRole(currentUser,siteId),activePickStatuses=new Set(['ASIGNADA','EN_PICKING']),warehouseManager=['ENCARGADO','ADMINISTRADOR','ADMIN_GLOBAL'].includes(role);
   for(const o of next||[]){
     const before=previous.get(o.id),assignedAt=Date.parse(o.assignedAt||'')||0,assignmentToken=`${o.id}:${o.assignedTo||''}:${o.assignedAt||''}`;
     const assignmentIsNew=assignedAt>=orderAlertStartedAt-1000&&!orderAlertSeenAssignments.has(assignmentToken);
     const becameMine=o.assignedTo===currentUser?.id&&activePickStatuses.has(o.status)&&assignmentIsNew&&(!before||before.assignedTo!==o.assignedTo||before.assignedAt!==o.assignedAt||assignedAt>=orderAlertStartedAt-1000);
-    if(becameMine){orderAlertSeenAssignments.add(assignmentToken);sonidoOrdenAsignada();toast(`Nueva orden asignada: ${o.externalNumber||o.id}`,'success');}
+    if(becameMine){
+      orderAlertSeenAssignments.add(assignmentToken);
+      const key=`assignment:${assignmentToken}`;
+      scheduleOrderAlertReminder(key,{sound:sonidoOrdenAsignada,message:`Nueva orden asignada: ${o.externalNumber||o.id}`,isPending:()=>{const current=(store.data.orders||[]).find(x=>x.id===o.id);return current?.assignedTo===currentUser?.id&&current?.status==='ASIGNADA';}});
+    }
     const completedAt=Date.parse(o.pickingCompletedAt||'')||0,completionToken=`${o.id}:${o.pickingCompletedAt||''}`;
     const completionIsNew=completedAt>=orderAlertStartedAt-1000&&!orderAlertSeenCompletions.has(completionToken);
-    if(warehouseManager&&o.status==='PENDIENTE_EMISION'&&completionIsNew){orderAlertSeenCompletions.add(completionToken);sonidoOrdenCulminada();toast(`Orden culminada: ${o.externalNumber||o.id}`,'success');}
+    if(warehouseManager&&o.status==='PENDIENTE_EMISION'&&completionIsNew){
+      orderAlertSeenCompletions.add(completionToken);
+      const key=`completion:${completionToken}`;
+      scheduleOrderAlertReminder(key,{sound:sonidoOrdenCulminada,message:`Orden culminada: ${o.externalNumber||o.id}`,isPending:()=>{const current=(store.data.orders||[]).find(x=>x.id===o.id);return current?.status==='PENDIENTE_EMISION';}});
+    }
   }
   primeOrderAlertSnapshot(next);
 }
