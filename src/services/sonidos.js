@@ -68,7 +68,7 @@ export async function solicitarPermisoSonidoGlobal(){
     const modal=document.createElement('div');
     modal.id='audio-scanner-permission';
     modal.className='audio-scanner-permission';
-    modal.innerHTML=`<div class="audio-scanner-card" role="dialog" aria-modal="true" aria-labelledby="audio-scanner-title"><button id="audio-scanner-close" class="audio-scanner-close" type="button" aria-label="Cerrar activación de sonido" title="Cerrar">×</button><div class="audio-scanner-icon">🔊</div><h2 id="audio-scanner-title">Activar sonido para los escáneres</h2><p>Activa los avisos sonoros del lector para todo el WMS.</p><button id="audio-scanner-allow" class="primary" type="button">Permitir sonido</button><small>Se activará para Buscar, Recepción, Mover, Palets, Despacho y Vista móvil durante esta sesión.</small></div>`;
+    modal.innerHTML=`<div class="audio-scanner-card" role="dialog" aria-modal="true" aria-labelledby="audio-scanner-title"><button id="audio-scanner-close" class="audio-scanner-close" type="button" aria-label="Cerrar activación de sonido" title="Cerrar">×</button><div class="audio-scanner-icon">🔊</div><h2 id="audio-scanner-title">Activar sonido</h2><p>Activa los avisos sonoros de Khal, incluidas las órdenes asignadas y las órdenes culminadas.</p><button id="audio-scanner-allow" class="primary" type="button">Activar sonido</button><small>Es necesario tocar este botón una vez al abrir Khal en el teléfono para que Android/iPhone permita reproducir los avisos.</small></div>`;
     document.body.appendChild(modal);
     const btn=modal.querySelector('#audio-scanner-allow');
     const cerrar=modal.querySelector('#audio-scanner-close');
@@ -77,7 +77,7 @@ export async function solicitarPermisoSonidoGlobal(){
       btn.disabled=true;btn.textContent='Activando…';
       const ok=await permitirSonidosEscaner();
       if(ok){modal.remove();modalAbierto=null;resolve(true);return;}
-      btn.disabled=false;btn.textContent='Permitir sonido';
+      btn.disabled=false;btn.textContent='Activar sonido';
       let error=modal.querySelector('.audio-scanner-error');
       if(!error){error=document.createElement('div');error.className='audio-scanner-error';modal.querySelector('.audio-scanner-card').appendChild(error);}
       error.textContent='No fue posible activar el sonido. Verifica el modo silencio y vuelve a tocar Permitir sonido.';

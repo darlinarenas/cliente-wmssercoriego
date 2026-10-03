@@ -6,7 +6,7 @@ import { activeSiteId,userAllowedSites,stockBySite } from '../services/stock.js'
 import { activeCompanyId,companyName,siteCompanyId } from '../services/company.js';
 import { codePermissionsForUser, palletPermissionsForUser, inventoryPermissionsForUser, mapPermissionsForUser } from '../services/access-routing.js';
 import { apiRequest } from '../services/api.js';
-import { sonidoOrdenAsignada,sonidoOrdenCulminada } from '../services/sonidos.js';
+import { sonidoOrdenAsignada,sonidoOrdenCulminada,solicitarPermisoSonidoGlobal,sonidosEscanerHabilitados } from '../services/sonidos.js';
 import { escanearEnCampo } from '../services/camara-ui.js';
 
 const nav=[
@@ -225,6 +225,12 @@ export function wireShell(){
   const currentUser=store.data.users.find(u=>u.id===store.data.session.userId)||auth.user;
   installNavOrderAlerts();
   installOperatorInputTools();
+  // En móvil/PWA el navegador exige un gesto del usuario antes de permitir audio.
+  // Restauramos el aviso de activación sin alterar el flujo de órdenes.
+  const mobileAudio=globalThis.matchMedia?.('(max-width: 900px), (pointer: coarse)')?.matches;
+  if(mobileAudio&&!sonidosEscanerHabilitados()){
+    setTimeout(()=>solicitarPermisoSonidoGlobal(),250);
+  }
 
   document.querySelector('#site-switch')?.addEventListener('change',e=>{const siteId=e.target.value,site=(store.data.sites||[]).find(s=>s.id===siteId);if(!site)return;localStorage.setItem('serco_wms_active_company',siteCompanyId(site,store.data));localStorage.setItem('serco_wms_active_site',siteId);store.data.session.activeSiteId=siteId;store.data.session.activeCompanyId=siteCompanyId(site,store.data);window.dispatchEvent(new CustomEvent('serco:context-changed',{detail:{siteId,companyId:store.data.session.activeCompanyId}}));});
   document.querySelector('#choose-company-btn')?.addEventListener('click',()=>window.dispatchEvent(new CustomEvent('serco:choose-company')));
