@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.03-khal-mobile-audio-context-v248';
+const APP_VERSION = '2026.10.05-khal-export-toggle-v249';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
