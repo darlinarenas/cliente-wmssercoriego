@@ -142,6 +142,23 @@ function renderSmallProduct(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
  // CÓDIGO PEQUEÑO 50x29: descripción breve arriba, barras dominante y SKU debajo.
  const name=fitTextClipped(ctx,title,usable,mm(3.4,dpmm),mm(2.2,dpmm),2);
  const caption=fitText(ctx,code,usable,mm(3.2,dpmm),mm(2.3,dpmm),1);
+ // Variante opcional aislada: la plantilla original queda intacta.
+ const units=Number(data.smallBoxUnits);
+ if(Number.isInteger(units)&&units>0){
+  const shortName=fitTextClipped(ctx,title,usable,mm(3.1,dpmm),mm(2.2,dpmm),1);
+  const sku=fitText(ctx,code,usable,mm(3.0,dpmm),mm(2.3,dpmm),1);
+  const quantity=fitText(ctx,`${units} unidades`,usable,mm(3.0,dpmm),mm(2.3,dpmm),1);
+  const geometry=barcodeGeometry(svg,usable,dpi);
+  let y=top;
+  y=drawCenteredText(ctx,shortName,W,y,1.0)+mm(.6,dpmm);
+  const skuH=Math.ceil(sku.size*1.05),qtyH=Math.ceil(quantity.size*1.05),gap=mm(.5,dpmm);
+  const barH=Math.min(mm(13.5,dpmm),H-y-gap-skuH-gap-qtyH-mm(.8,dpmm));
+  if(barH<mm(9,dpmm))throw new Error(`La etiqueta pequeña ${code} no tiene altura suficiente para imprimir unidades con código legible.`);
+  const bar=drawBarcode(ctx,svg,W,y,barH,geometry);y+=barH+gap;
+  y=drawCenteredText(ctx,sku,W,y,1.0)+gap;
+  drawCenteredText(ctx,quantity,W,y,1.0);
+  return {top,bottom:y+qtyH,margin,...bar};
+ }
  const geometry=barcodeGeometry(svg,usable,dpi);
  let y=top;
  y=drawCenteredText(ctx,name,W,y,1.0)+mm(.8,dpmm);

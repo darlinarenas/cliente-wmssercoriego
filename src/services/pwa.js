@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.10.05-khal-export-toggle-v249';
+const PWA_RELEASE = '2026.10.05-khal-small-box-units-v250';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
