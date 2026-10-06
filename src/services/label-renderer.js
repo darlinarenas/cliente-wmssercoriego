@@ -122,6 +122,22 @@ function renderProduct(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
  const sku=fitText(ctx,code,usable,mm(9.2,dpmm),mm(6.2,dpmm),1);
  const name=fitText(ctx,title,usable,mm(5.1,dpmm),mm(3.0,dpmm),2);
  const caption=fitText(ctx,code,usable,mm(4.0,dpmm),mm(2.8,dpmm),1);
+ // Variante optativa: mantener la plantilla original cuando no se solicita cantidad.
+ const units=Number(data.smallBoxUnits);
+ if(Number.isInteger(units)&&units>0){
+  const quantity=fitText(ctx,`${units} unidades`,usable,mm(4.5,dpmm),mm(3.0,dpmm),1);
+  const geometry=barcodeGeometry(svg,usable,dpi);
+  let y=top;
+  y=drawCenteredText(ctx,sku,W,y,1.0)+mm(1.3,dpmm);
+  y=drawCenteredText(ctx,name,W,y,1.08)+mm(1.3,dpmm);
+  const captionHeight=Math.ceil(caption.size*1.05),qtyHeight=Math.ceil(quantity.size*1.05);
+  const gap=mm(1.0,dpmm),barH=Math.min(mm(27,dpmm),H-y-captionHeight-qtyHeight-2*gap-mm(2.2,dpmm));
+  if(barH<mm(20,dpmm))throw new Error(`La etiqueta de producto ${code} no tiene altura suficiente para las unidades.`);
+  const bar=drawBarcode(ctx,svg,W,y,barH,geometry);y+=barH+gap;
+  y=drawCenteredText(ctx,caption,W,y,1.0)+gap;
+  drawCenteredText(ctx,quantity,W,y,1.0);
+  return {top,bottom:y+qtyHeight,margin,...bar};
+ }
  const geometry=barcodeGeometry(svg,usable,dpi);
  let y=top;
  y=drawCenteredText(ctx,sku,W,y,1.0)+mm(1.6,dpmm);
