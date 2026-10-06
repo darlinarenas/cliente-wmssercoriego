@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.05-khal-small-box-units-v250';
+const APP_VERSION = '2026.10.06-khal-small-box-quantity-fix-v251';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
