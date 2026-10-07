@@ -19,7 +19,7 @@ function rackNum(key){return Number(String(key).replace(/\D/g,''))||999;}
 function currentUser(){return store.data.users.find(u=>u.id===store.data.session.userId);}
 function isAdmin(){return ['ADMIN_GLOBAL','ADMINISTRADOR'].includes(currentUser()?.role);}
 function defaultLayout(siteId,racks){
- const keys=siteId==='REC'?Array.from({length:13},(_,i)=>`R${i+1}`):racks.map(r=>rackKey(r));
+ const keys=[...new Set(racks.map(r=>rackKey(r)))];
  const result={};
  keys.forEach((key,i)=>{
    const r=racks.find(x=>rackKey(x)===key);
@@ -31,7 +31,8 @@ function defaultLayout(siteId,racks){
 function getLayout(siteId,racks){
  const base=defaultLayout(siteId,racks),saved=store.data.settings?.map3dLayouts?.[siteId];
  if(!saved||!Object.keys(saved).length)return base;
- const merged=structuredClone(saved);
+ const valid=new Set(racks.map(r=>rackKey(r)));
+ const merged=Object.fromEntries(Object.entries(saved).filter(([key])=>valid.has(key)));
  racks.forEach((r,i)=>{const key=rackKey(r);if(!merged[key])merged[key]=base[key]||{x:5+(i%5)*18,y:8+Math.floor(i/5)*28,w:5,h:20,baseModules:Number(r.modules||1)};});
  return merged;
 }
@@ -89,7 +90,7 @@ export function renderMap3d(root){
  wireShell();
  const floor=document.querySelector('#map3d-floor'),detail=document.querySelector('#map3d-detail'),search=document.querySelector('#map3d-search'),results=document.querySelector('#map3d-search-results'),stage=document.querySelector('#map3d-stage');
  const rackByKey=k=>racks.find(r=>rackKey(r)===k);
- const allKeys=()=>[...new Set([...Object.keys(layout),...racks.map(r=>rackKey(r))])].sort((a,b)=>rackNum(a)-rackNum(b));
+ const allKeys=()=>[...new Set(racks.map(r=>rackKey(r)))].sort((a,b)=>rackNum(a)-rackNum(b));
  const paint=()=>{
    floor.innerHTML=allKeys().map(key=>visualRack(key,rackByKey(key),layout[key]||{x:5,y:5,w:5,h:20,baseModules:rackByKey(key)?.modules||1},siteId,selectedKey,hitKeys,edit)).join('');
    detail.innerHTML=detailsHtml(selectedKey,rackByKey(selectedKey),siteId,product);hydrateProductImages(detail);wireProductPhotoViewer(detail);

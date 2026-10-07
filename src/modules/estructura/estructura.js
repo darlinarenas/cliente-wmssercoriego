@@ -255,6 +255,9 @@ export function renderStructure(root){
     await store.commit(d=>{
       d.racks=d.racks.filter(x=>x.id!==r.id);
       d.locations=d.locations.filter(l=>l.rackId!==r.id);
+      // Quitar también el plano persistido del rack eliminado.
+      const key=String(r.rackCode||r.id).match(/R\d+/i)?.[0]?.toUpperCase()||String(r.id).toUpperCase();
+      if(d.settings?.map3dLayouts?.[sid])delete d.settings.map3dLayouts[sid][key];
       recalcularCodigosEscaneables(d);
     },`${r.name} eliminado de ${site?.name||sid}`);
     dlg.close();
