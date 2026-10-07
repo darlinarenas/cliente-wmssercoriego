@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.06-khal-rack-sync-v255';
+const APP_VERSION = '2026.10.06-khal-cancel-transfers-v256';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

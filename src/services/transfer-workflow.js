@@ -5,7 +5,7 @@ function now(){return new Date().toISOString();}
 function randomPart(size=7){return globalThis.crypto?.randomUUID?.().replaceAll('-','').slice(0,size).toUpperCase()||Math.random().toString(36).slice(2,2+size).toUpperCase();}
 function unique(prefix){return `${prefix}-${Date.now()}-${randomPart(7)}`;}
 
-export const SHIPMENT_STATUS={LISTA_RETIRO:'Lista para retiro',EN_TRANSITO:'En tránsito',LLEGADA_DESTINO:'Llegó al destino',RECIBIDA:'Recibida',RECIBIDA_DIFERENCIAS:'Recibida con diferencias',CERRADA:'Cerrada'};
+export const SHIPMENT_STATUS={LISTA_RETIRO:'Lista para retiro',EN_TRANSITO:'En tránsito',LLEGADA_DESTINO:'Llegó al destino',RECIBIDA:'Recibida',RECIBIDA_DIFERENCIAS:'Recibida con diferencias',CERRADA:'Cerrada',ANULADA:'Anulada'};
 
 export function shipmentForTransfer(data,transferId){return (data.shipments||[]).find(s=>s.transferId===transferId);}
 export function shipmentOrder(data,shipment){const transfer=(data.transfers||[]).find(t=>t.id===shipment.transferId),orderId=shipment.orderId||transfer?.orderId;return (data.orders||[]).find(o=>o.id===orderId)||null;}
@@ -60,3 +60,19 @@ export function receiveShipment(data,shipment,{receivedItems=[],userId=data.sess
 }
 
 export function palletPendingQty(data,palletId){return (data.inventory||[]).filter(i=>i.palletId===palletId).reduce((sum,i)=>sum+n(i.qty),0);}
+
+// Anulación administrativa conservadora: no elimina registros ni inventa devoluciones de stock.
+// Las salidas pueden provenir de órdenes u otros flujos sin asignaciones reversibles.
+export function cancelPendingShipment(data,shipment,{userId=data.session?.userId,reason='',at=now()}={}){
+  const note=String(reason||'').trim();
+  if(note.length<8)throw new Error('Indica el motivo de la anulación (mínimo 8 caracteres).');
+  if(!shipment||!['LISTA_RETIRO','EN_TRANSITO','LLEGADA_DESTINO'].includes(shipment.status))throw new Error('Solo se pueden anular cargas pendientes, sin recepción confirmada.');
+  if((data.tasks||[]).some(t=>t.shipmentId===shipment.id)||shipment.receivedAt)throw new Error('La carga ya tiene recepción o tareas asociadas. No se puede anular.');
+  const transfer=(data.transfers||[]).find(t=>t.id===shipment.transferId);
+  if(!transfer||['RECIBIDA','RECIBIDA_DIFERENCIAS','ENTREGADA','CERRADA','ANULADA'].includes(transfer.status))throw new Error('El traspaso no existe o ya fue cerrado.');
+  shipment.status='ANULADA';shipment.cancelledAt=at;shipment.cancelledBy=userId;shipment.cancellationReason=note;
+  shipment.requiresStockReconciliation=Boolean(transfer.stockDeductedAt||transfer.stockMovements?.length||(data.movements||[]).some(m=>m.transferId===transfer.id&&m.type==='DESPACHO_SALIDA'));
+  shipment.events=shipment.events||[];shipment.events.push({at,userId,message:`Anulación administrativa: ${note}. No se restituyó stock automáticamente; verificar inventario en origen.`});
+  transfer.status='ANULADA';transfer.cancelledAt=at;transfer.cancelledBy=userId;transfer.cancellationReason=note;transfer.requiresStockReconciliation=shipment.requiresStockReconciliation;
+  return shipment;
+}
