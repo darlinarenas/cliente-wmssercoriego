@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.10.06-khal-product-box-quantity-v254';
+const PWA_RELEASE = '2026.10.07-khal-product-purge-v258';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
