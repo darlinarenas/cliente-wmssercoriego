@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.10.07-khal-mobile-pallet-search-v260';
+const PWA_RELEASE = '2026.10.07-khal-pallet-search-layout-v262';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
