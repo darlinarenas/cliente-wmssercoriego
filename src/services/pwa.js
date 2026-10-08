@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.10.07-khal-product-purge-v258';
+const PWA_RELEASE = '2026.10.07-khal-pallet-excel-order-qty-v259';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 

@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.07-khal-product-purge-v258';
+const APP_VERSION = '2026.10.07-khal-pallet-excel-order-qty-v259';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
