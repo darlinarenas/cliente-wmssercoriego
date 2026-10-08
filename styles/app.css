@@ -3147,3 +3147,6 @@ dialog.scanner-dialog{
 .operator-existing-pallets-dialog #existing-pallets-status{width:100%;min-width:0;min-height:42px;font-size:16px;margin:0}
 .operator-existing-pallets-dialog .existing-pallets-filter-footer{display:flex;justify-content:space-between;align-items:center;gap:8px;min-width:0}
 .operator-existing-pallets-dialog #existing-pallets-clear{padding:6px 10px;flex-shrink:0}
+
+/* Khal v265: iconos SVG uniformes en navegación lateral */
+.sidebar .khal-nav-icon-wrap{display:inline-flex;align-items:center;justify-content:center;width:20px;min-width:20px;height:20px;flex-shrink:0}.sidebar .khal-nav-icon{display:block;width:19px;height:19px;flex-shrink:0}.sidebar .nav-sub-link .khal-nav-icon-wrap{width:17px;min-width:17px}.sidebar .nav-sub-link .khal-nav-icon{width:16px;height:16px}
