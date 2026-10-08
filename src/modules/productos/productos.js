@@ -1,3 +1,4 @@
+import {previewProductImages} from '../../services/product-image-import-preview.js';
 import {exportProductCatalogExcel,exportProductCatalogPdf} from '../../services/product-catalog-export.js';
 import { store } from '../../services/store.js';
 import { shell,wireShell,toast,notice } from '../../layout/layout.js';
@@ -134,12 +135,33 @@ export function openNewProductDialog(onCreated,{initialCode=''}={}){
 
 export function renderProducts(root){
   const d=store.data;
-  root.innerHTML=shell('Productos',`<div class="page-intro"><div><span class="eyebrow">CATÁLOGO</span><h2>Productos y ubicación localizada</h2><p>El mismo producto puede existir en varias ubicaciones. El total se calcula sumando todas las posiciones registradas.</p></div><div class="product-page-actions"><button id="exportar-productos-excel" class="secondary" type="button">Descargar Excel</button><button id="exportar-productos-pdf" class="secondary" type="button">Descargar PDF</button><button id="nuevo-producto" class="primary">+ Nuevo producto</button><button id="abrir-filtros" class="secondary filter-button">☷ Filtrar y ordenar</button></div></div>
+  root.innerHTML=shell('Productos',`<div class="page-intro"><div><span class="eyebrow">CATÁLOGO</span><h2>Productos y ubicación localizada</h2><p>El mismo producto puede existir en varias ubicaciones. El total se calcula sumando todas las posiciones registradas.</p></div><div class="product-page-actions"><button id="exportar-productos-excel" class="secondary" type="button">Descargar Excel</button><button id="exportar-productos-pdf" class="secondary" type="button">Descargar PDF</button><button id="preparar-imagenes" class="secondary" type="button">Preparar imágenes</button><button id="nuevo-producto" class="primary">+ Nuevo producto</button><button id="abrir-filtros" class="secondary filter-button">☷ Filtrar y ordenar</button></div></div>
+  <section id="panel-preparar-imagenes" class="panel oculto" aria-label="Preparar importación masiva de imágenes">
+    <h3>Preparación de imágenes por SKU</h3>
+    <p>Solo vista previa local. No se sube, guarda ni reemplaza ninguna fotografía. Empresa activa únicamente.</p>
+    <p><small>CSV UTF-8 con columnas <b>SKU,Descripcion,Imagen</b>. Selecciona las fotos JPG, PNG o WebP que aparecen en el CSV. La descripción es opcional.</small></p>
+    <div class="filtros-grid"><label>Archivo CSV<input id="imagen-import-csv" type="file" accept=".csv,text/csv"></label><label>Fotografías<input id="imagen-import-files" type="file" accept="image/jpeg,image/png,image/webp" multiple></label></div>
+    <button id="imagen-import-validar" class="secondary" type="button">Validar coincidencias</button>
+    <div id="imagen-import-resultado" aria-live="polite"></div>
+    <small>Importación definitiva deshabilitada hasta validar almacenamiento, permisos y respaldo. No afecta inventario.</small>
+  </section>
   <section class="panel stock-scope-panel"><div><span class="eyebrow">ALCANCE DEL INVENTARIO</span><h3>¿Qué stock quieres ver?</h3><small>La vista siempre queda limitada a ${esc(d.companies.find(c=>c.id===activeCompanyId(d))?.name||'la empresa activa')}.</small></div><label>Vista de stock<select id="alcance-stock"><option value="CENTRO">Solo ${esc(d.sites.find(s=>s.id===activeSiteId(d))?.name||'centro activo')}</option><option value="GLOBAL">Stock global de la empresa</option><option value="TODOS">Todos los productos y centros</option></select></label></section>
   <section id="panel-filtros" class="panel filtros-productos oculto"><div class="filtros-grid"><label>Buscar<div class="entrada-con-camara"><input id="productos-buscar" placeholder="Código, descripción o palabra"><button id="camara-productos-buscar" class="scan-button" type="button" title="Escanear código con cámara">▣</button></div></label><label>Rotación<select id="filtro-rotacion"><option value="">Todas</option><option>ALTA</option><option>MEDIA</option><option>BAJA</option></select></label><label>Tipo<select id="filtro-tipo"><option value="">Todos</option>${tipos().map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select></label><label>Stock en ${esc(d.sites.find(s=>s.id===activeSiteId(d))?.name||activeSiteId(d))}<select id="filtro-stock-centro"><option value="">Sin filtro adicional</option><option value="con-stock">Solo con stock en este centro</option><option value="sin-stock">Sin stock en este centro</option></select></label><label>Ordenar por<select id="orden-productos"><option value="codigo-asc">Código · menor a mayor</option><option value="codigo-desc">Código · mayor a menor</option><option value="descripcion-asc">Descripción · A a Z</option><option value="descripcion-desc">Descripción · Z a A</option><option value="cantidad-desc">Cantidad · mayor a menor</option><option value="cantidad-asc">Cantidad · menor a mayor</option><option value="rotacion-desc">Rotación · alta a baja</option><option value="rotacion-asc">Rotación · baja a alta</option><option value="tipo">Tipo</option></select></label></div></section>
   <div class="tabla-resumen"><span id="contador-productos">${d.products.length} productos</span><small><b>Preparación rápida (Picking):</b> ubicación destinada a tener el producto accesible para preparar pedidos con mayor velocidad.</small></div>
   <div class="table-wrap"><table><thead><tr><th>Código</th><th>Descripción</th><th>Stock / Global WMS</th><th>Ubicación actual</th><th>Acciones</th></tr></thead><tbody id="cuerpo-productos">${d.products.map(filaProducto).join('')}</tbody></table></div>`,'productos');
   wireShell();
+  document.querySelector('#preparar-imagenes').onclick=()=>document.querySelector('#panel-preparar-imagenes').classList.toggle('oculto');
+  document.querySelector('#imagen-import-validar').onclick=async()=>{
+    const output=document.querySelector('#imagen-import-resultado');
+    const csv=document.querySelector('#imagen-import-csv').files[0];
+    const files=document.querySelector('#imagen-import-files').files;
+    if(!csv){toast('Selecciona primero el CSV','warning');return;}
+    try{
+      const result=previewProductImages(await csv.text(),files);
+      const counts={};result.forEach(r=>counts[r.status]=(counts[r.status]||0)+1);
+      output.innerHTML=`<p><b>${result.length} registros revisados</b> · ${Object.entries(counts).map(([k,v])=>`${esc(k)}: ${v}`).join(' · ')}</p><div class="table-wrap"><table><thead><tr><th>Fila</th><th>SKU</th><th>Producto Khal</th><th>Imagen</th><th>Resultado</th></tr></thead><tbody>${result.slice(0,500).map(r=>`<tr><td>${r.line}</td><td>${esc(r.sku)}</td><td>${esc(r.product)}</td><td>${esc(r.name)}</td><td>${esc(r.status)}</td></tr>`).join('')}</tbody></table></div>${result.length>500?'<small>Vista limitada a 500 filas. No se ha importado nada.</small>':''}`;
+    }catch(e){output.textContent=e.message||'No se pudo validar el archivo';}
+  };
   document.querySelector('#exportar-productos-excel').onclick=async()=>{try{await exportProductCatalogExcel();}catch(e){toast(e.message||'Error al descargar Excel','warning');}};
   document.querySelector('#exportar-productos-pdf').onclick=()=>{try{exportProductCatalogPdf();}catch(e){toast(e.message||'Error al descargar PDF','warning');}};
   document.querySelector('#alcance-stock').value=alcanceStock;
