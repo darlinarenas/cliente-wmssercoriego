@@ -3112,3 +3112,31 @@ dialog.scanner-dialog{
 
 /* Editor de mapa 3D: ajuste quirúrgico de tamaño de rack (PC) */
 .map3d-size-controls{display:flex;align-items:center;gap:5px;padding-right:5px;border-right:1px solid var(--line)}.map3d-size-controls[hidden]{display:none}.map3d-size-controls>span{min-width:auto;margin-left:5px;font-size:10px;font-weight:900;color:#64748b}.map3d-size-controls>button{min-width:34px;padding-left:9px;padding-right:9px}
+
+/* Khal v263: exclusivamente panel lateral del Mapa 3D */
+.map3d-detail{gap:11px;padding:14px;min-width:0}
+.map3d-premium-head{gap:5px;padding-bottom:10px}
+.map3d-premium-head h3{font-size:19px;letter-spacing:-.035em}
+.map3d-premium-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.map3d-premium-stats>div{display:grid;gap:2px;text-align:center;padding:10px 3px;border:1px solid #dae5f2;border-radius:11px;background:linear-gradient(180deg,#fff,#f4f8fd);min-width:0}
+.map3d-premium-stats strong{font-size:16px;font-weight:900;color:#142d50;font-variant-numeric:tabular-nums}
+.map3d-premium-stats small{font-size:10px;color:#64748b}
+.map3d-premium-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+.map3d-premium-tabs button{min-width:0;padding:10px 2px;border:1px solid #dce5f0;border-radius:8px;background:#f3f6fb;color:#24364f;font-size:11px;font-weight:800;cursor:pointer}
+.map3d-premium-tabs button.active{background:#116ce0;border-color:#116ce0;color:#fff;box-shadow:0 4px 10px #116ce029}
+#map3d-detail-filter{width:100%;min-width:0;padding:11px 12px;border:1px solid #cbd9eb;border-radius:10px;background:white;font:inherit;font-size:12px}
+.map3d-premium-list{display:grid;align-content:start;gap:7px;overflow-y:auto;min-height:100px;max-height:440px;scrollbar-width:thin}
+.map3d-premium-item{display:flex;align-items:center;gap:8px;min-width:0;padding:8px;border:1px solid #e0e7f0;border-radius:11px;background:#fff}
+.map3d-premium-item-text{display:grid;gap:3px;min-width:0;flex:1}
+.map3d-premium-item-text b,.map3d-premium-position b{font-size:11px;overflow-wrap:anywhere}
+.map3d-premium-item-text span{font-size:11px;color:#344b69;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.map3d-premium-item-text small{font-size:10px;color:#748398;overflow-wrap:anywhere}
+.map3d-premium-item>strong,.map3d-premium-position strong{font-size:11px;color:#0758ad;background:#e8f3ff;border-radius:7px;padding:5px;white-space:nowrap}
+.map3d-premium-photo.product-photo-frame{width:45px;height:45px;min-width:45px;padding:0;border-radius:9px;overflow:hidden}
+.map3d-premium-photo img{width:100%;height:100%;object-fit:contain}
+.map3d-premium-placeholder{width:45px;height:45px;min-width:45px;display:grid;place-items:center;background:#f1f5f9;border-radius:9px;color:#94a3b8}
+.map3d-premium-position{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 10px;border:1px solid #e0e7f0;border-radius:10px}
+.map3d-premium-info{display:grid;gap:10px;padding:12px;background:#f8fafc;border-radius:10px;font-size:12px}
+.map3d-premium-info span{color:#64748b}
+.map3d-premium-no-results{font-size:12px;color:#64748b;text-align:center;padding:18px 8px}
+@media(max-width:1100px){.map3d-premium-list{max-height:320px}}

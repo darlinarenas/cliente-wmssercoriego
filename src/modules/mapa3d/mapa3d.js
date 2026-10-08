@@ -67,22 +67,33 @@ function visualRack(key,rack,slot,siteId,selectedKey,hitKeys,edit){
    <b>${esc(key)}</b><small>${rack?`${modules}M · ${levels}N`:'Pendiente'}</small>
  </button>`;
 }
-function detailsHtml(key,rack,siteId,product){
+function detailsHtml(key,rack,siteId,product,tab='products',query=''){
  if(!key)return `<div class="map3d-detail-empty"><div>⌖</div><b>Selecciona un rack</b><small>Haz clic en el mapa o busca un producto para localizarlo.</small></div>`;
- if(!rack)return `<div class="map3d-detail-empty"><div>＋</div><b>${esc(key)} aún no está configurado</b><small>La posición física existe en el plano, pero debes crear este rack desde Estructura para asignarle módulos, niveles y ubicaciones.</small><a class="secondary" href="#/estructura">Ir a Estructura</a></div>`;
- const inv=rackInventory(rack,siteId,product?.code||'');
- const total=inv.reduce((a,b)=>a+Number(b.qty||0),0);
- const rows=inv.slice(0,18).map(i=>{const loc=store.data.locations.find(l=>l.id===i.locationId);return `<article><div><b>${esc(vistaCodigoUbicacion(loc||{id:i.locationId},store.data))}</b><small>${i.palletId?`Palet ${esc(i.palletId)}`:'Ubicación directa'}</small></div><strong>${Number(i.qty||0).toLocaleString('es-CL')} un.</strong></article>`}).join('');
- return `<div class="map3d-detail-head"><span>${product?'PRODUCTO LOCALIZADO':'RACK SELECCIONADO'}</span><h3>${esc(key)} · ${esc(rack.name||key)}</h3><small>${rack.modules||0} módulos · ${rack.levels||0} niveles · ${esc(rack.usage||'Sin uso definido')}</small></div>
- ${product?`<div class="map3d-product-card">${productPhotoHtml(product,{className:'map3d-product-photo'})}<span>Código ${esc(product.code)}</span><b>${esc(product.name||product.description||product.code)}</b><small>${esc(product.description||'')}</small><strong>${total.toLocaleString('es-CL')} un. en este rack</strong></div>`:''}
- <div class="map3d-location-list">${rows||`<div class="map3d-detail-empty compact"><b>${product?'Sin stock de este producto aquí':'Rack sin stock localizado'}</b><small>${product?'Prueba otra ubicación resaltada.':'Las ubicaciones aparecerán cuando tengan inventario.'}</small></div>`}</div>
+ if(!rack)return `<div class="map3d-detail-empty"><div>＋</div><b>${esc(key)} aún no está configurado</b><small>Configura este rack desde Estructura para asignarle módulos, niveles y ubicaciones.</small><a class="secondary" href="#/estructura">Ir a Estructura</a></div>`;
+ const all=rackInventory(rack,siteId),inv=product?all.filter(i=>i.productCode===product.code):all;
+ const locs=(store.data.locations||[]).filter(l=>l.siteId===siteId&&l.rackId===rack.id&&l.active!==false);
+ const units=all.reduce((n,i)=>n+Number(i.qty||0),0);
+ const count=new Set(all.map(i=>i.productCode)).size;
+ const q=String(query||'').trim().toLocaleLowerCase();
+ const matches=(...parts)=>!q||parts.join(' ').toLocaleLowerCase().includes(q);
+ const productRows=inv.filter(i=>{const p=(store.data.products||[]).find(x=>x.code===i.productCode),loc=locs.find(l=>l.id===i.locationId);return matches(i.productCode,p?.name,p?.description,i.palletId,loc?.id,loc?.label);}).map(i=>{
+ const p=(store.data.products||[]).find(x=>x.code===i.productCode),loc=locs.find(l=>l.id===i.locationId),code=vistaCodigoUbicacion(loc||{id:i.locationId},store.data);
+ return `<article class="map3d-premium-item">${p?productPhotoHtml(p,{className:'map3d-premium-photo'}):'<span class="map3d-premium-placeholder">▧</span>'}<div class="map3d-premium-item-text"><b>${esc(i.productCode)}</b><span>${esc(p?.name||p?.description||'Producto')}</span><small>${esc(code)} · ${i.palletId?'Palet '+esc(i.palletId):'Ubicación directa'}</small></div><strong>${Number(i.qty||0).toLocaleString('es-CL')} un.</strong></article>`;
+ }).join('');
+ const positions=locs.filter(l=>matches(l.id,l.label)).map(l=>{const qty=all.filter(i=>i.locationId===l.id).reduce((n,i)=>n+Number(i.qty||0),0);return `<article class="map3d-premium-position"><b>${esc(vistaCodigoUbicacion(l,store.data))}</b><strong>${qty.toLocaleString('es-CL')} un.</strong></article>`;}).join('');
+ return `<div class="map3d-detail-head map3d-premium-head"><span>${product?'PRODUCTO LOCALIZADO':'RACK SELECCIONADO'}</span><h3>${esc(key)} · ${esc(rack.name||key)}</h3><small>${rack.modules||0} módulos · ${rack.levels||0} niveles · ${esc(rack.usage||'Sin uso definido')}</small></div>
+ <div class="map3d-premium-stats"><div><strong>${count.toLocaleString('es-CL')}</strong><small>Productos</small></div><div><strong>${units.toLocaleString('es-CL')}</strong><small>Unidades</small></div><div><strong>${locs.length}</strong><small>Posiciones</small></div></div>
+ ${product?`<div class="map3d-product-card">${productPhotoHtml(product,{className:'map3d-product-photo'})}<span>Código ${esc(product.code)}</span><b>${esc(product.name||product.description||product.code)}</b><small>${esc(product.description||'')}</small><strong>${inv.reduce((n,i)=>n+Number(i.qty||0),0).toLocaleString('es-CL')} un. en este rack</strong></div>`:''}
+ <div class="map3d-premium-tabs" role="tablist" aria-label="Detalle del rack"><button type="button" data-map3d-tab="products" class="${tab==='products'?'active':''}">Productos</button><button type="button" data-map3d-tab="positions" class="${tab==='positions'?'active':''}">Posiciones</button><button type="button" data-map3d-tab="info" class="${tab==='info'?'active':''}">Información</button></div>
+ ${tab!=='info'?`<input id="map3d-detail-filter" type="search" autocomplete="off" placeholder="${tab==='positions'?'Buscar ubicación…':'Buscar SKU, producto, pallet…'}" value="${esc(query)}" aria-label="Filtrar detalle del rack">`:''}
+ <div class="map3d-premium-list">${tab==='products'?(productRows||'<p class="map3d-premium-no-results">No hay productos que coincidan.</p>'):tab==='positions'?(positions||'<p class="map3d-premium-no-results">No hay posiciones que coincidan.</p>'):`<div class="map3d-premium-info"><b>${esc(rack.name||key)}</b><span>${esc(rack.usage||'Sin uso definido')}</span><span>${rack.modules||0} módulos · ${rack.levels||0} niveles</span><span>${locs.length} posiciones configuradas</span><a href="#/estructura" class="secondary">Configurar estructura</a></div>`}</div>
  ${product?`<div class="map3d-detail-actions"><a class="primary" href="#/movimientos?code=${encodeURIComponent(product.code)}">Mover / reubicar</a><a class="ghost" href="#/buscar?code=${encodeURIComponent(product.code)}">Ver producto</a></div>`:''}`;
 }
 
 export function renderMap3d(root){
  const siteId=activeSiteId(store.data),site=store.data.sites.find(s=>s.id===siteId),racks=(store.data.racks||[]).filter(r=>r.siteId===siteId).sort((a,b)=>rackNum(rackKey(a))-rackNum(rackKey(b)));
  const routeParams=new URLSearchParams(location.hash.split('?')[1]||''),returnOrder=routeParams.get('returnOrder');
- let layout=getLayout(siteId,racks),selectedKey='',product=null,hitKeys=new Set(),edit=false,zoom=1;
+ let layout=getLayout(siteId,racks),selectedKey='',product=null,hitKeys=new Set(),edit=false,zoom=1,detailTab='products',detailQuery='';
  root.innerHTML=shell('Mapa 3D de bodega',`<div class="page-intro map3d-intro"><div><span class="eyebrow">MAPA OPERATIVO · CENTRO ACTIVO</span><h2>${esc(site?.name||siteId)}</h2><p>Busca un producto para ver visualmente en qué rack está. El mapa usa el inventario y las ubicaciones reales del WMS.</p></div><div class="map3d-top-actions">${returnOrder?`<a class="primary" href="#/ordenes?openOrder=${encodeURIComponent(returnOrder)}">← Volver a la orden</a>`:''}<button id="map3d-edit" class="secondary" type="button" ${isAdmin()?'':'hidden'}>Editar mapa</button></div></div>
  <section class="map3d-shell"><div class="map3d-main"><div class="map3d-toolbar"><div class="map3d-search"><span>⌕</span><input id="map3d-search" placeholder="Código, nombre o código asociado…" autocomplete="off"><button id="map3d-scan" type="button" title="Escanear producto">▣</button><button id="map3d-find" class="primary" type="button">Localizar</button></div><div class="map3d-view-actions"><div id="map3d-size-controls" class="map3d-size-controls" hidden><span>Ancho</span><button id="map3d-width-minus" class="ghost" type="button" title="Reducir ancho">−</button><button id="map3d-width-plus" class="ghost" type="button" title="Aumentar ancho">＋</button><span>Largo</span><button id="map3d-height-minus" class="ghost" type="button" title="Reducir largo">−</button><button id="map3d-height-plus" class="ghost" type="button" title="Aumentar largo">＋</button></div><button id="map3d-rotate" class="ghost" type="button" hidden>↻ Rotar rack</button><button id="map3d-minus" class="ghost" type="button">−</button><span id="map3d-zoom">100%</span><button id="map3d-plus" class="ghost" type="button">＋</button><button id="map3d-reset" class="ghost" type="button">Vista general</button></div></div><div id="map3d-search-results" class="map3d-search-results" hidden></div>
  <div class="map3d-stage-wrap"><div id="map3d-stage" class="map3d-stage" style="--map-zoom:1"><div class="map3d-floor" id="map3d-floor"></div></div></div>
@@ -91,13 +102,21 @@ export function renderMap3d(root){
  const floor=document.querySelector('#map3d-floor'),detail=document.querySelector('#map3d-detail'),search=document.querySelector('#map3d-search'),results=document.querySelector('#map3d-search-results'),stage=document.querySelector('#map3d-stage');
  const rackByKey=k=>racks.find(r=>rackKey(r)===k);
  const allKeys=()=>[...new Set(racks.map(r=>rackKey(r)))].sort((a,b)=>rackNum(a)-rackNum(b));
+ const paintDetail=(restoreFocus=false)=>{
+   const pos=restoreFocus?detail.querySelector('#map3d-detail-filter')?.selectionStart:null;
+   detail.innerHTML=detailsHtml(selectedKey,rackByKey(selectedKey),siteId,product,detailTab,detailQuery);
+   hydrateProductImages(detail);wireProductPhotoViewer(detail);
+   detail.querySelectorAll('[data-map3d-tab]').forEach(b=>b.onclick=()=>{detailTab=b.dataset.map3dTab;detailQuery='';paintDetail();});
+   detail.querySelector('#map3d-detail-filter')?.addEventListener('input',e=>{detailQuery=e.target.value;paintDetail(true);});
+   if(restoreFocus){const field=detail.querySelector('#map3d-detail-filter');field?.focus();if(field&&pos!==null)field.setSelectionRange(pos,pos);}
+ };
  const paint=()=>{
    floor.innerHTML=allKeys().map(key=>visualRack(key,rackByKey(key),layout[key]||{x:5,y:5,w:5,h:20,baseModules:rackByKey(key)?.modules||1},siteId,selectedKey,hitKeys,edit)).join('');
-   detail.innerHTML=detailsHtml(selectedKey,rackByKey(selectedKey),siteId,product);hydrateProductImages(detail);wireProductPhotoViewer(detail);
+   paintDetail();
    const rotateBtn=document.querySelector('#map3d-rotate');if(rotateBtn)rotateBtn.hidden=!(edit&&selectedKey&&layout[selectedKey]);
    const sizeControls=document.querySelector('#map3d-size-controls');if(sizeControls)sizeControls.hidden=!(edit&&selectedKey&&layout[selectedKey]);
    floor.querySelectorAll('.map3d-rack').forEach(btn=>{
-     btn.onclick=()=>{selectedKey=btn.dataset.rackKey;paint();};
+     btn.onclick=()=>{selectedKey=btn.dataset.rackKey;detailTab='products';detailQuery='';paint();};
      if(edit)wireDrag(btn);
    });
  };
