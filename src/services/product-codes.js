@@ -34,5 +34,5 @@ export function addProductCode(state,productId,code,type='OTRO',label='',metadat
   if(codeInUse(clean,productId,state))throw new Error('Ese código ya está asociado a otro producto.');
   state.product_codes=state.product_codes||[];
   if(productAliases(product,state).includes(clean))return;
-  state.product_codes.push({id:`PC-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,productId,code:clean,type,label:String(label||'').trim(),source:String(metadata.source||metadata.channel||type||'OTRO').trim()||'OTRO',presentation:String(metadata.presentation||'UNIDAD').trim()||'UNIDAD',unitsPerPresentation:Math.max(1,Number(metadata.unitsPerPresentation||1)||1),excelQtyMode:metadata.excelQtyMode==='PACKS'?'PACKS':'UNITS',active:true,createdAt:new Date().toISOString()});
+  state.product_codes.push({id:`PC-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,productId,code:clean,type,label:String(label||'').trim(),source:String(metadata.source||metadata.channel||type||'OTRO').trim()||'OTRO',presentation:String(metadata.presentation||'UNIDAD').trim()||'UNIDAD',unitsPerPresentation:metadata.unitsPerPresentation==null?null:Math.max(1,Number(metadata.unitsPerPresentation)||1),excelQtyMode:metadata.excelQtyMode==='PACKS'?'PACKS':'UNITS',active:true,createdAt:new Date().toISOString()});
 }
