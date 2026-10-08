@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.08-khal-optional-code-qty-v266';
+const APP_VERSION = '2026.10.08-khal-product-catalog-export-v267';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
