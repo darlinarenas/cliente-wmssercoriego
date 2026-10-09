@@ -149,7 +149,7 @@ export function renderProducts(root){
       <h4>Importar fotografías por SKU</h4><p>Selecciona un ZIP con imágenes JPG, PNG o WebP. Cada archivo debe llamarse como el SKU, por ejemplo 100110.jpg. No necesitas Excel ni CSV.</p>
       <label>ZIP de fotografías<input id="imagen-import-zip" type="file" accept=".zip,application/zip"></label>
       <div class="dialog-actions"><button id="imagen-import-validar" class="secondary" type="button">Revisar fotografías</button><button id="imagen-import-subir" class="primary" type="button" disabled>Importar seleccionadas</button></div>
-      <div id="imagen-import-resultado" aria-live="polite"></div>
+      <div id="imagen-import-resultado" aria-live="polite"></div><div class="dialog-actions"><button id="imagen-import-cerrar" class="secondary" type="button" hidden>Cerrar importación</button></div>
     </div>
     <div id="imagen-seccion-borrar" class="oculto photo-action-body">
       <h4>Eliminar fotografías masivamente</h4><p>Busca por SKU o descripción, revisa la imagen y selecciona las fotografías. Se solicitará el supercódigo.</p>
@@ -171,6 +171,11 @@ export function renderProducts(root){
   const wireThumbnails=(root)=>root.querySelectorAll('[data-bulk-preview]').forEach(btn=>btn.onclick=()=>showPhoto(btn.querySelector('img')?.src));
   const thumb=(src)=>`<button type="button" class="bulk-photo-thumb" data-bulk-preview title="Ampliar fotografía"><img src="${src}" alt="Vista previa del producto" loading="lazy"></button>`;
   const out=document.querySelector('#imagen-import-resultado');
+  const closeImport=document.querySelector('#imagen-import-cerrar');
+  const importZip=document.querySelector('#imagen-import-zip');
+  const resetImport=()=>{releasePreviews();prepared=[];out.replaceChildren();importZip.value='';document.querySelector('#imagen-import-subir').disabled=true;closeImport.hidden=true;const progress=document.querySelector('#imagen-import-progreso');if(progress)progress.hidden=true;photoSections.importar.classList.add('oculto');document.querySelector('#imagen-accion-importar').setAttribute('aria-expanded','false');};
+  closeImport.onclick=resetImport;
+  importZip.onchange=()=>{releasePreviews();prepared=[];out.replaceChildren();closeImport.hidden=true;document.querySelector('#imagen-import-subir').disabled=true;const progress=document.querySelector('#imagen-import-progreso');if(progress)progress.hidden=true;};
   const admin=['ADMIN_GLOBAL','ADMINISTRADOR'].includes(currentUser()?.role);
   const refreshLocal=(p,has,version)=>{p.hasImage=has;if(has)p.imageVersion=version||Date.now();else{delete p.imageVersion;delete p.imageUpdatedAt;}};
   document.querySelector('#imagen-import-validar').onclick=async()=>{
@@ -181,8 +186,12 @@ export function renderProducts(root){
       if(!files.length)throw Error('Selecciona un ZIP con fotografías.');if(files.length>500)throw Error('Máximo 500 fotografías por lote.');
       const bySku=new Map(store.data.products.map(p=>[String(p.code).trim().toLowerCase(),p]));const seen=new Set();
       prepared=files.map(file=>{const sku=file.name.replace(/\.(jpg|jpeg|png|webp)$/i,'').trim(),p=bySku.get(sku.toLowerCase());const duplicate=seen.has(sku.toLowerCase());seen.add(sku.toLowerCase());const url=URL.createObjectURL(file);previewUrls.push(url);return {file,sku,p,url,ok:!!p&&!duplicate&&file.size<=12*1024*1024};});
-      out.innerHTML=`<p>${prepared.filter(x=>x.ok).length} listas · ${prepared.length-prepared.filter(x=>x.ok).length} rechazadas. Verifica visualmente antes de importar.</p><div class="table-wrap"><table><thead><tr><th>Incluir</th><th>Fotografía</th><th>SKU</th><th>Producto Khal</th><th>Estado</th></tr></thead><tbody>${prepared.map((x,i)=>`<tr><td><input type="checkbox" data-photo-index="${i}" ${x.ok?'checked':'disabled'}></td><td>${thumb(x.url)}</td><td>${esc(x.sku)}</td><td>${esc(x.p?.name||'—')}</td><td>${x.ok?(x.p.hasImage?'Reemplazará existente':'Lista'):'SKU inexistente, duplicado o archivo demasiado grande'}</td></tr>`).join('')}</tbody></table></div>`;
-      wireThumbnails(out);document.querySelector('#imagen-import-subir').disabled=!prepared.some(x=>x.ok);
+      out.innerHTML=`<p>${prepared.filter(x=>x.ok).length} listas · ${prepared.length-prepared.filter(x=>x.ok).length} rechazadas. Compara las fotografías y marca solamente las que quieras importar.</p><label class="photo-select-all"><input id="imagen-import-todas" type="checkbox" checked> Seleccionar todas las válidas</label><p id="imagen-import-contador" aria-live="polite"></p><div class="table-wrap"><table><thead><tr><th>Incluir</th><th>Fotografía actual</th><th>Fotografía nueva</th><th>SKU</th><th>Producto Khal</th><th>Estado</th></tr></thead><tbody>${prepared.map((x,i)=>`<tr><td><input type="checkbox" data-photo-index="${i}" ${x.ok?'checked':'disabled'}></td><td data-current-import="${i}">${x.p&&(x.p.hasImage||x.p.imageVersion)?'Cargando…':'Sin fotografía anterior'}</td><td>${thumb(x.url)}</td><td>${esc(x.sku)}</td><td>${esc(x.p?.name||'—')}</td><td>${x.ok?(x.p.hasImage||x.p.imageVersion?'Reemplazará existente':'Nueva fotografía'):'SKU inexistente, duplicado o archivo demasiado grande'}</td></tr>`).join('')}</tbody></table></div>`;
+      const checks=[...out.querySelectorAll('[data-photo-index]:not(:disabled)')],all=out.querySelector('#imagen-import-todas'),counter=out.querySelector('#imagen-import-contador');
+      const updateSelection=()=>{const n=checks.filter(c=>c.checked).length;counter.textContent=`${n} de ${checks.length} fotografías seleccionadas`;all.checked=checks.length>0&&n===checks.length;all.indeterminate=n>0&&n<checks.length;document.querySelector('#imagen-import-subir').disabled=n===0;};
+      all.onchange=()=>{checks.forEach(c=>c.checked=all.checked);updateSelection();};checks.forEach(c=>c.onchange=updateSelection);updateSelection();
+      wireThumbnails(out);
+      prepared.forEach(async(x,i)=>{if(!x.p||( !x.p.hasImage&&!x.p.imageVersion))return;try{const src=await productImageData(x.p);const cell=out.querySelector(`[data-current-import="${i}"]`);if(cell){cell.innerHTML=src?thumb(src):'Sin fotografía anterior';if(src)wireThumbnails(cell);}}catch(e){const cell=out.querySelector(`[data-current-import="${i}"]`);if(cell)cell.textContent='Vista previa no disponible';}});
       await notice('Revisión completada',`${prepared.filter(x=>x.ok).length} fotografías listas y ${prepared.filter(x=>!x.ok).length} rechazadas. Revisa las miniaturas antes de importar.`,prepared.some(x=>!x.ok)?'warning':'success');
     }catch(e){out.textContent=e.message||'No se pudo leer el paquete';await notice('No se pudo revisar',e.message||'Comprueba los archivos seleccionados.','error');}
   };
@@ -190,9 +199,9 @@ export function renderProducts(root){
     const selected=[...out.querySelectorAll('[data-photo-index]:checked')].map(c=>prepared[Number(c.dataset.photoIndex)]).filter(x=>x?.ok);
     if(!selected.length)return toast('No hay fotografías seleccionadas','warning');
     if(!await confirmNotice('Confirmar importación',`Se importarán ${selected.length} fotografías. ${selected.filter(x=>x.p.hasImage).length} reemplazarán fotos existentes. ¿Continuar?`,{confirmLabel:'Importar fotografías'}))return;
-    const button=document.querySelector('#imagen-import-subir');button.disabled=true;let ok=0;let processed=0;const errors=[];setProgress('imagen-import-progreso',0,selected.length,'Importando fotografías…');
+    const button=document.querySelector('#imagen-import-subir');button.disabled=true;closeImport.hidden=true;let ok=0;let processed=0;const errors=[];setProgress('imagen-import-progreso',0,selected.length,'Importando fotografías…');
     try{for(const x of selected){try{const data=await fileToProductImage(x.file);const r=await uploadProductImage(x.p.id,data);refreshLocal(x.p,true,r.imageVersion);ok++;}catch(e){errors.push(`${x.sku}: ${e.message}`);}finally{processed++;setProgress('imagen-import-progreso',processed,selected.length,'Importando fotografías…');}}out.firstElementChild.textContent=`Importadas ${ok} de ${selected.length}. ${errors.length?'Errores: '+errors.join('; '):'Proceso finalizado.'}`;await notice('Importación finalizada',`${ok} fotografías guardadas. ${errors.length} errores.${errors.length?' '+errors.slice(0,3).join('; '):''}`,errors.length?'warning':'success');}
-    finally{button.disabled=false;}
+    finally{button.disabled=false;closeImport.hidden=false;closeImport.textContent='Cerrar importación';}
   };
   const gallery=document.querySelector('#imagen-ver-lista');
   const renderGallery=()=>{
