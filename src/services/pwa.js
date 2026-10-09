@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.10.09-khal-product-images-actions-v271';
+const PWA_RELEASE = '2026.10.09-khal-product-images-gallery-replace-v272';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 

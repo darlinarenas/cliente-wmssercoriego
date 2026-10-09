@@ -142,7 +142,9 @@ export function renderProducts(root){
   <section id="panel-preparar-imagenes" class="panel oculto" aria-label="Preparar importación masiva de imágenes">
     <h3>Fotografías de productos · Empresa activa</h3>
     <p>Gestiona solo las fotografías de los SKU existentes. No modifica productos ni inventario.</p>
-    <div class="photo-action-menu"><button id="imagen-accion-importar" class="secondary" type="button" aria-expanded="false">＋ Importar fotografías</button><button id="imagen-accion-borrar" class="secondary" type="button" aria-expanded="false">▤ Eliminar fotografías</button></div>
+    <div class="photo-action-menu"><button id="imagen-accion-ver" class="secondary" type="button" aria-expanded="false">▧ Ver fotografías</button><button id="imagen-accion-reemplazar" class="secondary" type="button" aria-expanded="false">↻ Reemplazar fotografías</button><button id="imagen-accion-importar" class="secondary" type="button" aria-expanded="false">＋ Importar fotografías</button><button id="imagen-accion-borrar" class="secondary" type="button" aria-expanded="false">▤ Eliminar fotografías</button></div>
+    <div id="imagen-seccion-ver" class="oculto photo-action-body"><h4>Galería de fotografías cargadas</h4><p>Consulta las fotografías sin entrar en eliminación.</p><div id="imagen-ver-lista"></div></div>
+    <div id="imagen-seccion-reemplazar" class="oculto photo-action-body"><h4>Reemplazar fotografías existentes</h4><p>Una imagen por SKU o un ZIP completo. Solo se reemplazan los SKU incluidos y que ya tengan fotografía. Revisa la imagen actual y la nueva antes de confirmar.</p><label>Fotografía individual (nombre = SKU)<input id="imagen-reemplazar-archivo" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"></label><label>O ZIP con fotografías<input id="imagen-reemplazar-zip" type="file" accept=".zip,application/zip"></label><div class="dialog-actions"><button id="imagen-reemplazar-revisar" class="secondary" type="button">Revisar reemplazos</button><button id="imagen-reemplazar-confirmar" class="primary" type="button" disabled>Reemplazar seleccionadas</button></div><div id="imagen-reemplazar-resultado"></div></div>
     <div id="imagen-seccion-importar" class="oculto photo-action-body">
       <h4>Importar fotografías por SKU</h4><p>Selecciona un ZIP con imágenes JPG, PNG o WebP. Cada archivo debe llamarse como el SKU, por ejemplo 100110.jpg. No necesitas Excel ni CSV.</p>
       <label>ZIP de fotografías<input id="imagen-import-zip" type="file" accept=".zip,application/zip"></label>
@@ -161,7 +163,7 @@ export function renderProducts(root){
   <div class="table-wrap"><table><thead><tr><th>Código</th><th>Descripción</th><th>Stock / Global WMS</th><th>Ubicación actual</th><th>Acciones</th></tr></thead><tbody id="cuerpo-productos">${d.products.map(filaProducto).join('')}</tbody></table></div>`,'productos');
   wireShell();
   document.querySelector('#preparar-imagenes').onclick=()=>document.querySelector('#panel-preparar-imagenes').classList.toggle('oculto');
-  const photoSections={importar:document.querySelector('#imagen-seccion-importar'),borrar:document.querySelector('#imagen-seccion-borrar')};
+  const photoSections={ver:document.querySelector('#imagen-seccion-ver'),reemplazar:document.querySelector('#imagen-seccion-reemplazar'),importar:document.querySelector('#imagen-seccion-importar'),borrar:document.querySelector('#imagen-seccion-borrar')};
   for(const name of Object.keys(photoSections)){document.querySelector(`#imagen-accion-${name}`).onclick=()=>{const opening=photoSections[name].classList.contains('oculto');for(const [other,section] of Object.entries(photoSections)){section.classList.toggle('oculto',!opening||other!==name);document.querySelector(`#imagen-accion-${other}`).setAttribute('aria-expanded',String(opening&&other===name));}};}
   let prepared=[];let previewUrls=[];
   const releasePreviews=()=>{previewUrls.forEach(url=>URL.revokeObjectURL(url));previewUrls=[];};
@@ -191,6 +193,41 @@ export function renderProducts(root){
     const button=document.querySelector('#imagen-import-subir');button.disabled=true;let ok=0;const errors=[];
     try{for(const x of selected){try{const data=await fileToProductImage(x.file);const r=await uploadProductImage(x.p.id,data);refreshLocal(x.p,true,r.imageVersion);ok++;out.firstElementChild.textContent=`Importando: ${ok}/${selected.length}`;}catch(e){errors.push(`${x.sku}: ${e.message}`);}}out.firstElementChild.textContent=`Importadas ${ok} de ${selected.length}. ${errors.length?'Errores: '+errors.join('; '):'Proceso finalizado.'}`;await notice('Importación finalizada',`${ok} fotografías guardadas. ${errors.length} errores.${errors.length?' '+errors.slice(0,3).join('; '):''}`,errors.length?'warning':'success');}
     finally{button.disabled=false;}
+  };
+  const gallery=document.querySelector('#imagen-ver-lista');
+  const renderGallery=()=>{
+    const photos=store.data.products.filter(p=>p.hasImage||p.imageVersion);
+    gallery.innerHTML=`<p>${photos.length} fotografías cargadas.</p><label>Buscar por SKU o descripción<input id="imagen-ver-buscar" type="search" placeholder="Buscar fotografía"></label><div class="photo-gallery-grid">${photos.map(p=>`<article class="photo-gallery-item" data-photo-search="${esc(`${p.code} ${p.name}`.toLowerCase())}"><div class="photo-gallery-image" data-gallery-id="${esc(p.id)}">Cargando…</div><b>${esc(p.code)}</b><small>${esc(p.name)}</small></article>`).join('')}</div>`;
+    gallery.querySelector('#imagen-ver-buscar').oninput=e=>{const q=e.target.value.trim().toLowerCase();gallery.querySelectorAll('.photo-gallery-item').forEach(el=>el.hidden=!el.dataset.photoSearch.includes(q));};
+    photos.forEach(async p=>{try{const src=await productImageData(p);const slot=[...gallery.querySelectorAll('[data-gallery-id]')].find(el=>el.dataset.galleryId===String(p.id));if(slot){slot.innerHTML=src?thumb(src):'Sin vista previa';if(src)wireThumbnails(slot);}}catch(e){/* keep gallery usable */}});
+  };
+  document.querySelector('#imagen-accion-ver').addEventListener('click',()=>{if(!photoSections.ver.classList.contains('oculto'))renderGallery();});
+  let replacements=[];let replacementUrls=[];
+  const replacementOut=document.querySelector('#imagen-reemplazar-resultado');
+  const replacementButton=document.querySelector('#imagen-reemplazar-confirmar');
+  document.querySelector('#imagen-reemplazar-archivo').onchange=e=>{if(e.target.files.length)document.querySelector('#imagen-reemplazar-zip').value='';replacementButton.disabled=true;};
+  document.querySelector('#imagen-reemplazar-zip').onchange=e=>{if(e.target.files.length)document.querySelector('#imagen-reemplazar-archivo').value='';replacementButton.disabled=true;};
+  document.querySelector('#imagen-reemplazar-revisar').onclick=async()=>{
+    replacementUrls.forEach(u=>URL.revokeObjectURL(u));replacementUrls=[];replacements=[];replacementButton.disabled=true;replacementOut.textContent='';
+    try{
+      const single=document.querySelector('#imagen-reemplazar-archivo').files[0],zipFile=document.querySelector('#imagen-reemplazar-zip').files[0];let files=[];
+      if(single)files=[single];else if(zipFile){if(!window.JSZip)throw Error('Lector ZIP no disponible');const zip=await window.JSZip.loadAsync(await zipFile.arrayBuffer());for(const [name,entry] of Object.entries(zip.files)){if(entry.dir||!/\.(jpg|jpeg|png|webp)$/i.test(name))continue;const blob=await entry.async('blob');files.push(new File([blob],name.split('/').pop(),{type:/\.png$/i.test(name)?'image/png':/\.webp$/i.test(name)?'image/webp':'image/jpeg'}));}}
+      if(!files.length)throw Error('Selecciona una fotografía o un ZIP válido.');if(files.length>500)throw Error('Máximo 500 fotografías por lote.');
+      const bySku=new Map(store.data.products.map(p=>[String(p.code).trim().toLowerCase(),p]));const seen=new Set();
+      replacements=files.map(file=>{const sku=file.name.replace(/\.(jpg|jpeg|png|webp)$/i,'').trim(),p=bySku.get(sku.toLowerCase()),duplicate=seen.has(sku.toLowerCase());seen.add(sku.toLowerCase());const url=URL.createObjectURL(file);replacementUrls.push(url);return {file,sku,p,url,ok:!!p&&(p.hasImage||p.imageVersion)&&!duplicate&&file.size<=12*1024*1024};});
+      replacementOut.innerHTML=`<p>${replacements.filter(x=>x.ok).length} reemplazos válidos · ${replacements.filter(x=>!x.ok).length} rechazados. Compara las imágenes.</p><div class="table-wrap"><table><thead><tr><th>Incluir</th><th>Actual</th><th>Nueva</th><th>SKU</th><th>Producto</th><th>Estado</th></tr></thead><tbody>${replacements.map((x,i)=>`<tr><td><input type="checkbox" data-replace-index="${i}" ${x.ok?'checked':'disabled'}></td><td data-current-replace="${i}">Cargando…</td><td>${thumb(x.url)}</td><td>${esc(x.sku)}</td><td>${esc(x.p?.name||'—')}</td><td>${x.ok?'Lista para reemplazar':'SKU sin fotografía, inexistente, duplicado o imagen demasiado grande'}</td></tr>`).join('')}</tbody></table></div>`;
+      wireThumbnails(replacementOut);replacementButton.disabled=!replacements.some(x=>x.ok);
+      replacements.forEach(async(x,i)=>{if(!x.p)return;try{const src=await productImageData(x.p);const cell=replacementOut.querySelector(`[data-current-replace="${i}"]`);if(cell){cell.innerHTML=src?thumb(src):'Sin imagen';if(src)wireThumbnails(cell);}}catch(e){const cell=replacementOut.querySelector(`[data-current-replace="${i}"]`);if(cell)cell.textContent='No disponible';}});
+      await notice('Revisión de reemplazos',`${replacements.filter(x=>x.ok).length} fotografías listas para reemplazar. Comprueba las imágenes actuales y nuevas.`, 'success');
+    }catch(e){replacementOut.textContent=e.message;await notice('No se pudo revisar',e.message,'error');}
+  };
+  replacementButton.onclick=async()=>{
+    const selected=[...replacementOut.querySelectorAll('[data-replace-index]:checked')].map(c=>replacements[Number(c.dataset.replaceIndex)]).filter(x=>x?.ok);
+    if(!selected.length)return toast('No hay reemplazos seleccionados','warning');
+    if(!await confirmNotice('Confirmar reemplazo',`Se reemplazarán únicamente ${selected.length} fotografías de la empresa activa. Las demás no cambiarán. ¿Continuar?`,{confirmLabel:'Reemplazar fotografías'}))return;
+    replacementButton.disabled=true;let done=0;const errors=[];
+    try{for(const x of selected){try{const data=await fileToProductImage(x.file);const r=await uploadProductImage(x.p.id,data);refreshLocal(x.p,true,r.imageVersion);done++;}catch(e){errors.push(`${x.sku}: ${e.message}`);}}await notice('Reemplazo finalizado',`${done} fotografías reemplazadas. ${errors.length} errores.${errors.length?' '+errors.slice(0,3).join('; '):''}`,errors.length?'warning':'success');replacementOut.firstElementChild.textContent=`Reemplazadas ${done} de ${selected.length}.`;}
+    finally{replacementButton.disabled=false;}
   };
   document.querySelector('#imagen-borrar-listar').onclick=()=>{
     const list=document.querySelector('#imagen-borrar-lista');if(!admin){list.textContent='Solo administradores pueden eliminar en lote.';return;}
