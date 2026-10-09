@@ -1,10 +1,10 @@
 import {apiRequest} from '../../services/api.js';
-import {fileToProductImage,uploadProductImage,deleteProductImage} from '../../services/product-images.js';
+import {fileToProductImage,uploadProductImage,deleteProductImage,productImageData} from '../../services/product-images.js';
 import {requireAdminSupercode} from '../../services/security.js';
 import {previewProductImages} from '../../services/product-image-import-preview.js';
 import {exportProductCatalogExcel,exportProductCatalogPdf} from '../../services/product-catalog-export.js';
 import { store } from '../../services/store.js';
-import { shell,wireShell,toast,notice } from '../../layout/layout.js';
+import { shell,wireShell,toast,notice,confirmNotice } from '../../layout/layout.js';
 import { esc,badge,empty } from '../../components/ui.js';
 import { openProductEditor } from '../../services/product-editor.js';
 import { enlazarBotonEscaner } from '../../services/camara-ui.js';
@@ -157,43 +157,49 @@ export function renderProducts(root){
   <div class="table-wrap"><table><thead><tr><th>Código</th><th>Descripción</th><th>Stock / Global WMS</th><th>Ubicación actual</th><th>Acciones</th></tr></thead><tbody id="cuerpo-productos">${d.products.map(filaProducto).join('')}</tbody></table></div>`,'productos');
   wireShell();
   document.querySelector('#preparar-imagenes').onclick=()=>document.querySelector('#panel-preparar-imagenes').classList.toggle('oculto');
-  let prepared=[];
+  let prepared=[];let previewUrls=[];
+  const releasePreviews=()=>{previewUrls.forEach(url=>URL.revokeObjectURL(url));previewUrls=[];};
+  const showPhoto=(src)=>{if(!src)return;let dlg=document.querySelector('#bulk-photo-viewer');if(!dlg){dlg=document.createElement('dialog');dlg.id='bulk-photo-viewer';dlg.className='product-photo-viewer';dlg.innerHTML='<button type="button" class="ghost product-photo-close">Cerrar ×</button><img alt="Fotografía ampliada">';document.body.appendChild(dlg);dlg.querySelector('button').onclick=()=>dlg.close();dlg.onclick=e=>{if(e.target===dlg)dlg.close();};}dlg.querySelector('img').src=src;dlg.showModal();};
+  const wireThumbnails=(root)=>root.querySelectorAll('[data-bulk-preview]').forEach(btn=>btn.onclick=()=>showPhoto(btn.querySelector('img')?.src));
+  const thumb=(src)=>`<button type="button" class="bulk-photo-thumb" data-bulk-preview title="Ampliar fotografía"><img src="${src}" alt="Vista previa del producto" loading="lazy"></button>`;
   const out=document.querySelector('#imagen-import-resultado');
   const admin=['ADMIN_GLOBAL','ADMINISTRADOR'].includes(currentUser()?.role);
   const refreshLocal=(p,has,version)=>{p.hasImage=has;if(has)p.imageVersion=version||Date.now();else{delete p.imageVersion;delete p.imageUpdatedAt;}};
   document.querySelector('#imagen-import-validar').onclick=async()=>{
-    prepared=[];document.querySelector('#imagen-import-subir').disabled=true;
+    releasePreviews();prepared=[];document.querySelector('#imagen-import-subir').disabled=true;
     try{
-      let files=[...document.querySelector('#imagen-import-files').files];const zipFile=document.querySelector('#imagen-import-zip').files[0];
+      let files=[...document.querySelector('#imagen-import-files').files].filter(f=>/\.(jpg|jpeg|png|webp)$/i.test(f.name));const zipFile=document.querySelector('#imagen-import-zip').files[0];
       if(zipFile){if(!window.JSZip)throw Error('Lector ZIP no disponible');const zip=await window.JSZip.loadAsync(await zipFile.arrayBuffer());for(const [name,entry] of Object.entries(zip.files)){if(entry.dir||!(/\.(jpg|jpeg|png|webp)$/i.test(name)))continue;const data=await entry.async('blob');files.push(new File([data],name.split('/').pop(),{type:/\.png$/i.test(name)?'image/png':/\.webp$/i.test(name)?'image/webp':'image/jpeg'}));}}
       if(!files.length)throw Error('Selecciona fotografías o un ZIP.');if(files.length>500)throw Error('Máximo 500 fotografías por lote.');
       const bySku=new Map(store.data.products.map(p=>[String(p.code).trim().toLowerCase(),p]));const seen=new Set();
-      prepared=files.map(file=>{const sku=file.name.replace(/\.(jpg|jpeg|png|webp)$/i,'').trim(),p=bySku.get(sku.toLowerCase());const duplicate=seen.has(sku.toLowerCase());seen.add(sku.toLowerCase());return {file,sku,p,ok:!!p&&!duplicate&&file.size<=12*1024*1024};});
-      out.innerHTML=`<p>${prepared.filter(x=>x.ok).length} listas · ${prepared.length-prepared.filter(x=>x.ok).length} rechazadas. Verifica visualmente antes de importar.</p><div class="table-wrap"><table><thead><tr><th>Incluir</th><th>Fotografía</th><th>SKU</th><th>Producto Khal</th><th>Estado</th></tr></thead><tbody>${prepared.map((x,i)=>`<tr><td><input type="checkbox" data-photo-index="${i}" ${x.ok?'checked':'disabled'}></td><td>${esc(x.file.name)}</td><td>${esc(x.sku)}</td><td>${esc(x.p?.name||'—')}</td><td>${x.ok?(x.p.hasImage?'Reemplazará existente':'Lista'):'SKU inexistente, duplicado o archivo demasiado grande'}</td></tr>`).join('')}</tbody></table></div>`;
-      document.querySelector('#imagen-import-subir').disabled=!prepared.some(x=>x.ok);
-    }catch(e){out.textContent=e.message||'No se pudo leer el paquete';}
+      prepared=files.map(file=>{const sku=file.name.replace(/\.(jpg|jpeg|png|webp)$/i,'').trim(),p=bySku.get(sku.toLowerCase());const duplicate=seen.has(sku.toLowerCase());seen.add(sku.toLowerCase());const url=URL.createObjectURL(file);previewUrls.push(url);return {file,sku,p,url,ok:!!p&&!duplicate&&file.size<=12*1024*1024};});
+      out.innerHTML=`<p>${prepared.filter(x=>x.ok).length} listas · ${prepared.length-prepared.filter(x=>x.ok).length} rechazadas. Verifica visualmente antes de importar.</p><div class="table-wrap"><table><thead><tr><th>Incluir</th><th>Fotografía</th><th>SKU</th><th>Producto Khal</th><th>Estado</th></tr></thead><tbody>${prepared.map((x,i)=>`<tr><td><input type="checkbox" data-photo-index="${i}" ${x.ok?'checked':'disabled'}></td><td>${thumb(x.url)}</td><td>${esc(x.sku)}</td><td>${esc(x.p?.name||'—')}</td><td>${x.ok?(x.p.hasImage?'Reemplazará existente':'Lista'):'SKU inexistente, duplicado o archivo demasiado grande'}</td></tr>`).join('')}</tbody></table></div>`;
+      wireThumbnails(out);document.querySelector('#imagen-import-subir').disabled=!prepared.some(x=>x.ok);
+      await notice('Revisión completada',`${prepared.filter(x=>x.ok).length} fotografías listas y ${prepared.filter(x=>!x.ok).length} rechazadas. Revisa las miniaturas antes de importar.`,prepared.some(x=>!x.ok)?'warning':'success');
+    }catch(e){out.textContent=e.message||'No se pudo leer el paquete';await notice('No se pudo revisar',e.message||'Comprueba los archivos seleccionados.','error');}
   };
   document.querySelector('#imagen-import-subir').onclick=async()=>{
     const selected=[...out.querySelectorAll('[data-photo-index]:checked')].map(c=>prepared[Number(c.dataset.photoIndex)]).filter(x=>x?.ok);
     if(!selected.length)return toast('No hay fotografías seleccionadas','warning');
-    if(!confirm(`¿Importar ${selected.length} fotografías en la empresa activa? Las existentes se reemplazarán.`))return;
+    if(!await confirmNotice('Confirmar importación',`Se importarán ${selected.length} fotografías. ${selected.filter(x=>x.p.hasImage).length} reemplazarán fotos existentes. ¿Continuar?`,{confirmLabel:'Importar fotografías'}))return;
     const button=document.querySelector('#imagen-import-subir');button.disabled=true;let ok=0;const errors=[];
-    try{for(const x of selected){try{const data=await fileToProductImage(x.file);const r=await uploadProductImage(x.p.id,data);refreshLocal(x.p,true,r.imageVersion);ok++;out.firstElementChild.textContent=`Importando: ${ok}/${selected.length}`;}catch(e){errors.push(`${x.sku}: ${e.message}`);}}out.firstElementChild.textContent=`Importadas ${ok} de ${selected.length}. ${errors.length?'Errores: '+errors.join('; '):'Proceso finalizado.'}`;}
+    try{for(const x of selected){try{const data=await fileToProductImage(x.file);const r=await uploadProductImage(x.p.id,data);refreshLocal(x.p,true,r.imageVersion);ok++;out.firstElementChild.textContent=`Importando: ${ok}/${selected.length}`;}catch(e){errors.push(`${x.sku}: ${e.message}`);}}out.firstElementChild.textContent=`Importadas ${ok} de ${selected.length}. ${errors.length?'Errores: '+errors.join('; '):'Proceso finalizado.'}`;await notice('Importación finalizada',`${ok} fotografías guardadas. ${errors.length} errores.${errors.length?' '+errors.slice(0,3).join('; '):''}`,errors.length?'warning':'success');}
     finally{button.disabled=false;}
   };
   document.querySelector('#imagen-borrar-listar').onclick=()=>{
     const list=document.querySelector('#imagen-borrar-lista');if(!admin){list.textContent='Solo administradores pueden eliminar en lote.';return;}
     const withPhotos=store.data.products.filter(p=>p.hasImage||p.imageVersion);
-    list.innerHTML=`<p>${withPhotos.length} productos con fotografía. <label><input type="checkbox" id="imagen-borrar-todas"> Seleccionar todas</label></p><div class="table-wrap" style="max-height:320px;overflow:auto"><table><tbody>${withPhotos.map(p=>`<tr><td><input type="checkbox" class="imagen-borrar-check" value="${esc(p.id)}"></td><td>${esc(p.code)}</td><td>${esc(p.name)}</td></tr>`).join('')}</tbody></table></div>`;
+    list.innerHTML=`<p>${withPhotos.length} productos con fotografía. <label><input type="checkbox" id="imagen-borrar-todas"> Seleccionar todas</label></p><div class="table-wrap" style="max-height:320px;overflow:auto"><table><tbody>${withPhotos.map(p=>`<tr><td><input type="checkbox" class="imagen-borrar-check" value="${esc(p.id)}"></td><td><span class="bulk-loaded-photo" data-loaded-photo="${esc(p.id)}">Cargando…</span></td><td>${esc(p.code)}</td><td>${esc(p.name)}</td></tr>`).join('')}</tbody></table></div>`;
     list.querySelector('#imagen-borrar-todas').onchange=e=>list.querySelectorAll('.imagen-borrar-check').forEach(c=>c.checked=e.target.checked);
+    Promise.all(withPhotos.map(async p=>{const src=await productImageData(p);const slot=[...list.querySelectorAll('[data-loaded-photo]')].find(n=>n.dataset.loadedPhoto===String(p.id));if(slot){slot.innerHTML=src?thumb(src):'Sin vista previa';if(src)wireThumbnails(slot);}}));
   };
   document.querySelector('#imagen-borrar-ejecutar').onclick=async()=>{
     if(!admin)return toast('Solo administradores','warning');const ids=[...document.querySelectorAll('.imagen-borrar-check:checked')].map(c=>c.value);
     if(!ids.length)return toast('Selecciona las fotografías a eliminar','warning');
-    if(!confirm(`Eliminar ${ids.length} fotografías de esta empresa. Los productos y stock permanecerán intactos. ¿Continuar?`))return;
+    if(!await confirmNotice('Confirmar eliminación',`Se eliminarán ${ids.length} fotografías. Los productos y el stock no cambiarán.`,{type:'warning',confirmLabel:'Continuar'}))return;
     if(!await requireAdminSupercode(`Eliminar ${ids.length} fotografías de la empresa activa`,{title:'Eliminar fotografías en lote',buttonLabel:'Autorizar eliminación'}))return;
     let done=0;const errors=[];const button=document.querySelector('#imagen-borrar-ejecutar');button.disabled=true;
-    try{for(const id of ids){try{await deleteProductImage(id);const p=store.data.products.find(p=>p.id===id);if(p)refreshLocal(p,false);done++;}catch(e){errors.push(`${id}: ${e.message}`);}}document.querySelector('#imagen-borrar-lista').textContent=`Eliminadas ${done} de ${ids.length}. ${errors.join('; ')}`;}
+    try{for(const id of ids){try{await deleteProductImage(id);const p=store.data.products.find(p=>p.id===id);if(p)refreshLocal(p,false);done++;}catch(e){errors.push(`${id}: ${e.message}`);}}document.querySelector('#imagen-borrar-lista').textContent=`Eliminadas ${done} de ${ids.length}. ${errors.join('; ')}`;await notice('Eliminación finalizada',`${done} fotografías eliminadas. ${errors.length} errores.${errors.length?' '+errors.slice(0,3).join('; '):''}`,errors.length?'warning':'success');}
     finally{button.disabled=false;}
   };
   document.querySelector('#exportar-productos-excel').onclick=async()=>{try{await exportProductCatalogExcel();}catch(e){toast(e.message||'Error al descargar Excel','warning');}};
