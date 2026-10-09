@@ -3153,3 +3153,6 @@ dialog.scanner-dialog{
 
 /* Khal v270: miniaturas de revisión y eliminación masiva */
 .bulk-photo-thumb{display:inline-flex;align-items:center;justify-content:center;width:92px;height:76px;padding:4px;border:1px solid #dce5eb;border-radius:9px;background:#fff;cursor:zoom-in;vertical-align:middle}.bulk-photo-thumb img{width:100%;height:100%;object-fit:contain}.bulk-loaded-photo{display:inline-flex;min-width:92px;min-height:76px;align-items:center}.bulk-loaded-photo .bulk-photo-thumb{flex-shrink:0}#imagen-import-resultado .table-wrap,#imagen-borrar-lista .table-wrap{max-width:100%;overflow-x:auto}#imagen-import-resultado td,#imagen-borrar-lista td{vertical-align:middle}@media(max-width:650px){.bulk-photo-thumb{width:68px;height:62px}}
+
+/* v271: fotografía por acción, sin duplicar formularios */
+.photo-action-menu{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.photo-action-body{margin-top:12px;padding:16px;border:1px solid #dce5eb;border-radius:12px}.photo-action-body h4{margin:0 0 8px}.photo-action-body[hidden],.photo-action-body.oculto{display:none!important}#imagen-borrar-lista input[type=search]{width:100%;max-width:360px}@media(max-width:650px){.photo-action-menu button{flex:1 1 100%}.photo-action-body{padding:10px}}
