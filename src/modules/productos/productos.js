@@ -1,5 +1,5 @@
 import {apiRequest} from '../../services/api.js';
-import {fileToProductImage,uploadProductImage,deleteProductImage,productImageData} from '../../services/product-images.js';
+import {fileToProductImage,uploadProductImage,deleteProductImage,productImageData,productPhotoHtml,hydrateProductImages,wireProductPhotoViewer} from '../../services/product-images.js';
 import {requireAdminSupercode} from '../../services/security.js';
 import {previewProductImages} from '../../services/product-image-import-preview.js';
 import {exportProductCatalogExcel,exportProductCatalogPdf} from '../../services/product-catalog-export.js';
@@ -34,7 +34,7 @@ function filaProducto(p){
     :alcanceStock==='TODOS'
       ?`<b>${total}</b><small class="row-sub"><b>Todos los centros</b> · ${rows.map(x=>`${x.name}: ${x.qty}`).join(' · ')}</small>`
       :`<b>${activeRow.qty}</b><small class="row-sub"><b>${esc(activeRow.name)} · solo centro activo</b></small>`;
-  return `<tr class="click-row" data-code="${esc(p.code)}"><td><b>${esc(p.code)}</b><small class="row-sub">${productAliases(p).length-1} código(s) asociado(s)</small></td><td><b>${esc(p.description||p.name||`Producto ${p.code}`)}</b></td><td>${stock}</td><td>${ubicacionesProducto(p.code)}</td><td><button class="ghost small edit-product-row" data-code="${esc(p.code)}">Ver ficha / Editar</button></td></tr>`;
+  return `<tr class="click-row" data-code="${esc(p.code)}"><td><b>${esc(p.code)}</b><small class="row-sub">${productAliases(p).length-1} código(s) asociado(s)</small></td><td><div class="catalog-product-identity">${productPhotoHtml(p,{className:'catalog-product-photo'})}<b>${esc(p.description||p.name||`Producto ${p.code}`)}</b></div></td><td>${stock}</td><td>${ubicacionesProducto(p.code)}</td><td><button class="ghost small edit-product-row" data-code="${esc(p.code)}">Ver ficha / Editar</button></td></tr>`;
 }
 function obtenerFiltrados(){
   const texto=(document.querySelector('#productos-buscar')?.value||'').trim().toLowerCase();
@@ -69,6 +69,7 @@ function pintarTabla(){
   const lista=obtenerFiltrados();
   contador.textContent=`${lista.length} producto${lista.length===1?'':'s'}`;
   cuerpo.innerHTML=lista.length?lista.map(filaProducto).join(''):`<tr><td colspan="5">${empty('Sin coincidencias','Cambia los filtros o la palabra de búsqueda.')}</td></tr>`;
+  hydrateProductImages(cuerpo);wireProductPhotoViewer(cuerpo);cuerpo.querySelectorAll('.catalog-product-photo').forEach(btn=>btn.addEventListener('click',e=>e.stopPropagation()));
   document.querySelectorAll('.edit-product-row').forEach(b=>b.onclick=e=>{e.stopPropagation();openProductEditor(b.dataset.code,{onSaved:()=>pintarTabla()});});document.querySelectorAll('.click-row[data-code]').forEach(r=>r.onclick=()=>openProductEditor(r.dataset.code,{onSaved:()=>pintarTabla()}));
 }
 
