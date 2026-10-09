@@ -3165,3 +3165,6 @@ dialog.scanner-dialog{
 
 /* v275: eliminación visual en tarjetas, igual que galería de consulta */
 .photo-delete-grid .photo-delete-select{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;cursor:pointer}.photo-delete-grid .photo-delete-select input{width:17px;height:17px;flex-shrink:0}.photo-delete-grid .photo-gallery-item:has(.imagen-borrar-check:checked){border-color:#148a58;background:#f2faf5}.photo-delete-grid .photo-gallery-image{min-height:110px}
+
+/* v276: comparación visual para reemplazo individual */
+.photo-shortcut-compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}.photo-shortcut-compare>div{border:1px solid #d9e2ec;border-radius:12px;padding:12px;min-width:0}.photo-shortcut-compare .bulk-photo-thumb img{max-height:180px;max-width:100%;object-fit:contain}@media(max-width:560px){.photo-shortcut-compare{grid-template-columns:1fr}}
