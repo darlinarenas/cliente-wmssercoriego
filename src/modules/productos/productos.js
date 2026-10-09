@@ -1,3 +1,6 @@
+import {apiRequest} from '../../services/api.js';
+import {fileToProductImage,uploadProductImage,deleteProductImage} from '../../services/product-images.js';
+import {requireAdminSupercode} from '../../services/security.js';
 import {previewProductImages} from '../../services/product-image-import-preview.js';
 import {exportProductCatalogExcel,exportProductCatalogPdf} from '../../services/product-catalog-export.js';
 import { store } from '../../services/store.js';
@@ -137,13 +140,16 @@ export function renderProducts(root){
   const d=store.data;
   root.innerHTML=shell('Productos',`<div class="page-intro"><div><span class="eyebrow">CATÁLOGO</span><h2>Productos y ubicación localizada</h2><p>El mismo producto puede existir en varias ubicaciones. El total se calcula sumando todas las posiciones registradas.</p></div><div class="product-page-actions"><button id="exportar-productos-excel" class="secondary" type="button">Descargar Excel</button><button id="exportar-productos-pdf" class="secondary" type="button">Descargar PDF</button><button id="preparar-imagenes" class="secondary" type="button">Preparar imágenes</button><button id="nuevo-producto" class="primary">+ Nuevo producto</button><button id="abrir-filtros" class="secondary filter-button">☷ Filtrar y ordenar</button></div></div>
   <section id="panel-preparar-imagenes" class="panel oculto" aria-label="Preparar importación masiva de imágenes">
-    <h3>Preparación de imágenes por SKU</h3>
-    <p>Solo vista previa local. No se sube, guarda ni reemplaza ninguna fotografía. Empresa activa únicamente.</p>
-    <p><small>CSV UTF-8 con columnas <b>SKU,Descripcion,Imagen</b>. Selecciona las fotos JPG, PNG o WebP que aparecen en el CSV. La descripción es opcional.</small></p>
-    <div class="filtros-grid"><label>Archivo CSV<input id="imagen-import-csv" type="file" accept=".csv,text/csv"></label><label>Fotografías<input id="imagen-import-files" type="file" accept="image/jpeg,image/png,image/webp" multiple></label></div>
-    <button id="imagen-import-validar" class="secondary" type="button">Validar coincidencias</button>
+    <h3>Fotografías de productos · Empresa activa</h3>
+    <p>Importa fotografías por SKU, revisa antes de guardar y elimina en lote con supercódigo. No modifica inventario ni productos.</p>
+    <label>ZIP de fotografías (nombre de cada JPG/PNG/WebP = SKU)<input id="imagen-import-zip" type="file" accept=".zip,application/zip"></label>
+    <label>O seleccionar fotografías sueltas<input id="imagen-import-files" type="file" accept="image/jpeg,image/png,image/webp" multiple></label>
+    <div class="dialog-actions"><button id="imagen-import-validar" class="secondary" type="button">Revisar fotografías</button><button id="imagen-import-subir" class="primary" type="button" disabled>Importar seleccionadas</button></div>
     <div id="imagen-import-resultado" aria-live="polite"></div>
-    <small>Importación definitiva deshabilitada hasta validar almacenamiento, permisos y respaldo. No afecta inventario.</small>
+    <hr><h3>Eliminar fotografías masivamente</h3>
+    <p>Solo administrador. Selecciona las fotografías que deseas borrar; se solicitará el supercódigo antes de eliminarlas.</p>
+    <div class="dialog-actions"><button id="imagen-borrar-listar" class="secondary" type="button">Ver fotografías cargadas</button><button id="imagen-borrar-ejecutar" class="secondary" type="button">Eliminar seleccionadas</button></div>
+    <div id="imagen-borrar-lista"></div>
   </section>
   <section class="panel stock-scope-panel"><div><span class="eyebrow">ALCANCE DEL INVENTARIO</span><h3>¿Qué stock quieres ver?</h3><small>La vista siempre queda limitada a ${esc(d.companies.find(c=>c.id===activeCompanyId(d))?.name||'la empresa activa')}.</small></div><label>Vista de stock<select id="alcance-stock"><option value="CENTRO">Solo ${esc(d.sites.find(s=>s.id===activeSiteId(d))?.name||'centro activo')}</option><option value="GLOBAL">Stock global de la empresa</option><option value="TODOS">Todos los productos y centros</option></select></label></section>
   <section id="panel-filtros" class="panel filtros-productos oculto"><div class="filtros-grid"><label>Buscar<div class="entrada-con-camara"><input id="productos-buscar" placeholder="Código, descripción o palabra"><button id="camara-productos-buscar" class="scan-button" type="button" title="Escanear código con cámara">▣</button></div></label><label>Rotación<select id="filtro-rotacion"><option value="">Todas</option><option>ALTA</option><option>MEDIA</option><option>BAJA</option></select></label><label>Tipo<select id="filtro-tipo"><option value="">Todos</option>${tipos().map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select></label><label>Stock en ${esc(d.sites.find(s=>s.id===activeSiteId(d))?.name||activeSiteId(d))}<select id="filtro-stock-centro"><option value="">Sin filtro adicional</option><option value="con-stock">Solo con stock en este centro</option><option value="sin-stock">Sin stock en este centro</option></select></label><label>Ordenar por<select id="orden-productos"><option value="codigo-asc">Código · menor a mayor</option><option value="codigo-desc">Código · mayor a menor</option><option value="descripcion-asc">Descripción · A a Z</option><option value="descripcion-desc">Descripción · Z a A</option><option value="cantidad-desc">Cantidad · mayor a menor</option><option value="cantidad-asc">Cantidad · menor a mayor</option><option value="rotacion-desc">Rotación · alta a baja</option><option value="rotacion-asc">Rotación · baja a alta</option><option value="tipo">Tipo</option></select></label></div></section>
@@ -151,16 +157,44 @@ export function renderProducts(root){
   <div class="table-wrap"><table><thead><tr><th>Código</th><th>Descripción</th><th>Stock / Global WMS</th><th>Ubicación actual</th><th>Acciones</th></tr></thead><tbody id="cuerpo-productos">${d.products.map(filaProducto).join('')}</tbody></table></div>`,'productos');
   wireShell();
   document.querySelector('#preparar-imagenes').onclick=()=>document.querySelector('#panel-preparar-imagenes').classList.toggle('oculto');
+  let prepared=[];
+  const out=document.querySelector('#imagen-import-resultado');
+  const admin=['ADMIN_GLOBAL','ADMINISTRADOR'].includes(currentUser()?.role);
+  const refreshLocal=(p,has,version)=>{p.hasImage=has;if(has)p.imageVersion=version||Date.now();else{delete p.imageVersion;delete p.imageUpdatedAt;}};
   document.querySelector('#imagen-import-validar').onclick=async()=>{
-    const output=document.querySelector('#imagen-import-resultado');
-    const csv=document.querySelector('#imagen-import-csv').files[0];
-    const files=document.querySelector('#imagen-import-files').files;
-    if(!csv){toast('Selecciona primero el CSV','warning');return;}
+    prepared=[];document.querySelector('#imagen-import-subir').disabled=true;
     try{
-      const result=previewProductImages(await csv.text(),files);
-      const counts={};result.forEach(r=>counts[r.status]=(counts[r.status]||0)+1);
-      output.innerHTML=`<p><b>${result.length} registros revisados</b> · ${Object.entries(counts).map(([k,v])=>`${esc(k)}: ${v}`).join(' · ')}</p><div class="table-wrap"><table><thead><tr><th>Fila</th><th>SKU</th><th>Producto Khal</th><th>Imagen</th><th>Resultado</th></tr></thead><tbody>${result.slice(0,500).map(r=>`<tr><td>${r.line}</td><td>${esc(r.sku)}</td><td>${esc(r.product)}</td><td>${esc(r.name)}</td><td>${esc(r.status)}</td></tr>`).join('')}</tbody></table></div>${result.length>500?'<small>Vista limitada a 500 filas. No se ha importado nada.</small>':''}`;
-    }catch(e){output.textContent=e.message||'No se pudo validar el archivo';}
+      let files=[...document.querySelector('#imagen-import-files').files];const zipFile=document.querySelector('#imagen-import-zip').files[0];
+      if(zipFile){if(!window.JSZip)throw Error('Lector ZIP no disponible');const zip=await window.JSZip.loadAsync(await zipFile.arrayBuffer());for(const [name,entry] of Object.entries(zip.files)){if(entry.dir||!(/\.(jpg|jpeg|png|webp)$/i.test(name)))continue;const data=await entry.async('blob');files.push(new File([data],name.split('/').pop(),{type:/\.png$/i.test(name)?'image/png':/\.webp$/i.test(name)?'image/webp':'image/jpeg'}));}}
+      if(!files.length)throw Error('Selecciona fotografías o un ZIP.');if(files.length>500)throw Error('Máximo 500 fotografías por lote.');
+      const bySku=new Map(store.data.products.map(p=>[String(p.code).trim().toLowerCase(),p]));const seen=new Set();
+      prepared=files.map(file=>{const sku=file.name.replace(/\.(jpg|jpeg|png|webp)$/i,'').trim(),p=bySku.get(sku.toLowerCase());const duplicate=seen.has(sku.toLowerCase());seen.add(sku.toLowerCase());return {file,sku,p,ok:!!p&&!duplicate&&file.size<=12*1024*1024};});
+      out.innerHTML=`<p>${prepared.filter(x=>x.ok).length} listas · ${prepared.length-prepared.filter(x=>x.ok).length} rechazadas. Verifica visualmente antes de importar.</p><div class="table-wrap"><table><thead><tr><th>Incluir</th><th>Fotografía</th><th>SKU</th><th>Producto Khal</th><th>Estado</th></tr></thead><tbody>${prepared.map((x,i)=>`<tr><td><input type="checkbox" data-photo-index="${i}" ${x.ok?'checked':'disabled'}></td><td>${esc(x.file.name)}</td><td>${esc(x.sku)}</td><td>${esc(x.p?.name||'—')}</td><td>${x.ok?(x.p.hasImage?'Reemplazará existente':'Lista'):'SKU inexistente, duplicado o archivo demasiado grande'}</td></tr>`).join('')}</tbody></table></div>`;
+      document.querySelector('#imagen-import-subir').disabled=!prepared.some(x=>x.ok);
+    }catch(e){out.textContent=e.message||'No se pudo leer el paquete';}
+  };
+  document.querySelector('#imagen-import-subir').onclick=async()=>{
+    const selected=[...out.querySelectorAll('[data-photo-index]:checked')].map(c=>prepared[Number(c.dataset.photoIndex)]).filter(x=>x?.ok);
+    if(!selected.length)return toast('No hay fotografías seleccionadas','warning');
+    if(!confirm(`¿Importar ${selected.length} fotografías en la empresa activa? Las existentes se reemplazarán.`))return;
+    const button=document.querySelector('#imagen-import-subir');button.disabled=true;let ok=0;const errors=[];
+    try{for(const x of selected){try{const data=await fileToProductImage(x.file);const r=await uploadProductImage(x.p.id,data);refreshLocal(x.p,true,r.imageVersion);ok++;out.firstElementChild.textContent=`Importando: ${ok}/${selected.length}`;}catch(e){errors.push(`${x.sku}: ${e.message}`);}}out.firstElementChild.textContent=`Importadas ${ok} de ${selected.length}. ${errors.length?'Errores: '+errors.join('; '):'Proceso finalizado.'}`;}
+    finally{button.disabled=false;}
+  };
+  document.querySelector('#imagen-borrar-listar').onclick=()=>{
+    const list=document.querySelector('#imagen-borrar-lista');if(!admin){list.textContent='Solo administradores pueden eliminar en lote.';return;}
+    const withPhotos=store.data.products.filter(p=>p.hasImage||p.imageVersion);
+    list.innerHTML=`<p>${withPhotos.length} productos con fotografía. <label><input type="checkbox" id="imagen-borrar-todas"> Seleccionar todas</label></p><div class="table-wrap" style="max-height:320px;overflow:auto"><table><tbody>${withPhotos.map(p=>`<tr><td><input type="checkbox" class="imagen-borrar-check" value="${esc(p.id)}"></td><td>${esc(p.code)}</td><td>${esc(p.name)}</td></tr>`).join('')}</tbody></table></div>`;
+    list.querySelector('#imagen-borrar-todas').onchange=e=>list.querySelectorAll('.imagen-borrar-check').forEach(c=>c.checked=e.target.checked);
+  };
+  document.querySelector('#imagen-borrar-ejecutar').onclick=async()=>{
+    if(!admin)return toast('Solo administradores','warning');const ids=[...document.querySelectorAll('.imagen-borrar-check:checked')].map(c=>c.value);
+    if(!ids.length)return toast('Selecciona las fotografías a eliminar','warning');
+    if(!confirm(`Eliminar ${ids.length} fotografías de esta empresa. Los productos y stock permanecerán intactos. ¿Continuar?`))return;
+    if(!await requireAdminSupercode(`Eliminar ${ids.length} fotografías de la empresa activa`,{title:'Eliminar fotografías en lote',buttonLabel:'Autorizar eliminación'}))return;
+    let done=0;const errors=[];const button=document.querySelector('#imagen-borrar-ejecutar');button.disabled=true;
+    try{for(const id of ids){try{await deleteProductImage(id);const p=store.data.products.find(p=>p.id===id);if(p)refreshLocal(p,false);done++;}catch(e){errors.push(`${id}: ${e.message}`);}}document.querySelector('#imagen-borrar-lista').textContent=`Eliminadas ${done} de ${ids.length}. ${errors.join('; ')}`;}
+    finally{button.disabled=false;}
   };
   document.querySelector('#exportar-productos-excel').onclick=async()=>{try{await exportProductCatalogExcel();}catch(e){toast(e.message||'Error al descargar Excel','warning');}};
   document.querySelector('#exportar-productos-pdf').onclick=()=>{try{exportProductCatalogPdf();}catch(e){toast(e.message||'Error al descargar PDF','warning');}};
