@@ -101,7 +101,7 @@ function drawCenteredSpacedCode(ctx,fit,W,y){
  const widths=[...fit.text].map(ch=>ctx.measureText(ch).width);
  const total=widths.reduce((sum,width)=>sum+width,0)+Math.max(0,widths.length-1)*fit.letterSpacing;
  let x=(W-total)/2;
- [...fit.text].forEach((ch,index)=>{ctx.fillText(ch,x,y);ctx.fillText(ch,x+1,y);x+=widths[index]+fit.letterSpacing;});
+ [...fit.text].forEach((ch,index)=>{ctx.fillText(ch,x,y);x+=widths[index]+fit.letterSpacing;});
  return y+Math.ceil(fit.size*1.08);
 }
 
@@ -109,7 +109,8 @@ function drawCenteredSpacedCode(ctx,fit,W,y){
 // Se limita también por altura para conservar la descripción, barras y unidades.
 function fitSmallLabelSku(ctx,code,barcodeWidth,usableWidth,maxHeight,dpmm){
  const text=String(code||'').trim(),chars=[...text];
- const targetWidth=Math.min(usableWidth,barcodeWidth);
+ // Margen de seguridad: el trazo extra de negrita no debe exceder las barras.
+ const targetWidth=Math.max(0,Math.min(usableWidth,barcodeWidth)-2);
  const maxSize=Math.min(mm(5.6,dpmm),Math.floor(maxHeight/1.08));
  const minSize=mm(2.3,dpmm);
  for(let size=maxSize;size>=minSize;size--){
@@ -120,7 +121,7 @@ function fitSmallLabelSku(ctx,code,barcodeWidth,usableWidth,maxHeight,dpmm){
   return {size,text,letterSpacing:spacing,width:natural+spacing*Math.max(0,chars.length-1)};
  }
  // Los códigos largos mantienen el ajuste original, sin salirse de la etiqueta.
- return fitSpacedCode(ctx,text,usableWidth,minSize,minSize,0);
+ return fitSpacedCode(ctx,text,targetWidth,minSize,minSize,0);
 }
 
 function drawBarcode(ctx,svg,W,y,height,geometry){

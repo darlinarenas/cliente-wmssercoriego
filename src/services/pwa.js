@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.10.10-khal-small-label-wide-sku-v279';
+const PWA_RELEASE = '2026.10.10-khal-small-label-width-fit-v280';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
