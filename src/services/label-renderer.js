@@ -105,6 +105,24 @@ function drawCenteredSpacedCode(ctx,fit,W,y){
  return y+Math.ceil(fit.size*1.08);
 }
 
+// Solo etiqueta pequeña: SKU ancho, centrado y con espaciado adaptable al ancho real del barcode.
+// Se limita también por altura para conservar la descripción, barras y unidades.
+function fitSmallLabelSku(ctx,code,barcodeWidth,usableWidth,maxHeight,dpmm){
+ const text=String(code||'').trim(),chars=[...text];
+ const targetWidth=Math.min(usableWidth,barcodeWidth);
+ const maxSize=Math.min(mm(5.6,dpmm),Math.floor(maxHeight/1.08));
+ const minSize=mm(2.3,dpmm);
+ for(let size=maxSize;size>=minSize;size--){
+  ctx.font=`900 ${size}px "Arial Black", Arial, sans-serif`;
+  const natural=ctx.measureText(text).width;
+  if(natural>targetWidth)continue;
+  const spacing=chars.length>1?Math.max(0,(targetWidth-natural)/(chars.length-1)):0;
+  return {size,text,letterSpacing:spacing,width:natural+spacing*Math.max(0,chars.length-1)};
+ }
+ // Los códigos largos mantienen el ajuste original, sin salirse de la etiqueta.
+ return fitSpacedCode(ctx,text,usableWidth,minSize,minSize,0);
+}
+
 function drawBarcode(ctx,svg,W,y,height,geometry){
  const barX=Math.floor((W-geometry.width)/2);
  for(const match of svg.matchAll(/<rect x="([\d.]+)" y="0" width="([\d.]+)" height="1"\/>/g)){
@@ -163,29 +181,35 @@ function renderSmallProduct(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
  if(Number.isInteger(units)&&units>0){
   // Dos líneas de descripción sin modificar la plantilla sin cantidades.
   const shortName=fitTextClipped(ctx,title,usable,mm(2.9,dpmm),mm(2.15,dpmm),2);
-  const sku=fitText(ctx,code,usable,mm(3.0,dpmm),mm(2.3,dpmm),1);
   const quantity=fitText(ctx,`${units} unidades`,usable,mm(3.0,dpmm),mm(2.3,dpmm),1);
   const geometry=barcodeGeometry(svg,usable,dpi);
   let y=top;
   y=drawCenteredText(ctx,shortName,W,y,1.0)+mm(.35,dpmm);
-  const skuH=Math.ceil(sku.size*1.05),qtyH=Math.ceil(quantity.size*1.05),gap=mm(.35,dpmm);
-  // Reducir solo la altura de las barras; no alterar su ancho ni codificación.
-  const barH=Math.min(mm(10,dpmm),H-y-gap-skuH-gap-qtyH-mm(.7,dpmm));
+  const qtyH=Math.ceil(quantity.size*1.05),gap=mm(.35,dpmm);
+  const reservedBar=mm(8.0,dpmm),bottomMargin=mm(.7,dpmm);
+  const skuSpace=H-y-reservedBar-2*gap-qtyH-bottomMargin;
+  const sku=fitSmallLabelSku(ctx,code,geometry.width,usable,skuSpace,dpmm);
+  const skuH=Math.ceil(sku.size*1.08);
+  // Solo se ajusta la altura de las barras; se conservan módulos y zonas de silencio.
+  const barH=Math.min(mm(8.7,dpmm),H-y-gap-skuH-gap-qtyH-bottomMargin);
   if(barH<mm(7.5,dpmm))throw new Error(`La etiqueta pequeña ${code} no tiene altura suficiente para dos líneas, SKU y unidades legibles.`);
   const bar=drawBarcode(ctx,svg,W,y,barH,geometry);y+=barH+gap;
-  y=drawCenteredText(ctx,sku,W,y,1.0)+gap;
+  y=drawCenteredSpacedCode(ctx,sku,W,y)+gap;
   drawCenteredText(ctx,quantity,W,y,1.0);
   return {top,bottom:y+qtyH,margin,...bar};
  }
  const geometry=barcodeGeometry(svg,usable,dpi);
  let y=top;
  y=drawCenteredText(ctx,name,W,y,1.0)+mm(.8,dpmm);
- const captionHeight=Math.ceil(caption.size*1.05),bottomMargin=mm(1.0,dpmm),captionGap=mm(.7,dpmm);
+ const bottomMargin=mm(1.0,dpmm),captionGap=mm(.7,dpmm);
+ const skuSpace=H-y-mm(9.0,dpmm)-captionGap-bottomMargin;
+ const wideSku=fitSmallLabelSku(ctx,code,geometry.width,usable,skuSpace,dpmm);
+ const captionHeight=Math.ceil(wideSku.size*1.08);
  const availableForBars=H-y-captionGap-captionHeight-bottomMargin;
- const barH=Math.min(mm(13.5,dpmm),availableForBars);
+ const barH=Math.min(mm(11.5,dpmm),availableForBars);
  if(barH<mm(9,dpmm))throw new Error(`La etiqueta pequeña ${code} no tiene altura suficiente para un código legible.`);
  const bar=drawBarcode(ctx,svg,W,y,barH,geometry);y+=barH+captionGap;
- drawCenteredText(ctx,caption,W,y,1.0);
+ drawCenteredSpacedCode(ctx,wideSku,W,y);
  return {top,bottom:y+captionHeight,margin,...bar};
 }
 
