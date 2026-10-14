@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.10.10-khal-initial-stock-draft-v281';
+const PWA_RELEASE = '2026.10.13-khal-pallet-transfer-v282';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 

@@ -11,6 +11,8 @@ import { openPhysicalStockEntry } from '../../services/physical-stock-entry.js';
 import { openInitialStockSession,canInitialStockLoad } from '../../services/initial-stock-session.js';
 import { codePermissionsForUser } from '../../services/access-routing.js';
 import { activeSiteId,inventorySiteId } from '../../services/stock.js';
+import { activeCompanyId,siteCompanyId } from '../../services/company.js';
+import { availableFrom,positionKey } from '../../services/inventory-ops.js';
 import { assignProductToPallet, canReceiveWholePallet, deleteEmptyPallet, purgeEmptyPalletAdministrative, editPalletDisplayName, moveProductToPallet, moveProductToPendingSort, moveWholePallet, palletDisplayName, registerPermanentPallet } from '../../services/pallet-ops.js';
 import { palletPermissionsForUser,effectiveRole } from '../../services/access-routing.js';
 
@@ -204,7 +206,7 @@ function detallePalet(p){
     <div class="panel-head pallet-detail-head"><div><span class="eyebrow">PALLET FÍSICO · UNIDAD COMPLETA</span><h2>${esc(etiquetaPaletCorta(p))}</h2><small>${esc(String(p.status||'').replaceAll('_',' '))} · ${esc(p.locationId||'Sin ubicación')}</small></div><div class="pallet-head-actions">${permisos.edit?'<button id="open-edit-pallet" class="secondary" type="button">✎ Editar nombre</button>':''}${permisos.delete?`<button id="delete-empty-pallet" class="danger-action" type="button" ${totalUnidades(p.id)>0?'disabled title="Solo se puede eliminar un pallet vacío"':''}>Eliminar pallet vacío</button>`:''}<a class="ghost" href="#/palets">Cerrar ×</a></div></div>
     ${p.sourceShipmentId&&p.status==='UBICADO'?'<div class="success-box"><b>✓ Recepción y primera ubicación completadas</b><span>El pallet sigue activo como unidad física y puede volver a moverse completo.</span></div>':''}
     ${palletOperator()?'<details class="operator-extra pallet-context-help"><summary>Información del pallet</summary>':''}<div class="pallet-meta-grid"><span><b>Nombre visible</b><small>${esc(etiquetaPaletCorta(p))}</small></span><span><b>ID permanente</b><small>${esc(p.physicalCode||p.id)}</small></span><span><b>Posición del pallet</b><small>${esc(p.locationId||'Sin ubicación')}</small></span><span><b>Contenido conjunto</b><small>${agrupado.length} productos · ${totalUnidades(p.id)} unidades</small></span></div>${palletOperator()?'</details>':''}
-    ${operar?`<div class="pallet-primary-actions operator-primary-actions">${moverPaletCompletoPanel(p)}${cargarProductoPanel(p)}</div>${palletOperator()?'<details class="operator-extra pallet-help-copy"><summary>Ayuda de organización</summary>':''}<div class="info-box"><b>Organización de pallet</b><br>Aquí puedes incorporar productos, mover el pallet completo o reubicar existencias. La preparación de pedidos se inicia exclusivamente desde Órdenes / Mis tareas.</div>${palletOperator()?'</details>':''}`:'<div class="info-box">Modo consulta: la administración puede habilitar el permiso para cargar productos y mover pallets.</div>'}
+    ${operar?`<div class="pallet-primary-actions operator-primary-actions">${moverPaletCompletoPanel(p)}${totalUnidades(p.id)>0?`<button id="prepare-pallet-transfer" class="primary" type="button">Preparar pallet para picking / traspaso</button>`:''}${cargarProductoPanel(p)}</div>${palletOperator()?'<details class="operator-extra pallet-help-copy"><summary>Ayuda de organización</summary>':''}<div class="info-box"><b>Organización de pallet</b><br>Aquí puedes incorporar productos, mover el pallet completo o reubicar existencias. La preparación de pedidos se inicia exclusivamente desde Órdenes / Mis tareas.</div>${palletOperator()?'</details>':''}`:'<div class="info-box">Modo consulta: la administración puede habilitar el permiso para cargar productos y mover pallets.</div>'}
     <div class="pallet-search-box"><label>Buscar dentro de este pallet<div class="pallet-search-input"><input id="pallet-q" placeholder="Código, descripción o palabra" autocomplete="off" inputmode="text"><button id="pallet-camera" class="scan-button" type="button" title="Escanear producto">▣</button><button id="pallet-q-keyboard" class="scan-button numeric-mode-button" type="button" title="Usar teclado numérico"><span class="numeric-mode-icon">⌨</span><span>123</span></button></div><small>Busca el producto que necesitas consultar o reubicar dentro de la bodega.</small></label></div>
     <div class="pallet-export-actions"><button id="pallet-content-pdf" class="secondary" type="button">Contenido PDF</button> <button id="pallet-content-excel" class="secondary" type="button">Contenido Excel</button></div>
     ${puedeImprimirEtiquetas()&&agrupado.length?`<button id="print-pallet-content-labels" class="secondary" type="button">Imprimir etiquetas del contenido · ${agrupado.length}</button>`:''}
@@ -397,10 +399,48 @@ export function renderPallets(root){
   const registerIntro=!palletOperator()&&canRegister?'<button id="open-register-pallet" class="primary" type="button">+ Registrar pallet físico</button>':'';
   const registerOperator=palletOperator()&&!p?`<section class="operator-pallet-create-bar"><div class="operator-pallet-create-actions">${canRegister?'<button id="open-register-pallet" class="primary" type="button">+ Crear pallet</button>':''}<button id="open-existing-pallets" class="secondary" type="button">Mostrar pallets existentes · ${pallets.length}</button></div><small>Crea un pallet nuevo o abre uno existente para continuar con sus acciones.</small></section>${dialogoPaletsExistentes(pallets)}`:'';
   const body=`<div class="page-intro ${palletOperator()?'operator-page-intro':''}"><div><span class="eyebrow">UNIDAD LOGÍSTICA · CENTRO ACTIVO</span><h2>Palets · ${esc(site?.name||siteId)}</h2><p>Cada pallet puede contener uno o varios productos y ocupa una sola posición física del rack. Al moverlo completo, todos sus códigos viajan juntos.</p></div><div>${registerIntro}<div class="pallet-summary"><b>${pending.length}</b><small>palets por organizar</small></div></div></div>${p?detallePalet(p):`${registerOperator}<details class="panel"><summary><b>Descargar contenido de varios pallets</b></summary><small>Selecciona los pallets del centro activo. El reporte consulta el stock WMS y no modifica existencias.</small><div style="max-height:220px;overflow:auto;display:grid;gap:6px;margin:12px 0">${pallets.filter(x=>x.status!=='CERRADO').map(x=>`<label><input type="checkbox" class="pallet-export-select" value="${esc(x.id)}"> ${esc(nombrePalet(x))} · ${totalUnidades(x.id)} unidades</label>`).join('')}</div><button id="pallets-content-pdf" class="secondary" type="button">Descargar PDF seleccionados</button> <button id="pallets-content-excel" class="secondary" type="button">Descargar Excel seleccionados</button></details>${panelProductosPorOrdenar()}${filtrosPalets(pallets)}<div id="pallet-filter-empty" hidden>${empty('Sin coincidencias','Cambia el texto o el estado seleccionado.')}</div><div id="pallet-list-grid" class="rack-grid pallet-grid">${pallets.length?pallets.map(card).join(''):empty('Sin palets en este centro','Registra el primer pallet físico permanente para comenzar.')}</div>`}${registroPaletDialog()}${p?'':modalCamara()}`;
-  root.innerHTML=shell('Palets',body,'palets');wireShell();if(p){wireDetail(p.id);document.querySelector('#pallet-content-pdf')?.addEventListener('click',()=>{try{exportPalletContentPdf([p.id]);}catch(e){toast(e.message,'warning');}});document.querySelector('#pallet-content-excel')?.addEventListener('click',()=>exportPalletContentExcel([p.id]).catch(e=>toast(e.message,'warning')));}else{const chosen=()=>[...document.querySelectorAll('.pallet-export-select:checked')].map(x=>x.value);document.querySelector('#pallets-content-pdf')?.addEventListener('click',()=>{try{exportPalletContentPdf(chosen());}catch(e){toast(e.message,'warning');}});document.querySelector('#pallets-content-excel')?.addEventListener('click',()=>exportPalletContentExcel(chosen()).catch(e=>toast(e.message,'warning')));document.querySelectorAll('.pallet-card-click').forEach(b=>b.onclick=()=>location.hash=`#/palets?id=${encodeURIComponent(b.dataset.pallet)}`);wirePalletFilters(pallets.length);wirePendingSort(root);wireExistingPallets();}wireRegisterPallet(root);
+  root.innerHTML=shell('Palets',body,'palets');wireShell();if(p){wireDetail(p.id);wirePalletTransfer(p);document.querySelector('#pallet-content-pdf')?.addEventListener('click',()=>{try{exportPalletContentPdf([p.id]);}catch(e){toast(e.message,'warning');}});document.querySelector('#pallet-content-excel')?.addEventListener('click',()=>exportPalletContentExcel([p.id]).catch(e=>toast(e.message,'warning')));}else{const chosen=()=>[...document.querySelectorAll('.pallet-export-select:checked')].map(x=>x.value);document.querySelector('#pallets-content-pdf')?.addEventListener('click',()=>{try{exportPalletContentPdf(chosen());}catch(e){toast(e.message,'warning');}});document.querySelector('#pallets-content-excel')?.addEventListener('click',()=>exportPalletContentExcel(chosen()).catch(e=>toast(e.message,'warning')));document.querySelectorAll('.pallet-card-click').forEach(b=>b.onclick=()=>location.hash=`#/palets?id=${encodeURIComponent(b.dataset.pallet)}`);wirePalletFilters(pallets.length);wirePendingSort(root);wireExistingPallets();}wireRegisterPallet(root);
 }
 
 
+
+function wirePalletTransfer(p){
+  const button=document.querySelector('#prepare-pallet-transfer');
+  if(!button)return;
+  button.onclick=async()=>{
+    const data=store.data,source=activeSiteId(data);
+    const destinations=(data.sites||[]).filter(s=>s.active!==false&&s.id!==source&&siteCompanyId(s,data)===activeCompanyId(data));
+    if(!destinations.length){toast('No existen otros centros activos de esta empresa','warning');return;}
+    const existing=(data.transfers||[]).find(t=>t.sourceSiteId===source&&['PREPARANDO','LISTO'].includes(t.status));
+    if(existing){toast(`Primero termina la salida ${existing.id} que ya está en preparación`,'warning');location.hash='#/transferencias';return;}
+    if((data.transfers||[]).some(t=>t.sourcePalletId===p.id&&['PREPARANDO','LISTO','EN_TRANSITO'].includes(t.status))){toast('Este pallet ya tiene un traspaso pendiente','warning');return;}
+    const choice=prompt('Centro de destino:\n'+destinations.map((s,i)=>`${i+1}. ${s.name}`).join('\n')+'\n\nEscribe el número del destino:');
+    if(choice===null)return;
+    const destination=destinations[Number(choice)-1];
+    if(!destination){toast('Selecciona un centro válido','warning');return;}
+    const rows=(data.inventory||[]).filter(i=>i.palletId===p.id&&Number(i.qty)>0&&inventorySiteId(i)===source);
+    if(!rows.length){toast('El pallet no tiene existencias disponibles','warning');return;}
+    const grouped=new Map();
+    for(const row of rows){const code=String(row.productCode),sourceKey=positionKey(row),key=code+'@@'+sourceKey;
+      const entry=grouped.get(key)||{code,qty:0,sourceKey,sourceLabel:`Pallet ${p.id} / ${row.locationId}`};entry.qty+=Number(row.qty);grouped.set(key,entry);}
+    const items=[...grouped.values()];
+    if(items.some(i=>!Number.isInteger(i.qty)||i.qty<=0||availableFrom(data,i.code,i.sourceKey,source)<i.qty)){toast('Las cantidades del pallet no coinciden con el stock disponible','warning');return;}
+    if(!confirm(`Preparar el pallet ${palletDisplayName(p)} para ${destination.name}?\n${items.length} posiciones de stock · ${items.reduce((n,i)=>n+i.qty,0)} unidades.\nEl descuento se realizará al despachar, no ahora.`))return;
+    button.disabled=true;
+    try{
+      await store.commit(s=>{
+        if((s.transfers||[]).some(t=>t.sourceSiteId===source&&['PREPARANDO','LISTO'].includes(t.status)))throw new Error('Ya existe una salida en preparación');
+        if((s.transfers||[]).some(t=>t.sourcePalletId===p.id&&['PREPARANDO','LISTO','EN_TRANSITO'].includes(t.status)))throw new Error('Pallet con traspaso pendiente');
+        for(const i of items)if(availableFrom(s,i.code,i.sourceKey,source)<i.qty)throw new Error(`Stock insuficiente: ${i.code}`);
+        s.transfers=s.transfers||[];
+        const used=new Set(s.transfers.map(t=>t.id));let num=s.transfers.length+1,id;
+        do{id=`TRF-${String(num++).padStart(6,'0')}`;}while(used.has(id));
+        s.transfers.unshift({id,sourceSiteId:source,destinationSiteId:destination.id,destinationType:'SITE',destinationName:destination.name,driver:'',status:'PREPARANDO',createdAt:new Date().toISOString(),createdBy:s.session.userId,items:items.map(i=>({...i})),sourcePalletId:p.id,supervisedBy:null,dispatchedBy:null});
+      },`Pallet ${p.id} preparado para traspaso`);
+      toast('Pallet preparado. Confirma el despacho desde Transferencias','success');location.hash='#/transferencias';
+    }catch(error){button.disabled=false;toast(error.message||'No se pudo preparar el pallet','warning');}
+  };
+}
 
 function wireExistingPallets(){
   const open=document.querySelector('#open-existing-pallets'),dialog=document.querySelector('#existing-pallets-dialog');

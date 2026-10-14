@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.10-khal-initial-stock-draft-v281';
+const APP_VERSION = '2026.10.13-khal-pallet-transfer-v282';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
