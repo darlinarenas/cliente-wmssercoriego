@@ -412,9 +412,9 @@ function wirePalletTransfer(p){
     const destinations=(data.sites||[]).filter(s=>s.active!==false&&s.id!==source&&siteCompanyId(s,data)===activeCompanyId(data));
     if(!destinations.length){toast('No existen otros centros activos de esta empresa','warning');return;}
     const existing=(data.transfers||[]).find(t=>t.sourceSiteId===source&&['PREPARANDO','LISTO'].includes(t.status));
-    if(existing){toast(`Primero termina la salida ${existing.id} que ya está en preparación`,'warning');location.hash='#/transferencias';return;}
+    if(existing){toast(`Hay una salida ${existing.id} pendiente. Cancélala desde Transferencias para iniciar el pallet.`,'warning');location.hash='#/transferencias';return;}
     if((data.transfers||[]).some(t=>t.sourcePalletId===p.id&&['PREPARANDO','LISTO','EN_TRANSITO'].includes(t.status))){toast('Este pallet ya tiene un traspaso pendiente','warning');return;}
-    const choice=prompt('Centro de destino:\n'+destinations.map((s,i)=>`${i+1}. ${s.name}`).join('\n')+'\n\nEscribe el número del destino:');
+    const choice=prompt('Selecciona el centro de destino del pallet '+palletDisplayName(p)+'\n\n'+destinations.map((s,i)=>`${i+1}. ${s.name}`).join('\n')+'\n\nNúmero de centro (Cancelar para salir):');
     if(choice===null)return;
     const destination=destinations[Number(choice)-1];
     if(!destination){toast('Selecciona un centro válido','warning');return;}
