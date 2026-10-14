@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.13-khal-erp-new-products-shortcut-v286';
+const APP_VERSION = '2026.10.14-khal-return-picking-v287';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
