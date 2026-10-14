@@ -139,7 +139,7 @@ export function openNewProductDialog(onCreated,{initialCode=''}={}){
 
 export function renderProducts(root){
   const d=store.data;
-  root.innerHTML=shell('Productos',`<div class="page-intro"><div><span class="eyebrow">CATÁLOGO</span><h2>Productos y ubicación localizada</h2><p>El mismo producto puede existir en varias ubicaciones. El total se calcula sumando todas las posiciones registradas.</p></div><div class="product-page-actions"><button id="exportar-productos-excel" class="secondary" type="button">Descargar Excel</button><button id="exportar-productos-pdf" class="secondary" type="button">Descargar PDF</button><button id="preparar-imagenes" class="secondary" type="button">Preparar imágenes</button><button id="nuevo-producto" class="primary">+ Nuevo producto</button><button id="abrir-filtros" class="secondary filter-button">☷ Filtrar y ordenar</button></div></div>
+  root.innerHTML=shell('Productos',`<div class="page-intro"><div><span class="eyebrow">CATÁLOGO</span><h2>Productos y ubicación localizada</h2><p>El mismo producto puede existir en varias ubicaciones. El total se calcula sumando todas las posiciones registradas.</p></div><div class="product-page-actions"><button id="importar-nuevos-erp" class="primary" type="button" title="Abrir la importación existente para crear únicamente SKU faltantes con stock cero">＋ Importar productos nuevos desde ERP</button><button id="exportar-productos-excel" class="secondary" type="button">Descargar Excel</button><button id="exportar-productos-pdf" class="secondary" type="button">Descargar PDF</button><button id="preparar-imagenes" class="secondary" type="button">Preparar imágenes</button><button id="nuevo-producto" class="primary">+ Nuevo producto</button><button id="abrir-filtros" class="secondary filter-button">☷ Filtrar y ordenar</button></div></div>
   <section id="panel-preparar-imagenes" class="panel oculto" aria-label="Preparar importación masiva de imágenes">
     <h3>Fotografías de productos · Empresa activa</h3>
     <p>Gestiona solo las fotografías de los SKU existentes. No modifica productos ni inventario.</p>
@@ -298,6 +298,7 @@ export function renderProducts(root){
   document.querySelector('#alcance-stock').onchange=e=>{alcanceStock=e.target.value;pintarTabla();};
   pintarTabla();
   document.querySelector('#abrir-filtros').onclick=()=>document.querySelector('#panel-filtros').classList.toggle('oculto');
+  document.querySelector('#importar-nuevos-erp').onclick=()=>{location.hash='#/conciliacion';};
   document.querySelector('#nuevo-producto').onclick=()=>openNewProductDialog(()=>pintarTabla());
   enlazarBotonEscaner('camara-productos-buscar','productos-buscar',{titulo:'Escanear producto',ayuda:'Apunta al código de barras para buscarlo'});
   ['productos-buscar','filtro-rotacion','filtro-tipo','filtro-stock-centro','orden-productos'].forEach(id=>document.querySelector(`#${id}`)?.addEventListener(id==='productos-buscar'?'input':'change',pintarTabla));
