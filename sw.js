@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.13-khal-pallet-cancel-v284';
+const APP_VERSION = '2026.10.13-khal-pallet-dialog-v285';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

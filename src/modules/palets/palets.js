@@ -1,6 +1,6 @@
 import {exportPalletContentExcel,exportPalletContentPdf} from '../../services/pallet-content-export.js';
 import { store } from '../../services/store.js';
-import { shell, wireShell, toast, notice } from '../../layout/layout.js';
+import { shell, wireShell, toast, notice, confirmNotice } from '../../layout/layout.js';
 import { esc, empty } from '../../components/ui.js';
 import { crearEscaner } from '../../services/escaner.js';
 import { buscarUbicacionPorCodigo, vistaCodigoUbicacion } from '../../services/ubicaciones.js';
@@ -404,6 +404,25 @@ export function renderPallets(root){
 
 
 
+function selectPalletDestination(p,destinations){
+  return new Promise(resolve=>{
+    const dlg=document.createElement('dialog');
+    dlg.className='operation-notice operation-confirm';
+    dlg.innerHTML=`<div class="operation-notice-card"><div class="operation-notice-icon">⇄</div><h3>Seleccionar centro de destino</h3><p>¿A qué centro enviarás el pallet ${esc(palletDisplayName(p))}?</p><label style="display:block;text-align:left;margin:16px 0">Centro de destino<select id="pallet-transfer-destination" style="width:100%;margin-top:8px" required><option value="">Seleccionar centro…</option>${destinations.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select></label><div class="operation-confirm-actions"><button id="pallet-destination-cancel" class="ghost" type="button">Cancelar</button><button id="pallet-destination-next" class="primary" type="button">Continuar</button></div></div>`;
+    document.body.appendChild(dlg);
+    const finish=value=>{dlg.close();dlg.remove();resolve(value);};
+    dlg.querySelector('#pallet-destination-cancel').onclick=()=>finish(null);
+    dlg.querySelector('#pallet-destination-next').onclick=()=>{
+      const id=dlg.querySelector('#pallet-transfer-destination').value;
+      const selected=destinations.find(s=>s.id===id);
+      if(!selected){dlg.querySelector('#pallet-transfer-destination').focus();return;}
+      finish(selected);
+    };
+    dlg.oncancel=e=>{e.preventDefault();finish(null);};
+    dlg.showModal();
+  });
+}
+
 function wirePalletTransfer(p){
   const button=document.querySelector('#prepare-pallet-transfer');
   if(!button)return;
@@ -414,10 +433,8 @@ function wirePalletTransfer(p){
     const existing=(data.transfers||[]).find(t=>t.sourceSiteId===source&&['PREPARANDO','LISTO'].includes(t.status));
     if(existing){toast(`Hay una salida ${existing.id} pendiente. Cancélala desde Transferencias para iniciar el pallet.`,'warning');location.hash='#/transferencias';return;}
     if((data.transfers||[]).some(t=>t.sourcePalletId===p.id&&['PREPARANDO','LISTO','EN_TRANSITO'].includes(t.status))){toast('Este pallet ya tiene un traspaso pendiente','warning');return;}
-    const choice=prompt('Selecciona el centro de destino del pallet '+palletDisplayName(p)+'\n\n'+destinations.map((s,i)=>`${i+1}. ${s.name}`).join('\n')+'\n\nNúmero de centro (Cancelar para salir):');
-    if(choice===null)return;
-    const destination=destinations[Number(choice)-1];
-    if(!destination){toast('Selecciona un centro válido','warning');return;}
+    const destination=await selectPalletDestination(p,destinations);
+    if(!destination)return;
     const rows=(data.inventory||[]).filter(i=>i.palletId===p.id&&Number(i.qty)>0&&inventorySiteId(i)===source);
     if(!rows.length){toast('El pallet no tiene existencias disponibles','warning');return;}
     const grouped=new Map();
@@ -425,7 +442,7 @@ function wirePalletTransfer(p){
       const entry=grouped.get(key)||{code,qty:0,sourceKey,sourceLabel:`Pallet ${p.id} / ${row.locationId}`};entry.qty+=Number(row.qty);grouped.set(key,entry);}
     const items=[...grouped.values()];
     if(items.some(i=>!Number.isInteger(i.qty)||i.qty<=0||availableFrom(data,i.code,i.sourceKey,source)<i.qty)){toast('Las cantidades del pallet no coinciden con el stock disponible','warning');return;}
-    if(!confirm(`Preparar el pallet ${palletDisplayName(p)} para ${destination.name}?\n${items.length} posiciones de stock · ${items.reduce((n,i)=>n+i.qty,0)} unidades.\nEl descuento se realizará al despachar, no ahora.`))return;
+    if(!await confirmNotice('Confirmar preparación de pallet',`Pallet ${palletDisplayName(p)} → ${destination.name}. ${items.length} posiciones de stock y ${items.reduce((n,i)=>n+i.qty,0)} unidades. El stock se descontará al despachar.`,{type:'warning',confirmLabel:'Preparar pallet',cancelLabel:'Volver'}))return;
     button.disabled=true;
     try{
       await store.commit(s=>{

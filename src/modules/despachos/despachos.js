@@ -1,5 +1,5 @@
 import { store } from '../../services/store.js';
-import { shell,wireShell,toast } from '../../layout/layout.js';
+import { shell,wireShell,toast,confirmNotice } from '../../layout/layout.js';
 import { esc,badge,empty } from '../../components/ui.js';
 import { enlazarBotonEscaner } from '../../services/camara-ui.js';
 import { productPositions,availableFrom,deductStock,positionKey } from '../../services/inventory-ops.js';
@@ -71,7 +71,7 @@ export function renderTransfers(root){
  }else{
    if(!t.sourcePalletId)enlazarBotonEscaner('camara-tr-code','tr-code',{titulo:'Escanear producto para despacho',ayuda:'Apunta al código de barras del producto'});
    document.querySelector('#cancel-active-transfer').onclick=async()=>{
-     if(!confirm(`¿Cancelar la salida ${t.id}? No se descontará inventario. Podrás preparar otro pallet.`))return;
+     if(!await confirmNotice('Cancelar operación',`¿Cancelar la salida ${t.id}? No se descontará inventario y podrás preparar otro pallet.`,{type:'warning',confirmLabel:'Sí, cancelar salida',cancelLabel:'Volver'}))return;
      try{await store.commit(s=>{const tr=s.transfers.find(x=>x.id===t.id);if(!tr||!['PREPARANDO','LISTO'].includes(tr.status))throw new Error('La salida ya no se puede cancelar');tr.status='CANCELADO';tr.cancelledAt=new Date().toISOString();tr.cancelledBy=s.session.userId;},`Salida ${t.id} cancelada`);toast('Operación cancelada. Inventario sin cambios.','success');renderTransfers(root);}catch(e){toast(e.message||'No se pudo cancelar','warning');}
    };
    const codeInput=document.querySelector('#tr-code'),sourceSel=document.querySelector('#tr-source'),preview=document.querySelector('#tr-product-preview'),qtyInput=document.querySelector('#tr-qty');
