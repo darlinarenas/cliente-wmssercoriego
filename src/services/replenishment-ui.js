@@ -3,6 +3,7 @@ import {activeSiteId} from './stock.js';
 import {buscarUbicacionPorCodigo} from './ubicaciones.js';
 import {resolveProduct} from './product-codes.js';
 import {esc} from '../components/ui.js';
+import {enlazarBotonEscaner} from './camara-ui.js';
 
 export function canConfigureReplenishment(){
  const d=store.data,u=(d.users||[]).find(x=>x.id===d.session?.userId),site=activeSiteId(d);
@@ -23,10 +24,10 @@ export function openReplenishmentDialog(initialLocation=''){
  const rackIds=[...new Set(locations.map(l=>String(l.rackId)))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
  const initialRack=locations.find(l=>[l.id,l.scanCode].includes(initialLocation))?.rackId||'';
  dlg.innerHTML=`<div class="rack-position-card" style="max-width:520px;width:min(94vw,520px)"><div class="dialog-head"><div><span class="eyebrow">CONFIGURACIÓN · NO MODIFICA INVENTARIO</span><h3>Configurar reposición inteligente</h3></div><button type="button" class="ghost" id="rep-close">×</button></div>
- <label>1. Escanear o buscar posición<input id="rep-location" list="rep-locations" autocomplete="off" placeholder="REC-R6-M2-N1" value="${esc(initialLocation)}"></label><datalist id="rep-locations">${locations.map(l=>`<option value="${esc(l.scanCode||l.id)}">${esc(l.id)}</option>`).join('')}</datalist>
+ <label>1. Escanear o buscar posición<div class="entrada-con-camara"><input id="rep-location" list="rep-locations" autocomplete="off" inputmode="numeric" placeholder="REC-R6-M2-N1" value="${esc(initialLocation)}"><button type="button" id="rep-location-camera" class="scan-button" title="Escanear posición">▣</button><button type="button" id="rep-location-keyboard" class="scan-button numeric-mode-button" title="Usar teclado alfanumérico">⌨ ABC</button></div></label><datalist id="rep-locations">${locations.map(l=>`<option value="${esc(l.scanCode||l.id)}">${esc(l.id)}</option>`).join('')}</datalist>
  <button type="button" class="secondary" id="rep-map-open" style="width:100%;margin:10px 0">▦ Seleccionar posición desde el mapa de racks</button>
  <section id="rep-map-picker" hidden style="margin:8px 0 14px;border:1px solid #dbe3ed;border-radius:12px;padding:12px;max-height:55vh;overflow-y:auto"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>Seleccionar ubicación</strong><button type="button" class="ghost" id="rep-map-close">Cerrar mapa</button></div><p style="font-size:12px">Elige un rack y luego toca la posición en su módulo y nivel.</p><div id="rep-rack-buttons" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:7px"></div><div id="rep-rack-positions" style="margin-top:12px"></div></section>
- <label>2. Escanear o buscar producto (SKU)<input id="rep-product" list="rep-products" autocomplete="off" placeholder="SKU o descripción"></label><datalist id="rep-products">${products.map(p=>`<option value="${esc(p.code)}">${esc(p.description||p.name||'')}</option>`).join('')}</datalist>
+ <label>2. Escanear o buscar producto (SKU)<div class="entrada-con-camara"><input id="rep-product" list="rep-products" autocomplete="off" inputmode="numeric" placeholder="SKU o descripción"><button type="button" id="rep-product-camera" class="scan-button" title="Escanear producto">▣</button><button type="button" id="rep-product-keyboard" class="scan-button numeric-mode-button" title="Usar teclado alfanumérico">⌨ ABC</button></div></label><datalist id="rep-products">${products.map(p=>`<option value="${esc(p.code)}">${esc(p.description||p.name||'')}</option>`).join('')}</datalist>
  <label style="display:flex;align-items:center;gap:8px"><input id="rep-enabled" type="checkbox" checked> Activar reposición inteligente para este SKU y posición</label>
  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label>3. Stock mínimo<input id="rep-min" type="number" min="0" step="1" value="0"><small>Activa la sugerencia</small></label><label>4. Stock objetivo<input id="rep-target" type="number" min="1" step="1" value="1"><small>Cantidad que se desea alcanzar</small></label></div>
  <div id="rep-preview" class="panel" style="padding:10px;margin:10px 0" aria-live="polite">Selecciona posición y producto.</div><div class="dialog-actions"><button type="button" class="ghost" id="rep-cancel">Cancelar</button><button type="button" class="primary" id="rep-save">Guardar configuración de reposición</button></div></div>`;
@@ -54,6 +55,14 @@ export function openReplenishmentDialog(initialLocation=''){
  const qty=(store.data.inventory||[]).filter(i=>i.locationId===loc.id&&String(i.productCode)===String(product.code)).reduce((sum,i)=>sum+Number(i.qty||0),0);
  const min=Number($('rep-min').value),target=Number($('rep-target').value),suggest=$('rep-enabled').checked&&qty<=min?Math.max(0,target-qty):0;
  $('rep-preview').textContent=`Stock físico actual: ${qty} unidades · Reposición sugerida: ${suggest} unidades. No se realizará ningún movimiento automático.`;}
+ // Reutiliza cámara y selector de teclado de los demás módulos de Khal.
+ for(const [field,description] of [['location','posición'],['product','producto']]){
+  const input=$('rep-'+field),button=$('rep-'+field+'-keyboard');
+  const update=()=>{const numeric=input.getAttribute('inputmode')==='numeric';button.innerHTML=`<span class="numeric-mode-icon">⌨</span><span>${numeric?'ABC':'123'}</span>`;button.title=numeric?'Usar teclado alfanumérico':'Usar teclado numérico';button.setAttribute('aria-label',button.title);button.classList.toggle('is-numeric',numeric);};
+  update();button.addEventListener('pointerdown',event=>event.preventDefault());
+  button.onclick=()=>{input.setAttribute('inputmode',input.getAttribute('inputmode')==='numeric'?'text':'numeric');update();input.focus({preventScroll:true});try{input.setSelectionRange(input.value.length,input.value.length);}catch{}};
+  enlazarBotonEscaner('rep-'+field+'-camera','rep-'+field,{titulo:'Escanear '+description,ayuda:'Apunta al código de barras de '+description,onDetectar:refresh});
+ }
  $('rep-location').addEventListener('change',refresh);$('rep-product').addEventListener('change',refresh);
  ['rep-enabled','rep-min','rep-target'].forEach(id=>$(id).addEventListener('input',preview));
  $('rep-close').onclick=$('rep-cancel').onclick=()=>dlg.close();
