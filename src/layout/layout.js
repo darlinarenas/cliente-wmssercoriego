@@ -144,6 +144,51 @@ function detectOrderSoundAlerts(previous,next,currentUser,siteId){
   }
   primeOrderAlertSnapshot(next);
 }
+// Alertas de custodia: solo destinatarios identificables del centro receptor.
+let transferAlertSnapshot=null;
+const transferAlertSeen=new Set();
+function primeTransferAlerts(shipments=[]){
+  transferAlertSnapshot=new Map(shipments.map(s=>[s.id,`${s.status||''}:${s.custodyAcceptedAt||''}`]));
+}
+function detectTransferCustodyAlerts(previous,shipments,user,siteId){
+  if(!previous){primeTransferAlerts(shipments);return;}
+  const role=orderAlertRole(user,siteId);
+  const manager=['ENCARGADO','ADMINISTRADOR','ADMIN_GLOBAL'].includes(role);
+  for(const shipment of shipments){
+    if(!shipment.destinationSiteId||shipment.destinationSiteId!==siteId||!shipment.custodyAcceptedAt)continue;
+    const receiverId=shipment.receivingOperatorUserId||shipment.receivingAssignedTo||null;
+    if(!manager&&receiverId!==user?.id)continue;
+    if(!manager&&!receiverId)continue; // No avisar indiscriminadamente a operarios.
+    const token=`${shipment.id}:${shipment.custodyAcceptedAt}`;
+    if(transferAlertSeen.has(token)||previous.get(shipment.id)===`${shipment.status}:${shipment.custodyAcceptedAt}`)continue;
+    const acceptedAt=Date.parse(shipment.custodyAcceptedAt)||0;
+    if(acceptedAt<orderAlertStartedAt-1000)continue;
+    transferAlertSeen.add(token);
+    const origin=store.data.sites.find(x=>x.id===shipment.sourceSiteId)?.name||shipment.sourceSiteId||'Origen';
+    const destination=store.data.sites.find(x=>x.id===shipment.destinationSiteId)?.name||'Destino';
+    const message=`Traspaso ${shipment.code||shipment.id} aceptado · ${origin} → ${destination}. Abrir recepción.`;
+    const key=`transfer:${user?.id}:${token}`;
+    scheduleOrderAlertReminder(key,{
+      sound:sonidoOrdenAsignada,message,
+      isPending:()=>{
+        const current=(store.data.shipments||[]).find(x=>x.id===shipment.id);
+        return current&&['EN_TRANSITO','LLEGADA_DESTINO'].includes(current.status)&&current.custodyAcceptedAt===shipment.custodyAcceptedAt;
+      }
+    });
+    showTransferAlert(message,shipment.id);
+  }
+  primeTransferAlerts(shipments);
+}
+function showTransferAlert(message,id){
+  document.querySelector('#khal-transfer-alert')?.remove();
+  const el=document.createElement('div');
+  el.id='khal-transfer-alert';el.setAttribute('role','alert');
+  el.style.cssText='position:fixed;z-index:99999;right:12px;bottom:76px;max-width:min(420px,calc(100vw - 24px));padding:16px;background:#123c48;color:white;border-radius:14px;box-shadow:0 6px 28px #0005;display:flex;gap:12px;align-items:center;flex-wrap:wrap';
+  const label=document.createElement('span');label.textContent=message;label.style.flex='1 1 220px';
+  const open=document.createElement('button');open.type='button';open.textContent='Ver recepción';open.onclick=()=>{el.remove();location.hash=`#/recepcion-traspasos?id=${encodeURIComponent(id)}`;};
+  const close=document.createElement('button');close.type='button';close.textContent='×';close.setAttribute('aria-label','Cerrar aviso');close.onclick=()=>el.remove();
+  el.append(label,open,close);document.body.appendChild(el);
+}
 const MANAGER_ROLES=new Set(['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO']);
 const ORDER_DONE_STATUSES=new Set(['EMITIDA','CERRADA','ENTREGADA_CONDUCTOR','ANULADA']);
 const ORDER_REVIEW_STATUSES=new Set(['PREPARADA','PENDIENTE_EMISION']);
@@ -177,9 +222,9 @@ function installNavOrderAlerts(){
   if(navOrderAlertTimer){clearInterval(navOrderAlertTimer);navOrderAlertTimer=null;}
   const d=store.data,currentUser=d.users.find(u=>u.id===d.session?.userId)||auth.user,siteId=activeSiteId(d),scope=`${currentUser?.id||'anon'}:${siteId||'site'}`;
   updateNavAlertBadges();
-  if(orderAlertScope!==scope){orderAlertScope=scope;orderAlertStartedAt=Date.now();primeOrderAlertSnapshot(store.data.orders||[]);}else if(!orderAlertSnapshot)primeOrderAlertSnapshot(store.data.orders||[]);
+  if(orderAlertScope!==scope){orderAlertScope=scope;orderAlertStartedAt=Date.now();primeOrderAlertSnapshot(store.data.orders||[]);primeTransferAlerts(store.data.shipments||[]);}else if(!orderAlertSnapshot)primeOrderAlertSnapshot(store.data.orders||[]);
   let running=false;
-  navOrderAlertTimer=setInterval(async()=>{if(running)return;running=true;try{const previous=orderAlertSnapshot,[nextOrders,nextShipments]=await Promise.all([apiRequest('/orders'),apiRequest('/shipments')]),data=store.data,user=data.users.find(u=>u.id===data.session?.userId)||auth.user,activeSite=activeSiteId(data);detectOrderSoundAlerts(previous,nextOrders||[],user,activeSite);store.data.orders=nextOrders||[];store.data.shipments=nextShipments||[];updateNavAlertBadges();}catch{}finally{running=false;}},5000);
+  navOrderAlertTimer=setInterval(async()=>{if(running)return;running=true;try{const previous=orderAlertSnapshot,[nextOrders,nextShipments]=await Promise.all([apiRequest('/orders'),apiRequest('/shipments')]),data=store.data,user=data.users.find(u=>u.id===data.session?.userId)||auth.user,activeSite=activeSiteId(data);detectOrderSoundAlerts(previous,nextOrders||[],user,activeSite);detectTransferCustodyAlerts(transferAlertSnapshot,nextShipments||[],user,activeSite);store.data.orders=nextOrders||[];store.data.shipments=nextShipments||[];updateNavAlertBadges();}catch{}finally{running=false;}},5000);
 }
 
 export function shell(title,content,active='dashboard'){

@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.15-khal-transfer-receiving-ui-v299';
+const APP_VERSION = '2026.10.15-khal-transfer-custody-alert-v300';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
