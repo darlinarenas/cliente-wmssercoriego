@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.14-khal-supercode-min8-v291';
+const APP_VERSION = '2026.10.14-khal-history-filters-v292';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
