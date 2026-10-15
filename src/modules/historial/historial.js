@@ -52,8 +52,33 @@ function actividadRecienteUnificada(q=''){return unificados().filter(x=>(!q||con
 const HISTORY_PAGE_SIZE=20;
 let historyCache=null, historyCacheData=null;
 function cachedHistory(){const d=store.data,site=activeSiteId();if(historyCache&&historyCacheData===d&&historyCache.site===site)return historyCache;historyCacheData=d;historyCache={site,ops:eventosOperativos(),moves:movimientosNormalizados(),audit:auditoriaNormalizada()};return historyCache;}
+function opcionesHistorial(){
+ const d=store.data,site=activeSiteId();
+ const users=(d.users||[]).filter(u=>u.id&&u.name).sort((a,b)=>String(a.name).localeCompare(String(b.name),'es'));
+ const racks=(d.racks||[]).filter(r=>r.siteId===site&&r.status!=='INACTIVO');
+ const pallets=(d.pallets||[]).filter(p=>p.siteId===site&&p.status!=='CERRADO');
+ const locations=(d.locations||[]).filter(l=>l.siteId===site&&l.active!==false);
+ const opt=(value,label)=>`<option value="${esc(value)}">${esc(label)}</option>`;
+ const uniq=(items)=>[...new Map(items.filter(x=>x[0]).map(x=>[String(x[0]),x])).values()].sort((a,b)=>String(a[1]).localeCompare(String(b[1]),'es'));
+ return {
+  users:users.map(u=>opt(u.name,u.name)).join(''),
+  places:`<optgroup label="Pallets">${uniq(pallets.map(p=>[p.id,p.name&&p.name!==p.id?`${p.name} · ${p.id}`:p.id])).map(([id,label])=>opt(`PALLET:${id}`,label)).join('')}</optgroup><optgroup label="Racks">${uniq(racks.map(r=>[r.id,r.name||r.id])).map(([id,label])=>opt(`RACK:${id}`,label)).join('')}</optgroup><optgroup label="Ubicaciones">${uniq(locations.map(l=>[l.id,l.id])).map(([id,label])=>opt(`LOC:${id}`,label)).join('')}</optgroup>`
+ };
+}
+function lugarCoincide(place,filter){
+ if(!filter)return true;
+ const [kind,...parts]=filter.split(':');const id=parts.join(':');
+ if(kind==='PALLET')return contiene(place,id);
+ if(kind==='LOC')return contiene(place,id);
+ if(kind==='RACK'){
+  if(contiene(place,id))return true;
+  const locs=(store.data.locations||[]).filter(l=>l.rackId===id).map(l=>l.id);
+  return locs.some(loc=>contiene(place,loc));
+ }
+ return contiene(place,filter);
+}
 function filtros(){return {q:document.querySelector('#historial-search')?.value.trim()||'',sku:document.querySelector('#history-sku')?.value.trim()||'',user:document.querySelector('#history-user')?.value.trim()||'',place:document.querySelector('#history-place')?.value.trim()||'',from:document.querySelector('#history-from')?.value||'',to:document.querySelector('#history-to')?.value||'',kind:document.querySelector('#history-kind')?.value||'TODOS'};}
-function coincideFiltros(x){const f=filtros();const text=x.searchable||'';if(f.q&&!contiene(text,f.q))return false;if(f.sku&&!contiene(x.skus||'',f.sku))return false;if(f.user&&!contiene(x.actor||'',f.user))return false;if(f.place&&!contiene(x.place||'',f.place))return false;if(f.kind!=='TODOS'&&x.kind!==f.kind)return false;const day=String(x.at||'').slice(0,10);return (!f.from||day>=f.from)&&(!f.to||day<=f.to);}
+function coincideFiltros(x){const f=filtros();const text=x.searchable||'';if(f.q&&!contiene(text,f.q))return false;if(f.sku&&!contiene(x.skus||'',f.sku))return false;if(f.user&&!contiene(x.actor||'',f.user))return false;if(f.place&&!lugarCoincide(x.place||'',f.place))return false;if(f.kind!=='TODOS'&&x.kind!==f.kind)return false;const day=String(x.at||'').slice(0,10);return (!f.from||day>=f.from)&&(!f.to||day<=f.to);}
 function unificados(){const users=mapaUsuarios(),site=activeSiteId(),c=cachedHistory();return [...c.audit.filter(a=>!a.siteId||a.siteId===site).map(a=>({at:a.at,kind:'SISTEMA',title:a.message,detail:usuario(a.userId,users),searchable:a.searchable,actor:usuario(a.userId,users),skus:a.message,place:a.message,icon:'◷'})),...c.moves.map(m=>({at:m.at,kind:m.type==='AJUSTE_INVENTARIO'?'AJUSTE':'MOVIMIENTO',title:m.type==='AJUSTE_INVENTARIO'?`${m.productCode} · ${m.beforeQty} → ${m.afterQty}`:`${m.productCode} · ${m.from} → ${m.to}`,detail:`${m.reason||'Movimiento interno'} · ${usuario(m.userId,users)}`,searchable:m.searchable,actor:usuario(m.userId,users),skus:m.productCode,place:`${m.from} ${m.to}`,icon:'⇄'})),...c.ops.map(e=>({at:e.fecha,kind:e.tipo,title:e.titulo,detail:e.id,searchable:e.searchable,actor:e.searchable,skus:(e.productCodes||[]).join(' '),place:e.searchable,icon:e.tipo==='RECEPCIÓN'?'⇩':'⇧'}))].sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')));}
 
 let historyTab='recent',historyPage=1;
@@ -126,14 +151,15 @@ function actualizarBusqueda(){
 }
 
 export function renderHistory(root){
+ const options=opcionesHistorial();
  root.innerHTML=shell('Historial',`<div class="page-intro history-compact-intro"><div><span class="eyebrow">TRAZABILIDAD</span><h2>Control y trazabilidad</h2><p>Lo último siempre primero. El historial completo se carga por secciones para mantener Khal rápido.</p></div></div>
  <section class="panel history-search-panel"><label>Buscar en el historial<div class="history-search"><span>⌕</span><input id="historial-search" placeholder="SKU, PAL-0101, recepción, usuario…" autocomplete="off"><button id="clear-history" class="ghost small" type="button">Limpiar</button></div></label><div class="history-search-meta"><small id="historial-result-count">Vista compacta · 20 por página</small><span>Solo se dibuja la sección que estás consultando.</span></div></section>
- <div class="panel" style="margin-top:12px"><div class="history-filter-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,175px),1fr));gap:10px"><label>Operación<select id="history-kind"><option value="TODOS">Todas</option><option value="RECEPCIÓN">Recepciones</option><option value="DESPACHO">Despachos</option><option value="MOVIMIENTO">Movimientos</option><option value="AJUSTE">Ajustes</option><option value="SISTEMA">Sistema</option></select></label><label>SKU / producto<input id="history-sku" placeholder="Código SKU"></label><label>Usuario<input id="history-user" placeholder="Nombre del usuario"></label><label>Ubicación / pallet<input id="history-place" placeholder="Rack, pallet, centro…"></label><label>Desde<input id="history-from" type="date"></label><label>Hasta<input id="history-to" type="date"></label></div><div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="ghost small" id="history-reset-filters" type="button">Limpiar todos los filtros</button></div></div>
+ <div class="panel" style="margin-top:12px"><div class="history-filter-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,175px),1fr));gap:10px"><label>Operación<select id="history-kind"><option value="TODOS">Todas</option><option value="RECEPCIÓN">Recepciones</option><option value="DESPACHO">Despachos</option><option value="MOVIMIENTO">Movimientos</option><option value="AJUSTE">Ajustes</option><option value="SISTEMA">Sistema</option></select></label><label>SKU / producto<input id="history-sku" placeholder="Código SKU"></label><label>Usuario<select id="history-user"><option value="">Todos los usuarios</option>${options.users}</select></label><label>Ubicación / pallet<select id="history-place"><option value="">Todas las ubicaciones</option>${options.places}</select></label><label>Desde<input id="history-from" type="date"></label><label>Hasta<input id="history-to" type="date"></label></div><div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="ghost small" id="history-reset-filters" type="button">Limpiar todos los filtros</button></div></div>
  <div id="product-trace"></div>
  <section class="panel history-live-summary"><div class="panel-head"><div><span class="eyebrow">EN VIVO</span><h3>Últimas 12 acciones</h3><small>Resumen inmediato, sin cargar cientos de registros.</small></div><span class="manager-lite-live">● Actualización automática</span></div><div id="actividad-reciente-unificada"></div></section>
  <section class="panel history-browser"><div class="history-tabs" role="tablist"><button class="active" type="button" data-history-tab="recent">Todo</button><button type="button" data-history-tab="ops">Entradas / salidas</button><button type="button" data-history-tab="moves">Movimientos</button><button type="button" data-history-tab="audit">Sistema</button></div><div id="history-tab-content"></div></section>`,'historial');
  wireShell();pintarActividadReciente();renderHistoryTab();
- let searchTimer;document.querySelectorAll('#historial-search,#history-sku,#history-user,#history-place').forEach(el=>el.addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(actualizarBusqueda,250);}));document.querySelectorAll('#history-kind,#history-from,#history-to').forEach(el=>el.addEventListener('change',actualizarBusqueda));document.querySelector('#history-reset-filters').onclick=()=>{document.querySelectorAll('#historial-search,#history-sku,#history-user,#history-place,#history-from,#history-to').forEach(el=>el.value='');document.querySelector('#history-kind').value='TODOS';actualizarBusqueda();};
+ let searchTimer;document.querySelectorAll('#historial-search,#history-sku').forEach(el=>el.addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(actualizarBusqueda,250);}));document.querySelectorAll('#history-kind,#history-user,#history-place,#history-from,#history-to').forEach(el=>el.addEventListener('change',actualizarBusqueda));document.querySelector('#history-reset-filters').onclick=()=>{document.querySelectorAll('#historial-search,#history-sku,#history-user,#history-place,#history-from,#history-to').forEach(el=>el.value='');document.querySelector('#history-kind').value='TODOS';actualizarBusqueda();};
  document.querySelector('#clear-history').onclick=()=>{document.querySelector('#historial-search').value='';actualizarBusqueda();document.querySelector('#historial-search').focus();};
  document.querySelectorAll('[data-history-tab]').forEach(btn=>btn.onclick=()=>{historyTab=btn.dataset.historyTab;historyPage=1;renderHistoryTab(document.querySelector('#historial-search')?.value.trim()||'');});
  // Evitar reconstruir filtros y búsquedas cada cinco segundos mientras se consulta el historial.
