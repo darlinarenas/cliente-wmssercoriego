@@ -1,3 +1,4 @@
+import {replenishmentButtonHtml,wireReplenishmentButtons} from '../../services/replenishment-ui.js';
 import { store } from '../../services/store.js';
 import { shell,wireShell } from '../../layout/layout.js';
 import { metric,badge,esc,empty } from '../../components/ui.js';
@@ -244,7 +245,7 @@ export function renderDashboard(root){
  const sessionUser=store.data.users.find(u=>u.id===store.data.session.userId);if(sessionUser?.role==='TRANSPORTISTA'){location.hash='#/cargas';return;}
  const d=store.data,siteId=activeSiteId(d),site=d.sites.find(s=>s.id===siteId),racks=d.racks.filter(r=>r.siteId===siteId),activeLoc=d.locations.filter(x=>x.siteId===siteId&&x.active),occupied=activeLoc.filter(x=>x.status!=='LIBRE').length,temp=activeLoc.filter(x=>x.kind==='POR_UBICAR').length,inTransit=d.transfers.filter(t=>t.sourceSiteId===siteId&&t.status==='EN_TRANSITO').length;
  const effectiveRole=(sessionUser?.accessAssignments||[]).find(a=>a.siteId===siteId)?.role||sessionUser?.role;
- if(['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(effectiveRole)){root.innerHTML=shell('Inicio',operatorDashboard(d,sessionUser,siteId),'dashboard');wireShell();startSilentRefresh('dashboard','#/dashboard',()=>renderDashboard(root),{collections:['orders','tasks']});return;}
+ if(['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(effectiveRole)){root.innerHTML=shell('Inicio',replenishmentButtonHtml()+operatorDashboard(d,sessionUser,siteId),'dashboard');wireShell();wireReplenishmentButtons(root);startSilentRefresh('dashboard','#/dashboard',()=>renderDashboard(root),{collections:['orders','tasks']});return;}
  const isExecutiveAdmin=sessionUser?.role==='ADMIN_GLOBAL'||(sessionUser?.role==='ADMINISTRADOR'&&!(sessionUser?.siteIds||[]).length);
  if(isExecutiveAdmin){root.innerHTML=shell('Panel Ejecutivo',adminExecutiveDashboard(d,sessionUser,siteId),'dashboard');wireShell();wireExecutiveMonitor();hydrateEconomicIndicators();startSilentRefresh('dashboard','#/dashboard',()=>renderDashboard(root),{interval:8000});return;}
  if(['ENCARGADO','ADMINISTRADOR'].includes(effectiveRole)){root.innerHTML=shell('Inicio',managerOperationalDashboard(d,sessionUser,siteId,effectiveRole),'dashboard');wireShell();startSilentRefresh('dashboard','#/dashboard',()=>renderDashboard(root),{interval:5000,collections:['orders','shipments','tasks','audit','movements','receipts','transfers','pallets']});return;}
