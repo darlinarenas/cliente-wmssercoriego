@@ -16,7 +16,7 @@ export function canConfigureReplenishment(){
 }
 export function replenishmentButtonHtml(){return canConfigureReplenishment()?'<button type="button" class="secondary" data-replenishment-open>Configurar reposición inteligente</button>':'';}
 export function wireReplenishmentButtons(root=document){root.querySelectorAll('[data-replenishment-open]').forEach(b=>b.addEventListener('click',()=>openReplenishmentDialog(b.dataset.location||'')));}
-export function openReplenishmentDialog(initialLocation=''){
+export function openReplenishmentDialog(initialLocation='',preferredRackId=''){
  if(!canConfigureReplenishment())return;
  const d=store.data,site=activeSiteId(d),locations=(d.locations||[]).filter(l=>l.siteId===site&&l.active!==false&&l.rackId),products=d.products||[];
  let dlg=document.getElementById('khal-replenishment-dialog');if(!dlg){dlg=document.createElement('dialog');dlg.id='khal-replenishment-dialog';dlg.className='rack-position-dialog';document.body.append(dlg);}
@@ -32,7 +32,7 @@ export function openReplenishmentDialog(initialLocation=''){
  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label>3. Stock mínimo<input id="rep-min" type="number" min="0" step="1" value="0"><small>Activa la sugerencia</small></label><label>4. Stock objetivo<input id="rep-target" type="number" min="1" step="1" value="1"><small>Cantidad que se desea alcanzar</small></label></div>
  <div id="rep-preview" class="panel" style="padding:10px;margin:10px 0" aria-live="polite">Selecciona posición y producto.</div><div class="dialog-actions"><button type="button" class="ghost" id="rep-cancel">Cancelar</button><button type="button" class="primary" id="rep-save">Guardar configuración de reposición</button></div></div>`;
  const $=id=>dlg.querySelector('#'+id);let selected=null;
- const picker=$('rep-map-picker');let activeRack=String(initialRack||rackIds[0]||'');
+ const picker=$('rep-map-picker');let activeRack=String(initialRack||(rackIds.includes(String(preferredRackId))?preferredRackId:'')||rackIds[0]||'');
  function renderRackButtons(){
   $('rep-rack-buttons').innerHTML=rackIds.map(r=>`<button type="button" class="${r===activeRack?'primary':'secondary'}" data-rep-rack="${esc(r)}">${esc(r)}</button>`).join('');
   $('rep-rack-buttons').querySelectorAll('[data-rep-rack]').forEach(btn=>btn.onclick=()=>{activeRack=btn.dataset.repRack;renderRackButtons();renderRackPositions();});
@@ -45,6 +45,7 @@ export function openReplenishmentDialog(initialLocation=''){
   $('rep-rack-positions').innerHTML=`<strong>${esc(activeRack)} · ${rows.length} posiciones</strong>`+ordered.map(([name,items])=>`<div style="margin-top:10px"><div style="font-weight:600;font-size:13px;margin-bottom:5px">${esc(name)}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:7px">${items.sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true})).map(x=>`<button type="button" class="secondary" data-rep-position="${esc(x.code)}" style="min-height:44px;white-space:normal;overflow-wrap:anywhere" title="${esc(x.code)}">${esc(x.label)}</button>`).join('')}</div></div>`).join('');
   $('rep-rack-positions').querySelectorAll('[data-rep-position]').forEach(btn=>btn.onclick=()=>{$('rep-location').value=btn.dataset.repPosition;picker.hidden=true;refresh();});
  }
+ if(preferredRackId){picker.hidden=false;renderRackButtons();renderRackPositions();}
  $('rep-map-open').onclick=()=>{picker.hidden=!picker.hidden;if(!picker.hidden){const current=locations.find(l=>[l.id,l.scanCode].includes($('rep-location').value));if(current)activeRack=String(current.rackId);renderRackButtons();renderRackPositions();}};
  $('rep-map-close').onclick=()=>picker.hidden=true;
  function read(){const loc=buscarUbicacionPorCodigo($('rep-location').value,store.data),product=resolveProduct($('rep-product').value);return {loc:loc?.siteId===site?loc:null,product};}

@@ -1,4 +1,4 @@
-import {replenishmentButtonHtml,wireReplenishmentButtons} from '../../services/replenishment-ui.js';
+import {replenishmentButtonHtml,wireReplenishmentButtons,canConfigureReplenishment,openReplenishmentDialog} from '../../services/replenishment-ui.js';
 import { store } from '../../services/store.js';
 import {exportPalletContentExcel,exportPalletContentPdf} from '../../services/pallet-content-export.js';
 import { shell,wireShell } from '../../layout/layout.js';
@@ -69,10 +69,11 @@ function pintarDetalle(rackId){
  const inv=contenidoRack(rackId).filter(i=>{const p=producto(i.productCode);return !q||`${i.productCode} ${p?.name||''} ${p?.description||''} ${i.locationId} ${i.palletId||''}`.toLowerCase().includes(q);});
  const locs=d.locations.filter(l=>l.siteId===siteId&&l.rackId===rackId&&l.active),total=contenidoRack(rackId).reduce((a,b)=>a+b.qty,0);
  box.innerHTML=`<section class="panel rack-detail-panel"><div class="panel-head"><div><span class="eyebrow">CONTENIDO DEL RACK</span><h3 id="rack-detail-title">${esc(r.name)} · ${inv.length} registro${inv.length===1?'':'s'}</h3><small>${locs.length} ubicaciones configuradas · ${total} unidades localizadas</small></div><button id="close-rack-detail" class="ghost">Cerrar</button></div>
- <div class="rack-detail-tools"><button id="rack-export-pdf" class="secondary" type="button">Contenido PDF</button><button id="rack-export-excel" class="secondary" type="button">Contenido Excel</button><label>Filtrar contenido<div class="entrada-con-camara"><input id="rack-filter" value="${esc(q)}" placeholder="Código, descripción, ubicación o palet"><button id="camara-rack-filter" class="scan-button" type="button" title="Escanear código con cámara">▣</button></div></label><a href="#/estructura" class="secondary">Configurar estructura</a></div>
+ <div class="rack-detail-tools">${canConfigureReplenishment()?'<button id="rack-detail-replenishment" class="secondary" type="button">Configurar reposición inteligente</button>':''}<button id="rack-export-pdf" class="secondary" type="button">Contenido PDF</button><button id="rack-export-excel" class="secondary" type="button">Contenido Excel</button><label>Filtrar contenido<div class="entrada-con-camara"><input id="rack-filter" value="${esc(q)}" placeholder="Código, descripción, ubicación o palet"><button id="camara-rack-filter" class="scan-button" type="button" title="Escanear código con cámara">▣</button></div></label><a href="#/estructura" class="secondary">Configurar estructura</a></div>
  ${rackDistributionHtml(r)}
  <div class="table-wrap"><table><thead><tr><th>Código</th><th>Descripción</th><th>Cantidad</th><th>Ubicación</th><th>Palet</th></tr></thead><tbody id="rack-content-body">${inv.length?inv.map(i=>{const p=producto(i.productCode);return `<tr><td><b>${esc(i.productCode)}</b></td><td>${esc(p?.description||p?.name||'Sin descripción')}</td><td><b>${i.qty}</b></td><td>${esc(i.locationId)}</td><td>${esc(i.palletId||'—')}</td></tr>`}).join(''):`<tr><td colspan="5">${empty('Rack sin productos localizados','La ficha y sus ubicaciones están disponibles; el contenido aparecerá cuando se asignen productos a este rack.')}</td></tr>`}</tbody></table></div></section>`;
  document.querySelector('#close-rack-detail').onclick=()=>box.innerHTML='';
+ box.querySelector('#rack-detail-replenishment')?.addEventListener('click',()=>openReplenishmentDialog('',rackId));
  box.querySelector('#rack-export-pdf').onclick=()=>{try{exportPalletContentPdf([rackId],{type:'rack'});}catch(e){alert(e.message);}};
  box.querySelector('#rack-export-excel').onclick=()=>exportPalletContentExcel([rackId],{type:'rack'}).catch(e=>alert(e.message));
  document.querySelector('#rack-filter').addEventListener('input',e=>{
