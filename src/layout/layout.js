@@ -1,3 +1,4 @@
+import {replenishmentAlertCount} from '../services/replenishment-alerts.js';
 import { instalarPWA, estadoPWA } from '../services/pwa.js';
 import { store } from '../services/store.js';
 import { auth } from '../services/auth.js';
@@ -21,6 +22,7 @@ const nav=[
  {id:'etiquetas-grupo',label:'Etiquetas',ico:'▤',items:[['etiquetas-productos','Productos','◫'],['etiquetas-racks','Racks','▦'],['etiquetas-pallets','Pallets','▣']]},
  {id:'estructura-bodega',label:'Estructura de bodega',ico:'▦',items:[['productos','Productos','◫'],['racks','Racks','▦'],['mapa3d','Mapa 3D','◈'],['estructura','Configurar estructura','⚙']]},
  ['alertas-stock','Alertas de stock','⚠'],
+ ['alertas-reposicion','Alertas de reposición inteligente','⚠'],
  {id:'control',label:'Control y trazabilidad',ico:'◷',items:[['conciliacion','Conciliación ERP','≋'],['historial','Historial','◷']]},
  {id:'administracion',label:'Administración',ico:'⚙',items:[['importar','Importar Excel','⇧'],['centros','Centros y Sucursales','⌂'],['usuarios','Usuarios','♙']]}
 ];
@@ -57,6 +59,7 @@ const NAV_ICON_NAMES={
   'mapa3d':'map',
   'estructura':'settings',
   'alertas-stock':'triangle-alert',
+  'alertas-reposicion':'triangle-alert',
   'control':'history',
   'conciliacion':'file-check',
   'historial':'history',
@@ -214,7 +217,7 @@ function navAlertState(d,currentUser,activeSite,activeCompany){
 function updateNavAlertBadges(){
   const d=store.data,currentUser=d.users.find(u=>u.id===d.session?.userId)||auth.user,siteId=activeSiteId(d),companyId=activeCompanyId(d),state=navAlertState(d,currentUser,siteId,companyId);
   const sync=(id,count,manager=false)=>{const link=document.querySelector(`.sidebar a[href="#/${id}"]`);if(!link)return;let el=link.querySelector('.nav-count');if(count&&!el){el=document.createElement('em');el.className='nav-count';link.appendChild(el);}if(el){el.textContent=count;el.hidden=!count;el.classList.toggle('manager-alert',manager);if(id==='ordenes')el.title=manager?`${state.received} nueva(s) · ${state.accepted} por asignar · ${state.review} por revisar`:`${state.orderCount} tarea(s) pendiente(s)`;if(id==='cargas')el.title=`${count} carga(s) emitida(s) pendiente(s) de asignar transportista`;}if(id==='ordenes'||id==='cargas')link.classList.toggle('has-nav-alert',count>0);};
-  sync('ordenes',state.orderCount,state.isManager);sync('tareas-ubicacion',state.putawayTasks,false);sync('cargas',state.dispatchNeedsAssignment,state.isManager);
+  sync('alertas-reposicion',replenishmentAlertCount(d),false);sync('ordenes',state.orderCount,state.isManager);sync('tareas-ubicacion',state.putawayTasks,false);sync('cargas',state.dispatchNeedsAssignment,state.isManager);
   const dispatchGroup=document.querySelector('.sidebar details[data-nav-group="despacho"] summary');
   if(dispatchGroup){let el=dispatchGroup.querySelector('.nav-count');if(state.dispatchNeedsAssignment&&!el){el=document.createElement('em');el.className='nav-count manager-alert';dispatchGroup.insertBefore(el,dispatchGroup.querySelector('i'));}if(el){el.textContent=state.dispatchNeedsAssignment;el.hidden=!state.dispatchNeedsAssignment;el.title=`${state.dispatchNeedsAssignment} despacho(s) por asignar`;}}
 }
@@ -230,14 +233,14 @@ function installNavOrderAlerts(){
 export function shell(title,content,active='dashboard'){
   const d=store.data; const activeSite=activeSiteId(d); const site=d.sites.find(s=>s.id===activeSite)||d.sites[0]||{name:'Centro sin definir',code:activeSite}; const currentUser=d.users.find(u=>u.id===d.session.userId)||auth.user; const activeCompany=activeCompanyId(d); const allowedSites=userAllowedSites(d); const allowedCompanies=(d.companies||[]).filter(c=>c.active!==false&&(currentUser?.role==='ADMIN_GLOBAL'||(currentUser?.companyIds||[]).includes(c.id))); const initials=(currentUser?.name||'Usuario').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
   const effectiveRole=(currentUser?.accessAssignments||[]).find(a=>a.siteId===activeSite)?.role||currentUser?.role;
-  const operatorMenu=new Set(['dashboard','buscar','codigos','codigos-cantidades','ordenes','recepciones','organizar-recibidos','recepcion-traspasos','tareas-ubicacion','transferencias','cargas','palets','racks','movimientos','inventarios','etiquetas','etiquetas-productos','etiquetas-racks','etiquetas-pallets','mapa3d']);
+  const operatorMenu=new Set(['alertas-reposicion','dashboard','buscar','codigos','codigos-cantidades','ordenes','recepciones','organizar-recibidos','recepcion-traspasos','tareas-ubicacion','transferencias','cargas','palets','racks','movimientos','inventarios','etiquetas','etiquetas-productos','etiquetas-racks','etiquetas-pallets','mapa3d']);
   const stockAlertManager=['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(effectiveRole);
   const canSee=id=>id==='alertas-stock'&&!stockAlertManager?false:['etiquetas-productos','etiquetas-racks','etiquetas-pallets'].includes(id)&&!codePermissionsForUser(currentUser,activeSite).printLabels?false:id==='mapa3d'&&!mapPermissionsForUser(currentUser,activeSite).view?false:id==='etiquetas'&&!codePermissionsForUser(currentUser,activeSite).printLabels?false:id==='codigos-cantidades'&&!codePermissionsForUser(currentUser,activeSite).associateQuantity?false:id==='codigos'&&!codePermissionsForUser(currentUser,activeSite).consult?false:id==='conciliacion'&&!codePermissionsForUser(currentUser,activeSite).reconcileErp?false:id==='conciliacion-inventarios'&&!(inventoryPermissionsForUser(currentUser,activeSite).review||inventoryPermissionsForUser(currentUser,activeSite).manage)?false:id==='palets'&&!palletPermissionsForUser(currentUser,activeSite).view?false:id==='racks'&&['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(effectiveRole)&&!codePermissionsForUser(currentUser,activeSite).initialStock?false:id==='inventarios'&&!Object.values(inventoryPermissionsForUser(currentUser,activeSite)).some(Boolean)&&!(store.data.planning?.inventorySessions||[]).some(s=>s.siteId===activeSite&&(s.assignments||[]).some(a=>a.userId===currentUser.id))?false:effectiveRole==='TRANSPORTISTA'?['dashboard','cargas'].includes(id):['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(effectiveRole)?operatorMenu.has(id):(!['usuarios','centros'].includes(id)||['ADMIN_GLOBAL','ADMINISTRADOR'].includes(effectiveRole));
   const alertState=navAlertState(d,currentUser,activeSite,activeCompany);
   const stockAlertLimits=d.planning?.stockAlertLimits?.[activeSite]||{};
   const stockAlertCount=stockAlertManager?Object.entries(stockAlertLimits).filter(([code,limit])=>Number(limit)>0&&Number(stockBySite(code,d)[activeSite]||0)<=Number(limit)).length:0;
-  const taskCountFor=id=>id==='ordenes'?alertState.orderCount:id==='tareas-ubicacion'?alertState.putawayTasks:id==='cargas'?alertState.dispatchNeedsAssignment:id==='alertas-stock'?stockAlertCount:0;
-  const navLink=([id,label,ico],sub=false)=>{const count=taskCountFor(id),tracked=['ordenes','tareas-ubicacion','cargas','alertas-stock'].includes(id),managerAlert=alertState.isManager&&(id==='ordenes'||id==='cargas'),countHtml=!tracked||!count?'':managerAlert?`<em class="nav-count manager-alert">${count}</em>`:`<em class="nav-count">${count}</em>`;return `<a href="#/${id}" class="nav-link ${sub?'nav-sub-link':''} ${active===id?'active':''} ${(id==='ordenes'||id==='cargas')&&count?'has-nav-alert':''}"><span class="khal-nav-icon-wrap">${sidebarIcon(id)}</span><b>${label}</b>${countHtml}</a>`;};
+  const taskCountFor=id=>id==='alertas-reposicion'?replenishmentAlertCount(d):id==='ordenes'?alertState.orderCount:id==='tareas-ubicacion'?alertState.putawayTasks:id==='cargas'?alertState.dispatchNeedsAssignment:id==='alertas-stock'?stockAlertCount:0;
+  const navLink=([id,label,ico],sub=false)=>{const count=taskCountFor(id),tracked=['ordenes','tareas-ubicacion','cargas','alertas-stock','alertas-reposicion'].includes(id),managerAlert=alertState.isManager&&(id==='ordenes'||id==='cargas'),countHtml=!tracked||!count?'':managerAlert?`<em class="nav-count manager-alert">${count}</em>`:`<em class="nav-count">${count}</em>`;return `<a href="#/${id}" class="nav-link ${sub?'nav-sub-link':''} ${active===id?'active':''} ${(id==='ordenes'||id==='cargas')&&count?'has-nav-alert':''}"><span class="khal-nav-icon-wrap">${sidebarIcon(id)}</span><b>${label}</b>${countHtml}</a>`;};
   const links=nav.map(node=>{if(Array.isArray(node))return canSee(node[0])?navLink(node):'';const items=node.items.filter(([id])=>canSee(id));if(!items.length)return '';const opened=items.some(([id])=>id===active),groupCount=node.id==='despacho'?alertState.dispatchNeedsAssignment:0,groupCountHtml=groupCount?`<em class="nav-count manager-alert" title="${groupCount} despacho(s) por asignar">${groupCount}</em>`:'';return `<details class="nav-group ${opened?'active':''}" data-nav-group="${node.id}" ${opened?'open':''}><summary><span class="khal-nav-icon-wrap">${sidebarIcon(node.id)}</span><b>${node.label}</b>${groupCountHtml}<i>⌄</i></summary><div class="nav-submenu">${items.map(item=>navLink(item,true)).join('')}</div></details>`;}).join('');
   const mobileActive=active==='dashboard'?'inicio':active==='buscar'?'buscar':['recepciones','organizar-recibidos','recepcion-traspasos','tareas-ubicacion'].includes(active)?'recibir':['transferencias','cargas'].includes(active)?'despachar':'mas';
   const mobileQuickNav=[['inicio','⌂','Inicio','#/dashboard'],['buscar','⌕','Buscar','#/buscar'],['recibir','⇩','Recibir','#/movil?seccion=recibir'],['despachar','⇄','Despachar','#/movil?seccion=despachar'],['mas','⋯','Más','#/movil?seccion=mas']];

@@ -42,7 +42,8 @@ export function openReplenishmentDialog(initialLocation='',preferredRackId=''){
   const modules=new Map();
   rows.forEach(l=>{
    const code=String(l.scanCode||l.id);
-   const m=code.match(/-M(\d+)-N(\d+)(?:-([A-Za-z0-9]+))?$/i);
+   const structureCode=String(l.id||l.scanCode);
+   const m=structureCode.match(/-M(\d+)-N(\d+)(?:-([A-Za-z0-9]+))?$/i);
    const moduleKey=m?`M${m[1]}`:'Otras posiciones',levelKey=m?`Nivel ${m[2]}`:'Sin nivel';
    if(!modules.has(moduleKey))modules.set(moduleKey,new Map());
    const levels=modules.get(moduleKey);if(!levels.has(levelKey))levels.set(levelKey,[]);
