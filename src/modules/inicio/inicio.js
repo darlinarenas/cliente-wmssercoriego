@@ -14,18 +14,20 @@ function operatorDashboard(d,user,siteId){
  const reviewOrders=assignedOrders.filter(o=>reviewStatuses.has(o.status));
  const orderTasks=assignedOrders.filter(o=>!reviewStatuses.has(o.status)&&!finishedStatuses.has(o.status));
  const activePicking=orderTasks.filter(o=>['ASIGNADA','EN_PICKING'].includes(o.status)).sort((a,b)=>{const rank=o=>o.status==='EN_PICKING'?2:o.status==='ASIGNADA'?1:0;return rank(b)-rank(a)||String(b.pickingStartedAt||b.assignedAt||b.createdAt||'').localeCompare(String(a.pickingStartedAt||a.assignedAt||a.createdAt||''));});
- const putaway=(d.tasks||[]).filter(t=>t.siteId===siteId&&t.assignedTo===user.id&&t.status!=='CERRADA');
+ const putaway=(d.tasks||[]).filter(t=>t.type==='UBICAR_CARGA'&&t.siteId===siteId&&t.assignedTo===user.id&&t.status!=='CERRADA');
+ const replenishmentTasks=(d.tasks||[]).filter(t=>t.type==='REPOSICION_INTELIGENTE'&&t.siteId===siteId&&t.assignedTo===user.id&&!['CERRADA','COMPLETADA','CANCELADA','ANULADA'].includes(String(t.status||'').toUpperCase()));
  const inventorySessions=(d.planning?.inventorySessions||[]).filter(s=>s.siteId===siteId);
  const inventoryTasks=inventorySessions.flatMap(s=>(s.assignments||[]).filter(a=>a.userId===user.id&&s.status==='EN_CONTEO'&&a.status!=='ENVIADO_REVISION').map(a=>({session:s,assignment:a})));
  const inventoryReview=inventorySessions.flatMap(s=>(s.assignments||[]).filter(a=>a.userId===user.id&&a.status==='ENVIADO_REVISION').map(a=>({session:s,assignment:a})));
  const inventoryAccess=inventoryPermissionsForUser(user,siteId),hasInventoryAccess=inventoryAccess.count||inventoryAccess.manage||inventoryAccess.review||inventorySessions.some(s=>(s.assignments||[]).some(a=>a.userId===user.id));
- const total=orderTasks.length+putaway.length+inventoryTasks.length;
+ const total=orderTasks.length+putaway.length+replenishmentTasks.length+inventoryTasks.length;
  const currentOrder=activePicking[0]||null;
  const orderProgress=currentOrder?(()=>{const items=currentOrder.items||[],totalItems=items.length,doneItems=items.filter(i=>Number(i.pickedQty||0)>=Number(i.qty||0)).length;return {total:totalItems,done:doneItems,pct:totalItems?Math.round(doneItems*100/totalItems):0};})():null;
  const firstName=String(user.name||'Operario').trim().split(/\s+/)[0]||'Operario';
  let nextAction={eyebrow:'TU PRÓXIMA ACCIÓN',title:'Todo al día',detail:'No tienes tareas operativas pendientes en este momento.',href:'#/ordenes',button:'Ver mis tareas',pct:null};
  if(currentOrder){nextAction={eyebrow:'TU PRÓXIMA ACCIÓN',title:currentOrder.status==='EN_PICKING'?'Continuar picking':'Iniciar picking',detail:`Orden ${currentOrder.externalNumber||currentOrder.id} · ${orderProgress.done}/${orderProgress.total} productos`,href:`#/ordenes?openOrder=${encodeURIComponent(currentOrder.id)}`,button:currentOrder.status==='EN_PICKING'?'Seguir trabajando':'Comenzar orden',pct:orderProgress.pct};}
  else if(inventoryTasks.length){nextAction={eyebrow:'TU PRÓXIMA ACCIÓN',title:'Continuar inventario',detail:`${inventoryTasks.length} conteo(s) asignado(s) en este centro`,href:'#/inventarios',button:'Abrir inventario',pct:null};}
+ else if(replenishmentTasks.length){nextAction={eyebrow:'TU PRÓXIMA ACCIÓN',title:'Continuar reposición',detail:`${replenishmentTasks.length} reposición(es) asignada(s)`,href:'#/ordenes',button:'Ver reposiciones',pct:null};}
  else if(putaway.length){nextAction={eyebrow:'TU PRÓXIMA ACCIÓN',title:'Ubicar producto',detail:`${putaway.length} tarea(s) de ubicación pendiente(s)`,href:'#/tareas-ubicacion',button:'Continuar ubicación',pct:null};}
  const actions=[
   ['buscar','⌕','Buscar','Localizar productos y ubicaciones'],
@@ -37,7 +39,7 @@ function operatorDashboard(d,user,siteId){
   ['palets','▣','Organizar palets','Revisar y ubicar productos'],
   ...(codePermissionsForUser(user,siteId).initialStock?[["racks","▦","Racks / posiciones","Escanear posición, usar mapa y cargar stock desde cero"]]:[]),
   ['movimientos','↔','Mover','Reubicar producto o pallet'],
-  ['ordenes','✓','Órdenes / Mis tareas',`${orderTasks.length+putaway.length} pendiente(s)`],
+  ['ordenes','✓','Órdenes / Mis tareas',`${orderTasks.length+putaway.length+replenishmentTasks.length} pendiente(s)`],
   ...(hasInventoryAccess?[["inventarios","▦",inventoryTasks.length?"Inventario asignado":"Inventario / Levantamiento",inventoryTasks.length?`${inventoryTasks.length} tarea(s) · abrir conteo`:"Abrir conteo por rack"]]:[])
  ];
  return `<section class="operator-compact-home"><a class="operator-next-action compact ${total?'has-work':'is-clear'}" href="${nextAction.href}"><div><span class="eyebrow">QUÉ HACER AHORA</span><h3>${esc(nextAction.title)}</h3><p>${esc(nextAction.detail)}</p>${nextAction.pct!==null?`<div class="operator-next-progress"><div><span style="width:${nextAction.pct}%"></span></div><b>${nextAction.pct}%</b></div>`:''}</div><strong>${esc(nextAction.button)} <span>→</span></strong></a></section>${inventoryTasks.length?`<a class="operator-inventory-alert compact" href="#/inventarios"><span>▦</span><div><small>INVENTARIO ASIGNADO</small><b>${inventoryTasks.length} conteo(s) pendiente(s)</b></div><strong>→</strong></a>`:''}<div class="operator-action-grid operator-action-grid-compact">${actions.map(([id,icon,label,help])=>`<a href="#/${id}" class="operator-action-card ${id==='ordenes'&&total?'has-tasks':''}"><span>${icon}</span><div><b>${label}</b><small>${id==='ordenes'?`${total} pendiente(s) · ${reviewOrders.length} en revisión`:help}</small></div>${id==='ordenes'&&total?`<em>${total}</em>`:''}</a>`).join('')}</div>`;

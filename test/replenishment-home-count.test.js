@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+global.window={addEventListener(){},innerWidth:1200,SERCO_WMS_API_BASE_URL:'/api'};
+global.localStorage={getItem(){return null},setItem(){},removeItem(){}};
+global.document={body:{classList:{contains(){return false}}}};
+const {store}=await import('../src/services/store.js');
+const {shell}=await import('../src/layout/layout.js');
+const base={companies:[{id:'C1',name:'Empresa',active:true}],sites:[{id:'S1',companyId:'C1',name:'Bodega Recoleta',code:'REC',active:true}],users:[{id:'OP1',name:'Operario',role:'OPERADOR_BODEGA',siteIds:['S1'],accessAssignments:[{siteId:'S1',companyId:'C1',role:'OPERADOR_BODEGA'}]}],session:{userId:'OP1',activeSiteId:'S1',activeCompanyId:'C1'},orders:[],tasks:[]};
+const badgeCount=()=>{const html=shell('Inicio','','dashboard');const match=html.match(/href="#\/ordenes"[^>]*>[\s\S]*?<em class="nav-count">(\d+)<\/em>/);return match?Number(match[1]):0;};
+store.data={...base,tasks:[{id:'R1',type:'REPOSICION_INTELIGENTE',siteId:'S1',assignedTo:'OP1',status:'CERRADA'},{id:'R2',type:'REPOSICION_INTELIGENTE',siteId:'S1',assignedTo:'OP1',status:'CANCELADA'},{id:'R3',type:'REPOSICION_INTELIGENTE',siteId:'S1',assignedTo:'OP1',status:'COMPLETADA'}]};
+assert.equal(badgeCount(),0,'las tres reposiciones terminadas no deben sumar');
+store.data={...base,tasks:[...store.data.tasks,{id:'R4',type:'REPOSICION_INTELIGENTE',siteId:'S1',assignedTo:'OP1',status:'ASIGNADA'}]};
+assert.equal(badgeCount(),1,'una reposición activa sí debe sumar');
+console.log('OK contador de reposiciones finalizadas y activas');

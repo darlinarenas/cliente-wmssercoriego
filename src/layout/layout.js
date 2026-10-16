@@ -203,7 +203,9 @@ function navAlertState(d,currentUser,activeSite,activeCompany){
   const scopedOrders=(d.orders||[]).filter(o=>o.status!=='BORRADOR'&&sameCompany(o)&&(allowedSiteIds.has(o.sourceSiteId)||o.assignedTo===currentUser?.id));
   const isManager=MANAGER_ROLES.has(effectiveRole);
   const orderTasks=isManager?scopedOrders.filter(o=>ORDER_MANAGER_ALERT_STATUSES.has(o.status)).length:scopedOrders.filter(o=>o.assignedTo===currentUser?.id&&!ORDER_DONE_STATUSES.has(o.status)&&!ORDER_REVIEW_STATUSES.has(o.status)).length;
-  const putawayTasks=(d.tasks||[]).filter(t=>t.assignedTo===currentUser?.id&&t.status!=='CERRADA').length;
+  const assignedActiveTasks=(d.tasks||[]).filter(t=>t.assignedTo===currentUser?.id&&!['CERRADA','COMPLETADA','CANCELADA','ANULADA'].includes(String(t.status||'').toUpperCase()));
+  const putawayTasks=assignedActiveTasks.filter(t=>t.type==='UBICAR_CARGA').length;
+  const replenishmentTasks=assignedActiveTasks.filter(t=>t.type==='REPOSICION_INTELIGENTE').length;
   const received=isManager?scopedOrders.filter(o=>o.status==='RECIBIDA').length:0;
   const accepted=isManager?scopedOrders.filter(o=>o.status==='ACEPTADA').length:0;
   const review=isManager?scopedOrders.filter(o=>ORDER_REVIEW_STATUSES.has(o.status)).length:0;
@@ -212,7 +214,7 @@ function navAlertState(d,currentUser,activeSite,activeCompany){
     if(!allowedSiteIds.has(s.sourceSiteId))return false;
     return !s.sourceSiteId||siteCompanyId((d.sites||[]).find(site=>site.id===s.sourceSiteId),d)===activeCompany;
   }).length:0;
-  return {effectiveRole,isManager,orderCount:isManager?orderTasks:orderTasks+putawayTasks,putawayTasks,received,accepted,review,dispatchNeedsAssignment};
+  return {effectiveRole,isManager,orderCount:isManager?orderTasks:orderTasks+putawayTasks+replenishmentTasks,putawayTasks,received,accepted,review,dispatchNeedsAssignment};
 }
 function updateNavAlertBadges(){
   const d=store.data,currentUser=d.users.find(u=>u.id===d.session?.userId)||auth.user,siteId=activeSiteId(d),companyId=activeCompanyId(d),state=navAlertState(d,currentUser,siteId,companyId);
