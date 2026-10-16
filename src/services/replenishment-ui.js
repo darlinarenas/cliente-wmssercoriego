@@ -16,7 +16,7 @@ export function canConfigureReplenishment(){
 }
 export function replenishmentButtonHtml(){return canConfigureReplenishment()?'<button type="button" class="secondary" data-replenishment-open>Configurar reposición inteligente</button>':'';}
 export function wireReplenishmentButtons(root=document){root.querySelectorAll('[data-replenishment-open]').forEach(b=>b.addEventListener('click',()=>openReplenishmentDialog(b.dataset.location||'')));}
-export function openReplenishmentDialog(initialLocation='',preferredRackId=''){
+export function openReplenishmentDialog(initialLocation='',preferredRackId='',initialProductCode=''){
  if(!canConfigureReplenishment())return;
  const d=store.data,site=activeSiteId(d),locations=(d.locations||[]).filter(l=>l.siteId===site&&l.active!==false&&l.rackId),products=d.products||[];
  let dlg=document.getElementById('khal-replenishment-dialog');if(!dlg){dlg=document.createElement('dialog');dlg.id='khal-replenishment-dialog';dlg.className='rack-position-dialog';document.body.append(dlg);}
@@ -32,6 +32,27 @@ export function openReplenishmentDialog(initialLocation='',preferredRackId=''){
  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label>3. Stock mínimo<input id="rep-min" type="number" min="0" step="1" value="0"><small>Activa la sugerencia</small></label><label>4. Stock objetivo<input id="rep-target" type="number" min="1" step="1" value="1"><small>Cantidad que se desea alcanzar</small></label></div>
  <div id="rep-preview" class="panel" style="padding:10px;margin:10px 0" aria-live="polite">Selecciona posición y producto.</div><div class="dialog-actions"><button type="button" class="ghost" id="rep-cancel">Cancelar</button><button type="button" class="primary" id="rep-save">Guardar configuración de reposición</button></div></div>`;
  const $=id=>dlg.querySelector('#'+id);let selected=null;
+ if(initialProductCode)$('rep-product').value=String(initialProductCode);
+ let lastSelection='';
+ function syncPositionProduct(){
+  const loc=buscarUbicacionPorCodigo($('rep-location').value,store.data);
+  const valid=loc?.siteId===site?loc:null;
+  const current=valid?.id||'';
+  if(current===lastSelection)return;
+  lastSelection=current;
+  dlg.querySelector('#rep-position-products')?.remove();
+  if(!valid)return;
+  const codes=[...new Set((store.data.inventory||[]).filter(i=>String(i.locationId)===String(valid.id)&&Number(i.qty||0)>0).map(i=>String(i.productCode)))];
+  const choices=codes.map(code=>products.find(p=>String(p.code)===code)).filter(Boolean);
+  const label=document.createElement('div');label.id='rep-position-products';label.style='margin:6px 0 12px;font-size:13px';
+  if(choices.length===1){$('rep-product').value=String(choices[0].code);label.textContent=`Producto en esta posición: ${choices[0].code} · ${choices[0].description||choices[0].name||''}`;}
+  else if(choices.length>1){
+   label.innerHTML='<label for="rep-position-product-select">Productos existentes en esta posición</label><select id="rep-position-product-select" style="width:100%;min-height:44px"><option value="">Seleccionar producto de la posición</option></select>';
+   const select=label.querySelector('select');choices.forEach(p=>{const option=document.createElement('option');option.value=String(p.code);option.textContent=`${p.code} · ${p.description||p.name||''}`;select.append(option);});
+   $('rep-product').value='';select.onchange=()=>{$('rep-product').value=select.value;refresh();};
+  }else label.textContent='Posición sin productos con stock: puedes buscar o escanear un SKU manualmente.';
+  $('rep-product').closest('label').after(label);
+ }
  const picker=$('rep-map-picker');let activeRack=String(initialRack||(rackIds.includes(String(preferredRackId))?preferredRackId:'')||rackIds[0]||'');
  function renderRackButtons(){
   $('rep-rack-buttons').innerHTML=rackIds.map(r=>`<button type="button" class="${r===activeRack?'primary':'secondary'}" data-rep-rack="${esc(r)}">${esc(r)}</button>`).join('');
@@ -71,7 +92,7 @@ export function openReplenishmentDialog(initialLocation='',preferredRackId=''){
  $('rep-map-open').onclick=()=>{picker.hidden=!picker.hidden;if(!picker.hidden){const current=locations.find(l=>[l.id,l.scanCode].includes($('rep-location').value));if(current)activeRack=String(current.rackId);renderRackButtons();renderRackPositions();}};
  $('rep-map-close').onclick=()=>picker.hidden=true;
  function read(){const loc=buscarUbicacionPorCodigo($('rep-location').value,store.data),product=resolveProduct($('rep-product').value);return {loc:loc?.siteId===site?loc:null,product};}
- function refresh(){const {loc,product}=read();selected=loc&&product?`${loc.id}::${product.code}`:null;
+ function refresh(){syncPositionProduct();const {loc,product}=read();selected=loc&&product?`${loc.id}::${product.code}`:null;
  if(selected){const saved=(store.data.settings?.replenishmentRules||{})[selected];if(saved){$('rep-enabled').checked=saved.enabled===true;$('rep-min').value=saved.min;$('rep-target').value=saved.target;}}
  preview();}
  function preview(){const {loc,product}=read();if(!loc||!product){$('rep-preview').textContent='Selecciona una posición y un SKU válidos del centro activo.';return;}
@@ -86,12 +107,12 @@ export function openReplenishmentDialog(initialLocation='',preferredRackId=''){
   button.onclick=()=>{input.setAttribute('inputmode',input.getAttribute('inputmode')==='numeric'?'text':'numeric');update();input.focus({preventScroll:true});try{input.setSelectionRange(input.value.length,input.value.length);}catch{}};
   enlazarBotonEscaner('rep-'+field+'-camera','rep-'+field,{titulo:'Escanear '+description,ayuda:'Apunta al código de barras de '+description,onDetectar:refresh});
  }
- $('rep-location').addEventListener('change',refresh);$('rep-product').addEventListener('change',refresh);
+ $('rep-location').addEventListener('change',refresh);$('rep-location').addEventListener('input',refresh);$('rep-product').addEventListener('change',refresh);
  ['rep-enabled','rep-min','rep-target'].forEach(id=>$(id).addEventListener('input',preview));
  $('rep-close').onclick=$('rep-cancel').onclick=()=>dlg.close();
  $('rep-save').onclick=async()=>{const {loc,product}=read(),min=Number($('rep-min').value),target=Number($('rep-target').value);if(!loc||!product){alert('Selecciona una posición y un producto válidos.');return;}
  if(!Number.isSafeInteger(min)||min<0||!Number.isSafeInteger(target)||target<=min){alert('El stock objetivo debe ser mayor que el stock mínimo. Usa cantidades enteras no negativas.');return;}
  if(!canConfigureReplenishment()){alert('No tienes permiso para configurar reposición inteligente.');return;}
  $('rep-save').disabled=true;try{await store.commit(s=>{s.settings=s.settings||{};s.settings.replenishmentRules=s.settings.replenishmentRules||{};s.settings.replenishmentRules[`${loc.id}::${product.code}`]={enabled:$('rep-enabled').checked,min,target,siteId:site,productCode:product.code,locationId:loc.id,updatedBy:s.session.userId,updatedAt:new Date().toISOString()};},`Reposición inteligente configurada: ${loc.id} · ${product.code}`,{operations:['replenishmentConfigure']});dlg.close();alert('Configuración de reposición guardada correctamente.');}catch(e){alert(`No se pudo guardar: ${e.message}`);}finally{$('rep-save').disabled=false;}};
- dlg.showModal();
+ dlg.showModal();refresh();
 }
