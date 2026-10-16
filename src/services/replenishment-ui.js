@@ -39,10 +39,21 @@ export function openReplenishmentDialog(initialLocation='',preferredRackId=''){
  }
  function renderRackPositions(){
   const rows=locations.filter(l=>String(l.rackId)===activeRack);
-  const groups=new Map();
-  rows.forEach(l=>{const code=String(l.scanCode||l.id);const m=code.match(/-M(\d+)-N(\d+)(?:-([A-Za-z0-9]+))?$/i);const key=m?`M${m[1]} · Nivel ${m[2]}`:'Otras posiciones';if(!groups.has(key))groups.set(key,[]);groups.get(key).push({loc:l,label:m?(m[3]||'Única'):code,code});});
-  const ordered=[...groups.entries()].sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true}));
-  $('rep-rack-positions').innerHTML=`<strong>${esc(activeRack)} · ${rows.length} posiciones</strong>`+ordered.map(([name,items])=>`<div style="margin-top:10px"><div style="font-weight:600;font-size:13px;margin-bottom:5px">${esc(name)}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:7px">${items.sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true})).map(x=>`<button type="button" class="secondary" data-rep-position="${esc(x.code)}" style="min-height:44px;white-space:normal;overflow-wrap:anywhere" title="${esc(x.code)}">${esc(x.label)}</button>`).join('')}</div></div>`).join('');
+  const modules=new Map();
+  rows.forEach(l=>{
+   const code=String(l.scanCode||l.id);
+   const m=code.match(/-M(\d+)-N(\d+)(?:-([A-Za-z0-9]+))?$/i);
+   const moduleKey=m?`M${m[1]}`:'Otras posiciones',levelKey=m?`Nivel ${m[2]}`:'Sin nivel';
+   if(!modules.has(moduleKey))modules.set(moduleKey,new Map());
+   const levels=modules.get(moduleKey);if(!levels.has(levelKey))levels.set(levelKey,[]);
+   levels.get(levelKey).push({label:m?(m[3]||'Única'):code,code});
+  });
+  const sorted=[...modules.entries()].sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true}));
+  $('rep-rack-positions').innerHTML=`<strong>${esc(activeRack)} · ${rows.length} posiciones</strong><p style="font-size:12px;margin:6px 0 10px">Selecciona un módulo para ver sus niveles y posiciones.</p>`+sorted.map(([moduleName,levels],index)=>{
+   const count=[...levels.values()].reduce((n,items)=>n+items.length,0);
+   const levelHtml=[...levels.entries()].sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true})).map(([levelName,items])=>`<section style="border:1px solid #dce5ef;border-radius:10px;padding:9px;margin-top:9px;background:#fff"><div style="font-weight:700;font-size:13px;margin-bottom:8px">${esc(levelName)} <span style="font-weight:400;font-size:11px">· ${items.length} posiciones</span></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(85px,1fr));gap:7px">${items.sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true})).map(x=>`<button type="button" class="secondary" data-rep-position="${esc(x.code)}" style="min-height:44px;white-space:normal;overflow-wrap:anywhere" title="${esc(x.code)}">${esc(x.label)}</button>`).join('')}</div></section>`).join('');
+   return `<details ${index===0?'open':''} style="border:2px solid #cbd9e6;border-radius:12px;margin-top:10px;background:#f1f5f9;overflow:hidden"><summary style="cursor:pointer;padding:12px;font-weight:800;list-style-position:inside;min-height:44px">${esc(moduleName)} · ${count} posiciones</summary><div style="padding:0 10px 10px">${levelHtml}</div></details>`;
+  }).join('');
   $('rep-rack-positions').querySelectorAll('[data-rep-position]').forEach(btn=>btn.onclick=()=>{$('rep-location').value=btn.dataset.repPosition;picker.hidden=true;refresh();});
  }
  if(preferredRackId){picker.hidden=false;renderRackButtons();renderRackPositions();}
