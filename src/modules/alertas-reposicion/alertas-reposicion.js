@@ -105,7 +105,7 @@ function openReplenishmentAssignment(rows,root){
   return u.active!==false&&u.accessStatus!=='PAUSED'&&['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(userRole)&&((u.siteIds||[]).includes(siteId)||!!assignment)&&((u.companyIds||[]).includes(d.session?.activeCompanyId));
  });
  if(!operators.length){toast('No hay operarios habilitados en este centro.','warning');return;}
- const existing=(d.tasks||[]).filter(t=>t.type==='REPOSICION_INTELIGENTE'&&t.status!=='CERRADA');
+ const existing=(d.tasks||[]).filter(t=>t.type==='REPOSICION_INTELIGENTE'&&!['CERRADA','CANCELADA','ANULADA'].includes(t.status));
  const pending=rows.filter(r=>!existing.some(t=>t.siteId===siteId&&t.locationId===r.location.id&&t.productCode===r.productCode));
  if(!pending.length){toast('Las tareas seleccionadas ya están asignadas.','warning');return;}
  const dlg=document.createElement('dialog');dlg.className='rack-position-dialog';
@@ -120,7 +120,7 @@ function openReplenishmentAssignment(rows,root){
    await store.commit(state=>{
     const active=state.tasks||[];
     for(let i=0;i<pending.length;i++){
-     const r=pending[i];if(active.some(t=>t.type==='REPOSICION_INTELIGENTE'&&t.status!=='CERRADA'&&t.siteId===siteId&&t.locationId===r.location.id&&t.productCode===r.productCode))throw new Error(`El SKU ${r.productCode} ya tiene una tarea activa en esta posición.`);
+     const r=pending[i];if(active.some(t=>t.type==='REPOSICION_INTELIGENTE'&&!['CERRADA','CANCELADA','ANULADA'].includes(t.status)&&t.siteId===siteId&&t.locationId===r.location.id&&t.productCode===r.productCode))throw new Error(`El SKU ${r.productCode} ya tiene una tarea activa en esta posición.`);
      const now=new Date().toISOString();active.push({id:`REP-${Date.now()}-${i}-${Math.random().toString(36).slice(2,8)}`,type:'REPOSICION_INTELIGENTE',title:`Reponer SKU ${r.productCode}`,description:r.product?.name||r.product?.description||'',siteId,companyId:state.session.activeCompanyId,productCode:r.productCode,locationId:r.location.id,destinationCode:r.location.scanCode||r.location.id,qtyPlanned:quantities[i],origins:[],assignedTo:assignee,assignedBy:state.session.userId,assignedAt:now,createdAt:now,status:'ASIGNADA',events:[{at:now,userId:state.session.userId,message:'Tarea de reposición asignada, pendiente de ejecución'}]});
     }
     state.tasks=active;
