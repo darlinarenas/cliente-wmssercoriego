@@ -1,6 +1,7 @@
 import {shell,wireShell,toast} from '../../layout/layout.js';
 import {exportReplenishmentExcel,exportReplenishmentPdf} from '../../services/replenishment-export.js';
 import {store} from '../../services/store.js';
+import {notice} from '../../layout/layout.js';
 import {replenishmentAlerts} from '../../services/replenishment-alerts.js';
 import {esc} from '../../components/ui.js';
 import {activeSiteId} from '../../services/stock.js';
@@ -10,7 +11,7 @@ export function renderReplenishmentAlerts(root){
  const safe=(value)=>esc(String(value??''));
  const rackOf=(r)=>{const code=String(r.location.scanCode||r.location.id||'');return code.match(/(?:^|-)R(\d+)(?:-|$)/i)?.[1]||'';};
  const rackIds=[...new Set(alerts.map(r=>rackOf(r)).filter(Boolean))].sort((a,b)=>Number(a)-Number(b));
- root.innerHTML=shell('Alertas de reposición inteligente',`<section class="panel"><span class="eyebrow">REPOSICIÓN INTELIGENTE · ${safe(site?.name||'Centro activo')}</span><h2>Alertas de reposición inteligente</h2><p>Solo posiciones y SKU configurados para reposición. Sin sonidos ni movimientos automáticos.</p><div style="display:flex;gap:12px;flex-wrap:wrap"><strong>${alerts.length} alertas activas</strong><span>${rows.length} configuraciones válidas</span></div></section><section class="panel" style="margin-top:12px;padding:14px"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px"><label style="font-weight:700">Buscar SKU, producto o posición<input id="rep-alert-search" type="search" placeholder="Buscar..." style="width:100%;margin-top:5px" autocomplete="off"></label><label style="font-weight:700">Rack<select id="rep-alert-rack" style="width:100%;margin-top:5px"><option value="">Todos los racks</option>${rackIds.map(id=>`<option value="${safe(id)}">Rack ${safe(id)}</option>`).join('')}</select></label><label style="font-weight:700">Ordenar<select id="rep-alert-order" style="width:100%;margin-top:5px"><option value="location">Por posición</option><option value="missing">Mayor faltante</option><option value="sku">Por SKU</option></select></label></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center"><button type="button" class="secondary" id="rep-select-all">Seleccionar visibles</button><button type="button" class="secondary" id="rep-clear">Limpiar selección</button><button type="button" class="secondary" id="rep-excel">Descargar Excel</button><button type="button" class="secondary" id="rep-pdf">Descargar PDF</button><span id="rep-selected-count" style="font-size:13px;color:#526277">0 seleccionadas · planificación informativa</span></div><div id="rep-alert-result-count" style="margin-top:10px;font-size:13px;color:#526277" aria-live="polite"></div></section><section id="rep-alert-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:12px;margin-top:12px"></section>`,'alertas-reposicion');wireShell();
+ root.innerHTML=shell('Alertas de reposición inteligente',`<section class="panel"><span class="eyebrow">REPOSICIÓN INTELIGENTE · ${safe(site?.name||'Centro activo')}</span><h2>Alertas de reposición inteligente</h2><p>Solo posiciones y SKU configurados para reposición. Sin sonidos ni movimientos automáticos.</p><div style="display:flex;gap:12px;flex-wrap:wrap"><strong>${alerts.length} alertas activas</strong><span>${rows.length} configuraciones válidas</span></div></section><section class="panel" style="margin-top:12px;padding:14px"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px"><label style="font-weight:700">Buscar SKU, producto o posición<input id="rep-alert-search" type="search" placeholder="Buscar..." style="width:100%;margin-top:5px" autocomplete="off"></label><label style="font-weight:700">Rack<select id="rep-alert-rack" style="width:100%;margin-top:5px"><option value="">Todos los racks</option>${rackIds.map(id=>`<option value="${safe(id)}">Rack ${safe(id)}</option>`).join('')}</select></label><label style="font-weight:700">Ordenar<select id="rep-alert-order" style="width:100%;margin-top:5px"><option value="location">Por posición</option><option value="missing">Mayor faltante</option><option value="sku">Por SKU</option></select></label></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center"><button type="button" class="secondary" id="rep-select-all">Seleccionar visibles</button><button type="button" class="secondary" id="rep-clear">Limpiar selección</button><button type="button" class="secondary" id="rep-excel">Descargar Excel</button><button type="button" class="secondary" id="rep-pdf">Descargar PDF</button><button type="button" class="primary" id="rep-assign">Asignar tareas seleccionadas</button><span id="rep-selected-count" style="font-size:13px;color:#526277">0 seleccionadas · planificación informativa</span></div><div id="rep-alert-result-count" style="margin-top:10px;font-size:13px;color:#526277" aria-live="polite"></div></section><section id="rep-alert-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:12px;margin-top:12px"></section>`,'alertas-reposicion');wireShell();
  const selected=new Set();
  const keyOf=r=>`${r.location.id}::${r.productCode}`;
  let visible=[];
@@ -32,6 +33,7 @@ export function renderReplenishmentAlerts(root){
  root.querySelector('#rep-select-all').onclick=()=>{visible.forEach(r=>selected.add(keyOf(r)));render();};
  root.querySelector('#rep-clear').onclick=()=>{selected.clear();render();};
  const exportRows=()=>{const chosen=alerts.filter(r=>selected.has(keyOf(r)));return chosen.length?chosen:visible;};
+ root.querySelector('#rep-assign').onclick=()=>openReplenishmentAssignment(alerts.filter(r=>selected.has(keyOf(r))),root);
  root.querySelector('#rep-excel').onclick=()=>exportReplenishmentExcel(exportRows(),site?.name||'Centro activo').catch(e=>toast(e.message,'warning'));
  root.querySelector('#rep-pdf').onclick=()=>{try{exportReplenishmentPdf(exportRows(),site?.name||'Centro activo');}catch(e){toast(e.message,'warning');}};
  [search,rack,order].forEach(el=>el.addEventListener(el===search?'input':'change',render));render();
@@ -89,4 +91,42 @@ function showOrigins(rule,d){
  const dlg=document.createElement('dialog');dlg.className='rack-position-dialog';
  dlg.innerHTML=`<div style="padding:20px;width:min(92vw,650px);max-height:85vh;overflow:auto"><span class="eyebrow">KHAL · CONSULTA DE EXISTENCIAS</span><h3>Ubicaciones de origen · ${esc(sku)}</h3><p>${esc(rule.product?.name||rule.product?.description||'Producto')}</p><div class="panel" style="padding:12px"><strong>Destino:</strong> ${esc(rule.location.scanCode||destination)}<br><strong>Actual:</strong> ${esc(rule.qty)} · <strong>Objetivo:</strong> ${esc(rule.target)} · <strong>Por reponer:</strong> ${esc(rule.missing)}</div><p><strong>${rows.length} orígenes · ${total} unidades físicas encontradas</strong></p><div style="display:grid;gap:8px;max-height:40vh;overflow:auto">${rows.map(r=>`<div class="panel" style="padding:10px"><strong>${esc(r.location)}</strong>${r.pallet?` · Pallet ${esc(r.pallet)}`:''}<div>${esc(r.qty)} unidades físicas</div></div>`).join('')||'<div class="panel">No se encontraron existencias del SKU en otras ubicaciones de este centro.</div>'}</div><p style="font-size:12px;color:#526277">Consulta informativa. Las cantidades físicas pueden estar comprometidas en órdenes; no son reservas ni garantizan disponibilidad para mover. No se modifica inventario.</p><div class="dialog-actions"><button type="button" class="secondary" id="rep-origin-close">Cerrar</button></div></div>`;
  document.body.append(dlg);dlg.querySelector('#rep-origin-close').onclick=()=>dlg.close();dlg.addEventListener('close',()=>dlg.remove());dlg.showModal();
+}
+
+// Paso 2: solo asignación; NO se alteran cantidades ni se crean movimientos.
+function openReplenishmentAssignment(rows,root){
+ if(!rows.length){toast('Selecciona al menos una tarea para asignar.','warning');return;}
+ const d=store.data,siteId=activeSiteId(d),user=d.users.find(u=>u.id===d.session?.userId);
+ const role=(user?.accessAssignments||[]).find(a=>a.siteId===siteId)?.role||user?.role;
+ if(!['ADMIN_GLOBAL','ADMINISTRADOR','ENCARGADO'].includes(role)||!canConfigureReplenishment()){toast('No tienes permiso para asignar reposiciones.','warning');return;}
+ const operators=(d.users||[]).filter(u=>{
+  const assignment=(u.accessAssignments||[]).find(a=>a.siteId===siteId&&a.companyId===d.session?.activeCompanyId);
+  const userRole=assignment?.role||u.role;
+  return u.active!==false&&u.accessStatus!=='PAUSED'&&['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(userRole)&&((u.siteIds||[]).includes(siteId)||!!assignment)&&((u.companyIds||[]).includes(d.session?.activeCompanyId));
+ });
+ if(!operators.length){toast('No hay operarios habilitados en este centro.','warning');return;}
+ const existing=(d.tasks||[]).filter(t=>t.type==='REPOSICION_INTELIGENTE'&&t.status!=='CERRADA');
+ const pending=rows.filter(r=>!existing.some(t=>t.siteId===siteId&&t.locationId===r.location.id&&t.productCode===r.productCode));
+ if(!pending.length){toast('Las tareas seleccionadas ya están asignadas.','warning');return;}
+ const dlg=document.createElement('dialog');dlg.className='rack-position-dialog';
+ dlg.innerHTML=`<div style="padding:20px;width:min(92vw,650px);max-height:85vh;overflow:auto"><span class="eyebrow">KHAL · ASIGNACIÓN DE REPOSICIÓN</span><h3>Asignar ${pending.length} tarea(s)</h3><p>Planificación sin movimiento de inventario. El operario podrá consultar las tareas, pero aún no ejecutarlas.</p><label style="display:block;font-weight:700">Operario del centro<select id="rep-assignee" style="width:100%;margin-top:6px"><option value="">Seleccionar operario...</option>${operators.map(u=>`<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('')}</select></label><div style="display:grid;gap:8px;margin-top:12px">${pending.map((r,i)=>`<div class="panel" style="padding:10px"><strong>${esc(r.productCode)} · ${esc(r.location.scanCode||r.location.id)}</strong><div style="font-size:12px">${esc(r.product?.name||r.product?.description||'')} · sugerido ${esc(r.missing)}</div><label>Cantidad planificada<input type="number" class="rep-assignment-qty" data-index="${i}" min="1" max="${esc(r.missing)}" value="${esc(r.missing)}" style="width:100%"></label></div>`).join('')}</div><p style="font-size:12px;color:#526277">No se reservan existencias. Los orígenes podrán definirse y verificarse antes de ejecutar la reposición.</p><div class="dialog-actions" style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="secondary" id="rep-assignment-cancel">Cancelar</button><button type="button" class="primary" id="rep-assignment-confirm">Confirmar asignación</button></div></div>`;
+ document.body.append(dlg);const close=()=>{dlg.close();dlg.remove();};dlg.querySelector('#rep-assignment-cancel').onclick=close;dlg.addEventListener('close',()=>dlg.remove());
+ dlg.querySelector('#rep-assignment-confirm').onclick=async()=>{
+  const assignee=dlg.querySelector('#rep-assignee').value,quantities=[...dlg.querySelectorAll('.rep-assignment-qty')].map(el=>Number(el.value));
+  if(!assignee){toast('Selecciona un operario.','warning');return;}
+  if(quantities.some((qty,i)=>!Number.isSafeInteger(qty)||qty<1||qty>pending[i].missing)){toast('Revisa las cantidades planificadas.','warning');return;}
+  const btn=dlg.querySelector('#rep-assignment-confirm');btn.disabled=true;
+  try{
+   await store.commit(state=>{
+    const active=state.tasks||[];
+    for(let i=0;i<pending.length;i++){
+     const r=pending[i];if(active.some(t=>t.type==='REPOSICION_INTELIGENTE'&&t.status!=='CERRADA'&&t.siteId===siteId&&t.locationId===r.location.id&&t.productCode===r.productCode))throw new Error(`El SKU ${r.productCode} ya tiene una tarea activa en esta posición.`);
+     const now=new Date().toISOString();active.push({id:`REP-${Date.now()}-${i}-${Math.random().toString(36).slice(2,8)}`,type:'REPOSICION_INTELIGENTE',title:`Reponer SKU ${r.productCode}`,description:r.product?.name||r.product?.description||'',siteId,companyId:state.session.activeCompanyId,productCode:r.productCode,locationId:r.location.id,destinationCode:r.location.scanCode||r.location.id,qtyPlanned:quantities[i],origins:[],assignedTo:assignee,assignedBy:state.session.userId,assignedAt:now,createdAt:now,status:'ASIGNADA',events:[{at:now,userId:state.session.userId,message:'Tarea de reposición asignada, pendiente de ejecución'}]});
+    }
+    state.tasks=active;
+   },`Asignadas ${pending.length} tareas de reposición inteligente`,{operations:['replenishmentConfigure']});
+   await store.reload({emit:false});close();renderReplenishmentAlerts(root);await notice('Tareas asignadas',`${pending.length} tarea(s) guardadas para ${operators.find(u=>u.id===assignee)?.name||'el operario'}. Sin movimientos de stock.`,'success');
+  }catch(e){toast(e.message||'No se pudo asignar','warning');btn.disabled=false;}
+ };
+ dlg.showModal();
 }
