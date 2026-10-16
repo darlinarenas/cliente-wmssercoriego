@@ -12,4 +12,15 @@ export function replenishmentAlerts(d=store.data){
   return { ...r,location:loc,product,qty,min,target,missing:Math.max(0,target-qty),alert:qty<=min };
  }).filter(Boolean);
 }
-export function replenishmentAlertCount(d=store.data){return replenishmentAlerts(d).filter(r=>r.alert).length;}
+// Una alerta con reposición asignada o en curso se gestiona en Mis tareas,
+// no en la bandeja de nuevas asignaciones. La cancelación la libera de nuevo.
+export function pendingReplenishmentAlerts(d=store.data){
+ const site=activeSiteId(d),company=d.session?.activeCompanyId;
+ const busy=new Set((d.tasks||[]).filter(t=>
+  t.type==='REPOSICION_INTELIGENTE'&&t.siteId===site&&
+  (!company||!t.companyId||t.companyId===company)&&
+  !['CERRADA','CANCELADA','ANULADA'].includes(String(t.status||'').toUpperCase())
+ ).map(t=>`${String(t.locationId)}::${String(t.productCode)}`));
+ return replenishmentAlerts(d).filter(r=>r.alert&&!busy.has(`${String(r.location.id)}::${String(r.productCode)}`));
+}
+export function replenishmentAlertCount(d=store.data){return pendingReplenishmentAlerts(d).length;}

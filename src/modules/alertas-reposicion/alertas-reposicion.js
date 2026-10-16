@@ -2,12 +2,13 @@ import {shell,wireShell,toast} from '../../layout/layout.js';
 import {exportReplenishmentExcel,exportReplenishmentPdf} from '../../services/replenishment-export.js';
 import {store} from '../../services/store.js';
 import {notice} from '../../layout/layout.js';
-import {replenishmentAlerts} from '../../services/replenishment-alerts.js';
+import {replenishmentAlerts,pendingReplenishmentAlerts} from '../../services/replenishment-alerts.js';
+import {startSilentRefresh} from '../../services/silent-refresh.js';
 import {esc} from '../../components/ui.js';
 import {activeSiteId} from '../../services/stock.js';
 import {canConfigureReplenishment,openReplenishmentDialog} from '../../services/replenishment-ui.js';
 export function renderReplenishmentAlerts(root){
- const d=store.data,rows=replenishmentAlerts(d),alerts=rows.filter(r=>r.alert),site=(d.sites||[]).find(x=>x.id===activeSiteId(d));
+ const d=store.data,rows=replenishmentAlerts(d),alerts=pendingReplenishmentAlerts(d),site=(d.sites||[]).find(x=>x.id===activeSiteId(d));
  const safe=(value)=>esc(String(value??''));
  const rackOf=(r)=>{const code=String(r.location.scanCode||r.location.id||'');return code.match(/(?:^|-)R(\d+)(?:-|$)/i)?.[1]||'';};
  const rackIds=[...new Set(alerts.map(r=>rackOf(r)).filter(Boolean))].sort((a,b)=>Number(a)-Number(b));
@@ -37,6 +38,8 @@ export function renderReplenishmentAlerts(root){
  root.querySelector('#rep-excel').onclick=()=>exportReplenishmentExcel(exportRows(),site?.name||'Centro activo').catch(e=>toast(e.message,'warning'));
  root.querySelector('#rep-pdf').onclick=()=>{try{exportReplenishmentPdf(exportRows(),site?.name||'Centro activo');}catch(e){toast(e.message,'warning');}};
  [search,rack,order].forEach(el=>el.addEventListener(el===search?'input':'change',render));render();
+ // Refrescar al recibir asignaciones o cancelaciones de otro dispositivo.
+ startSilentRefresh('replenishment-alert-board','#/alertas-reposicion',()=>renderReplenishmentAlerts(root),{collections:['tasks','inventory']});
 }
 
 // La eliminación afecta exclusivamente la regla seleccionada; conserva stock y productos.
@@ -105,7 +108,7 @@ function openReplenishmentAssignment(rows,root){
   return u.active!==false&&u.accessStatus!=='PAUSED'&&['OPERADOR_BODEGA','OPERADOR_RECEPCION'].includes(userRole)&&((u.siteIds||[]).includes(siteId)||!!assignment)&&((u.companyIds||[]).includes(d.session?.activeCompanyId));
  });
  if(!operators.length){toast('No hay operarios habilitados en este centro.','warning');return;}
- const existing=(d.tasks||[]).filter(t=>t.type==='REPOSICION_INTELIGENTE'&&!['CERRADA','CANCELADA','ANULADA'].includes(t.status));
+ const existing=(d.tasks||[]).filter(t=>t.type==='REPOSICION_INTELIGENTE'&&!['CERRADA','CANCELADA','ANULADA'].includes(t.status)&&(!t.companyId||t.companyId===d.session?.activeCompanyId));
  const pending=rows.filter(r=>!existing.some(t=>t.siteId===siteId&&t.locationId===r.location.id&&t.productCode===r.productCode));
  if(!pending.length){toast('Las tareas seleccionadas ya están asignadas.','warning');return;}
  const dlg=document.createElement('dialog');dlg.className='rack-position-dialog';
