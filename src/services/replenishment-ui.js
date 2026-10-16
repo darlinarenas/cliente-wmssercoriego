@@ -1,4 +1,5 @@
 import {store} from './store.js';
+import {notice} from '../layout/layout.js';
 import {activeSiteId} from './stock.js';
 import {buscarUbicacionPorCodigo} from './ubicaciones.js';
 import {resolveProduct} from './product-codes.js';
@@ -110,9 +111,9 @@ export function openReplenishmentDialog(initialLocation='',preferredRackId='',in
  $('rep-location').addEventListener('change',refresh);$('rep-location').addEventListener('input',refresh);$('rep-product').addEventListener('change',refresh);
  ['rep-enabled','rep-min','rep-target'].forEach(id=>$(id).addEventListener('input',preview));
  $('rep-close').onclick=$('rep-cancel').onclick=()=>dlg.close();
- $('rep-save').onclick=async()=>{const {loc,product}=read(),min=Number($('rep-min').value),target=Number($('rep-target').value);if(!loc||!product){alert('Selecciona una posición y un producto válidos.');return;}
- if(!Number.isSafeInteger(min)||min<0||!Number.isSafeInteger(target)||target<=min){alert('El stock objetivo debe ser mayor que el stock mínimo. Usa cantidades enteras no negativas.');return;}
- if(!canConfigureReplenishment()){alert('No tienes permiso para configurar reposición inteligente.');return;}
- $('rep-save').disabled=true;try{await store.commit(s=>{s.settings=s.settings||{};s.settings.replenishmentRules=s.settings.replenishmentRules||{};s.settings.replenishmentRules[`${loc.id}::${product.code}`]={enabled:$('rep-enabled').checked,min,target,siteId:site,productCode:product.code,locationId:loc.id,updatedBy:s.session.userId,updatedAt:new Date().toISOString()};},`Reposición inteligente configurada: ${loc.id} · ${product.code}`,{operations:['replenishmentConfigure']});dlg.close();alert('Configuración de reposición guardada correctamente.');}catch(e){alert(`No se pudo guardar: ${e.message}`);}finally{$('rep-save').disabled=false;}};
+ $('rep-save').onclick=async()=>{const {loc,product}=read(),min=Number($('rep-min').value),target=Number($('rep-target').value);if(!loc||!product){await notice('Datos incompletos','Selecciona una posición y un producto válidos.','warning');return;}
+ if(!Number.isSafeInteger(min)||min<0||!Number.isSafeInteger(target)||target<=min){await notice('Cantidades inválidas','El stock objetivo debe ser mayor que el stock mínimo. Usa cantidades enteras no negativas.','warning');return;}
+ if(!canConfigureReplenishment()){await notice('Permiso requerido','No tienes permiso para configurar reposición inteligente.','warning');return;}
+ $('rep-save').disabled=true;try{await store.commit(s=>{s.settings=s.settings||{};s.settings.replenishmentRules=s.settings.replenishmentRules||{};s.settings.replenishmentRules[`${loc.id}::${product.code}`]={enabled:$('rep-enabled').checked,min,target,siteId:site,productCode:product.code,locationId:loc.id,updatedBy:s.session.userId,updatedAt:new Date().toISOString()};},`Reposición inteligente configurada: ${loc.id} · ${product.code}`,{operations:['replenishmentConfigure']});dlg.close();await notice('Reposición inteligente','Configuración de reposición guardada correctamente.','success');}catch(e){await notice('No se pudo guardar',String(e?.message||e),'error');}finally{$('rep-save').disabled=false;}};
  dlg.showModal();refresh();
 }
