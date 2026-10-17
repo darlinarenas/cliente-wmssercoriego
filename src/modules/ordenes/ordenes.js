@@ -189,7 +189,7 @@ export function renderOrders(root,openId=null){
  document.querySelectorAll('.toggle-order-section').forEach(button=>button.onclick=()=>{const target=document.querySelector(`#${CSS.escape(button.dataset.target)}`);if(!target)return;target.hidden=!target.hidden;button.textContent=target.hidden?'Mostrar':'Ocultar';});
  document.querySelectorAll('.open-assigned-putaway').forEach(button=>button.onclick=()=>{const site=store.data.sites.find(s=>s.id===button.dataset.site);localStorage.setItem('serco_wms_active_site',button.dataset.site);if(site?.companyId)localStorage.setItem('serco_wms_active_company',site.companyId);location.hash=`#/palets?id=${encodeURIComponent(button.dataset.pallet)}`;});
  liveOrdersSignature=JSON.stringify(store.data.orders||[]);
- liveTimer=setInterval(()=>{refreshOrdersSilently(root);refreshAssignedPutawaySilently(root);},3000);
+ liveTimer=setInterval(()=>{if(document.hidden)return;refreshOrdersSilently(root);refreshAssignedPutawaySilently(root);},10000);
 }
 
 function openOrderCard(root,button){const o=store.data.orders.find(x=>x.id===button.dataset.order),slot=document.querySelector('#order-detail-slot');if(!o||!slot)return;slot.innerHTML=orderDetail(o);slot.scrollIntoView({behavior:'smooth',block:'start'});wireDetail(root,o);wirePendingOrderActions(root,o);}

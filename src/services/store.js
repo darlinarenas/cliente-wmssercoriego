@@ -4,7 +4,16 @@ import { auth } from './auth.js';
 
 class Store {
   constructor(){ this.data=null; this.listeners=new Set(); this.loadedCompanyId=null; this.contextSwitching=false; this.saving=false; }
-  async init(){ this.data=auth.loginState||await repository.load(); auth.loginState=null; if(upgradeState(this.data)){try{this.data=(await repository.save(this.data))||this.data;}catch(e){console.warn('[WMS] No se pudo persistir la actualización aditiva de estructura:',e.message);}} this.loadedCompanyId=this.data?.session?.activeCompanyId||null; this.emit(); return this.data; }
+  async init(){ this.data=auth.loginState||await repository.load(); auth.loginState=null;
+    // La migración aditiva no debe enviar empresas ni tablas sin cambios.
+    // Los usuarios no globales mantienen la validación del servidor intacta.
+    const migrationCollections=['companies','sites','sectors','racks','locations','products','product_codes','inventory','pallets','receipts','transfers','shipments','tasks','orders','movements','audit'];
+    const previous=new Map(migrationCollections.map(k=>[k,JSON.stringify(this.data[k]||[])]));
+    if(upgradeState(this.data)){
+      const changed=migrationCollections.filter(k=>previous.get(k)!==JSON.stringify(this.data[k]||[]));
+      if(changed.length){try{this.data=(await repository.save(this.data,{collections:changed}))||this.data;}catch(e){console.warn('[WMS] No se pudo persistir la actualización aditiva de estructura:',e.message);}}
+      // Los cambios de estructura local que no alteran tablas no justifican PUT /state.
+    } this.loadedCompanyId=this.data?.session?.activeCompanyId||null; this.emit(); return this.data; }
   subscribe(fn){ this.listeners.add(fn); return()=>this.listeners.delete(fn); }
   emit(){ this.listeners.forEach(fn=>fn(this.data)); }
   async commit(mutator,auditMessage='Cambio registrado',{operations=[]}={}){
