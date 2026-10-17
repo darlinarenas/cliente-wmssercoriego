@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.17-khal-traffic-fix-v326';
+const APP_VERSION = '2026.10.17-khal-pallet-operator-v327';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
