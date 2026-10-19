@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.10.19-khal-unidad-empaque-v334';
+const PWA_RELEASE = '2026.10.19-khal-trafico-v335';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 

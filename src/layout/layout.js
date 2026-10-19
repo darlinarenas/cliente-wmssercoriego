@@ -229,7 +229,7 @@ function installNavOrderAlerts(){
   updateNavAlertBadges();
   if(orderAlertScope!==scope){orderAlertScope=scope;orderAlertStartedAt=Date.now();primeOrderAlertSnapshot(store.data.orders||[]);primeTransferAlerts(store.data.shipments||[]);}else if(!orderAlertSnapshot)primeOrderAlertSnapshot(store.data.orders||[]);
   let running=false;
-  navOrderAlertTimer=setInterval(async()=>{if(running||document.hidden)return;running=true;try{const previous=orderAlertSnapshot,[nextOrders,nextShipments]=await Promise.all([apiRequest('/orders'),apiRequest('/shipments')]),data=store.data,user=data.users.find(u=>u.id===data.session?.userId)||auth.user,activeSite=activeSiteId(data);detectOrderSoundAlerts(previous,nextOrders||[],user,activeSite);detectTransferCustodyAlerts(transferAlertSnapshot,nextShipments||[],user,activeSite);store.data.orders=nextOrders||[];store.data.shipments=nextShipments||[];updateNavAlertBadges();}catch{}finally{running=false;}},5000);
+  navOrderAlertTimer=setInterval(async()=>{if(running||document.hidden)return;running=true;try{const previous=orderAlertSnapshot,[nextOrders,nextShipments]=await Promise.all([apiRequest('/orders'),apiRequest('/shipments')]),data=store.data,user=data.users.find(u=>u.id===data.session?.userId)||auth.user,activeSite=activeSiteId(data);detectOrderSoundAlerts(previous,nextOrders||[],user,activeSite);detectTransferCustodyAlerts(transferAlertSnapshot,nextShipments||[],user,activeSite);store.data.orders=nextOrders||[];store.data.shipments=nextShipments||[];updateNavAlertBadges();}catch{}finally{running=false;}},20000);
 }
 
 export function shell(title,content,active='dashboard'){
