@@ -10,7 +10,7 @@ export function startSilentRefresh(key,routePrefix,onChange,{interval=3000,colle
   let lastRevision=store.data.meta?.revision;
   const tick=async()=>{
     if(!location.hash.startsWith(routePrefix)){stopSilentRefresh(key);return;}
-    if(running||!safe())return;
+    if(running||document.hidden||!safe())return;
     running=true;
     try{
       let changed=false;
