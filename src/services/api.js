@@ -1,6 +1,21 @@
 import { APP_CONFIG } from '../core/config.js';
 import { auth } from './auth.js';
-export async function apiRequest(path,options={}){return auth.request(path,options);}
+// Reutilizar únicamente solicitudes GET simultáneas e idénticas; nunca cachear
+// respuestas ni compartir solicitudes de escritura. Cada nuevo ciclo consulta al servidor.
+const pendingReads=new Map();
+export function apiRequest(path,options={}){
+  const method=String(options.method||'GET').toUpperCase();
+  if(method!=='GET'||options.body||options.signal||Object.keys(options).length)return auth.request(path,options);
+  const company=typeof localStorage==='undefined'?'':localStorage.getItem('serco_wms_active_company')||'';
+  const site=typeof localStorage==='undefined'?'':localStorage.getItem('serco_wms_active_site')||'';
+  const user=auth.user?.id||'';
+  const key=JSON.stringify([path,company,site,user]);
+  if(pendingReads.has(key))return pendingReads.get(key);
+  const promise=Promise.resolve().then(()=>auth.request(path,options));
+  pendingReads.set(key,promise);
+  promise.finally(()=>{if(pendingReads.get(key)===promise)pendingReads.delete(key);}).catch(()=>{});
+  return promise;
+}
 export function stateSavePayload(data,collections){
   if(!Array.isArray(collections))return data;
   const changed=Object.fromEntries(collections.filter(key=>Array.isArray(data[key])).map(key=>[key,data[key]]));
