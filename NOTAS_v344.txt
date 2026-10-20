@@ -1,0 +1,8 @@
+Khal v344 - Aislamiento de contexto por usuario
+- Al autenticar una cuenta distinta, descarta centro y empresa guardados del usuario anterior.
+- El centro activo debe pertenecer a las asignaciones de acceso del usuario (salvo ADMIN_GLOBAL).
+- Sin centro autorizado, no se asigna un centro ajeno por defecto.
+- El listado de pallets mantiene su filtro por centro activo: al seleccionar Recoleta muestra los pallets de Recoleta disponibles en el estado recibido.
+- No modifica PostgreSQL, asignaciones reales, inventario ni backend.
+ACCION ADMINISTRATIVA NECESARIA: En Usuarios, editar @darlin y retirar BODEGA 390, dejando Bodega Recoleta. Verificar por separado @darlin390 y @darlin470. La captura mostraba ambas asignaciones para @darlin.
+VALIDACION PENDIENTE: probar login y listado real de pallets con cuentas distintas y backend de produccion.

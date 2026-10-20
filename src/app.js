@@ -114,7 +114,7 @@ async function enterApp(){
   try{
     await withTimeout(retryTransient(()=>store.init()),35000,'El servidor está iniciando o está tardando demasiado en cargar la información.');
     solicitarPermisoSonidoGlobal();
-    const access=sessionAccess();localStorage.setItem('serco_wms_active_site',access.siteId);const site=(store.data.sites||[]).find(s=>s.id===access.siteId);if(site)localStorage.setItem('serco_wms_active_company',siteCompanyId(site,store.data));
+    const access=sessionAccess();if(access.siteId)localStorage.setItem('serco_wms_active_site',access.siteId);else localStorage.removeItem('serco_wms_active_site');const site=(store.data.sites||[]).find(s=>s.id===access.siteId);if(site)localStorage.setItem('serco_wms_active_company',siteCompanyId(site,store.data));
     const requested=location.hash.replace('#/','');replaceHash(normalizeRouteForRole(requested,access.role,{mobile:mobileViewport()}));
     buildRouter().render();
     return true;

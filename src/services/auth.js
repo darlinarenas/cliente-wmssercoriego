@@ -1,5 +1,16 @@
 import { APP_CONFIG } from '../core/config.js';
 const TOKEN_KEY='serco_wms_auth_token';
+const CONTEXT_OWNER_KEY='serco_wms_context_owner';
+function syncContextOwner(user){
+  const id=String(user?.id||'');
+  if(!id)return;
+  if(localStorage.getItem(CONTEXT_OWNER_KEY)!==id){
+    localStorage.removeItem('serco_wms_active_site');
+    localStorage.removeItem('serco_wms_active_company');
+    localStorage.setItem(CONTEXT_OWNER_KEY,id);
+  }
+}
+
 class AuthService{
   constructor(){this.user=null;this.loginState=null;this.loginCompanies=[];}
   token(){return localStorage.getItem(TOKEN_KEY)||'';}
@@ -21,12 +32,13 @@ class AuthService{
     const data=await this.request('/auth/login',{method:'POST',auth:false,body:JSON.stringify({username,password})});
     this.setToken(data.token);
     this.user=data.user;
+    syncContextOwner(data.user);
     this.loginState=null;
     this.loginCompanies=data.companies||[];
     return data.user;
   }
-  async restore(){if(!this.token())return null;try{const d=await this.request('/auth/me');this.user=d.user;return this.user;}catch{this.logout();return null;}}
-  logout(){this.user=null;this.loginState=null;this.loginCompanies=[];this.setToken('');}
+  async restore(){if(!this.token())return null;try{const d=await this.request('/auth/me');this.user=d.user;syncContextOwner(d.user);return this.user;}catch{this.logout();return null;}}
+  logout(){this.user=null;this.loginState=null;this.loginCompanies=[];this.setToken('');localStorage.removeItem(CONTEXT_OWNER_KEY);localStorage.removeItem('serco_wms_active_site');localStorage.removeItem('serco_wms_active_company');}
   async changePassword(currentPassword,newPassword){return this.request('/auth/change-password',{method:'POST',body:JSON.stringify({currentPassword,newPassword})});}
   async verifySupercode(supercode){return this.request('/auth/verify-supercode',{method:'POST',body:JSON.stringify({supercode})});}
 }
