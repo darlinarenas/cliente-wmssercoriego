@@ -32,7 +32,7 @@ const PRECACHE = [
   './src/modules/despachos/despachos.js',
   './src/modules/estructura/estructura.js',
   './src/modules/historial/historial.js',
-  './src/modules/baja-rotacion.js',
+  './src/modules/baja-rotacion/baja-rotacion.js',
   './src/services/low-rotation-export.js',
   './src/modules/importar/importar.js',
   './src/modules/inventarios/inventarios.js',

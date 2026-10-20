@@ -11,7 +11,7 @@ import { renderProducts } from './modules/productos/productos.js';
 import { renderStructure } from './modules/estructura/estructura.js';
 import { renderMovements } from './modules/movimientos/movimientos.js';
 import { renderHistory } from './modules/historial/historial.js';
-import { renderLowRotation } from './modules/baja-rotacion.js';
+import { renderLowRotation } from './modules/baja-rotacion/baja-rotacion.js';
 import { renderPallets } from './modules/palets/palets.js';
 import { renderReceipts } from './modules/recepciones/recepciones.js';
 import { renderTransfers } from './modules/despachos/despachos.js';
