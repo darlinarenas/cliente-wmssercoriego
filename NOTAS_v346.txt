@@ -1,0 +1,1 @@
+Khal v346: corrige id del campo de cantidad del diálogo Productos por ordenar, que impedía abrirlo. Agrega acceso directo en Inicio para operario y encargado hacia Organizar pallets > Productos por ordenar. Sin cambios en backend ni inventario.

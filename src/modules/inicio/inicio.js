@@ -37,6 +37,7 @@ function operatorDashboard(d,user,siteId){
   ['recepciones','⇩','Recibir','Registrar mercadería que llega'],
   ['transferencias','⇄','Despachar','Preparar una salida o traspaso'],
   ['palets','▣','Organizar palets','Revisar y ubicar productos'],
+  ['palets?seccion=por-ordenar','⌖','Productos por ordenar','Asignar a pallet o posición'],
   ...(codePermissionsForUser(user,siteId).initialStock?[["racks","▦","Racks / posiciones","Escanear posición, usar mapa y cargar stock desde cero"]]:[]),
   ['movimientos','↔','Mover','Reubicar producto o pallet'],
   ['ordenes','✓','Órdenes / Mis tareas',`${orderTasks.length+putaway.length+replenishmentTasks.length} pendiente(s)`],
@@ -132,6 +133,7 @@ function managerOperationalDashboard(d,user,siteId,effectiveRole){
   ['#/recepciones','⇩','Recepción','Entrada de mercadería'],
   ['#/cargas','⇧','Cargas / Custodia',loadsNeedDriver.length?`${loadsNeedDriver.length} por asignar`:loadsAwaitCustody.length?`${loadsAwaitCustody.length} esperando retiro`:loadsInTransit.length?`${loadsInTransit.length} en tránsito`:'Sin pendientes'],
   ['#/palets','▣','Organizar pallets',`${activeTasks.length} tarea(s) activas`],
+  ['#/palets?seccion=por-ordenar','⌖','Productos por ordenar','Asignar a pallet o posición'],
   ...(canReviewInventory?[['#/inventarios','▦','Inventarios',`${invReview.length} en revisión`]]:[])
  ];
  return `<div class="manager-lite-dashboard">
