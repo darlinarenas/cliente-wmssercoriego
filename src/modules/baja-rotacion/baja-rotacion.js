@@ -1,11 +1,11 @@
 // Análisis exclusivamente de lectura. La rotación es por SKU y centro de origen;
 // la ubicación muestra stock ACTUAL, no atribuye retrospectivamente salidas a un pallet.
-import {store} from '../services/store.js';
-import {activeSiteId,inventorySiteId} from '../services/stock.js';
-import {siteCompanyId} from '../services/company.js';
-import {shell,wireShell} from '../layout/layout.js';
-import {esc} from '../components/ui.js';
-import {exportLowRotationExcel,exportLowRotationPdf} from '../services/low-rotation-export.js';
+import {store} from '../../services/store.js';
+import {activeSiteId,inventorySiteId} from '../../services/stock.js';
+import {siteCompanyId} from '../../services/company.js';
+import {shell,wireShell} from '../../layout/layout.js';
+import {esc} from '../../components/ui.js';
+import {exportLowRotationExcel,exportLowRotationPdf} from '../../services/low-rotation-export.js';
 
 const number=v=>Math.max(0,Number(v)||0);
 const validDate=v=>v&&Number.isFinite(new Date(v).getTime())?new Date(v).getTime():0;
