@@ -4,7 +4,7 @@ import { shell, wireShell, toast, notice, confirmNotice } from '../../layout/lay
 import { esc, empty } from '../../components/ui.js';
 import { crearEscaner } from '../../services/escaner.js';
 import { buscarUbicacionPorCodigo, vistaCodigoUbicacion } from '../../services/ubicaciones.js';
-import { deductStock, addStock, productPositions } from '../../services/inventory-ops.js';
+import { deductStock, addStock, moveStock, productPositions } from '../../services/inventory-ops.js';
 import { resolveProduct,productAliases } from '../../services/product-codes.js';
 import { openProductEditor } from '../../services/product-editor.js';
 import { openPhysicalStockEntry } from '../../services/physical-stock-entry.js';
@@ -395,7 +395,7 @@ function productosPorOrdenar(){
 }
 function panelProductosPorOrdenar(){
   const rows=productosPorOrdenar();
-  return `<section class="panel pending-sort-panel ${palletOperator()?'operator-pending-sort':''}">${palletOperator()?`<details><summary><b>Productos por ordenar</b><span class="pending-sort-count">${rows.length} SKU</span></summary>`:'<div class="pending-sort-head"><div><span class="eyebrow">ORDENAMIENTO FÍSICO</span><h3>Productos por ordenar</h3><p>Mercadería que todavía no tiene pallet correcto.</p></div><span class="pending-sort-count">'+String(rows.length)+' SKU</span></div>'}${rows.length?`<div class="pending-sort-list">${rows.map(x=>{const p=producto(x.code);return `<article><div><span class="sku">${esc(x.code)}</span><b>${esc(p?.name||p?.description||`Producto ${x.code}`)}</b><small>${x.qty} un. pendientes</small></div><button class="primary pending-sort-assign" data-code="${esc(x.code)}" type="button">Asignar a pallet</button></article>`;}).join('')}</div>`:empty('Todo está ordenado','No hay productos pendientes de asignar a un pallet.')}${palletOperator()?'</details>':''}</section><dialog id="pending-sort-assign-dialog" class="pallet-operation-dialog"><div class="dialog-card pending-assign-card"><div class="dialog-head"><div><span class="eyebrow">ASIGNAR A PALLET</span><h3 id="pending-sort-title">Producto por ordenar</h3><small id="pending-sort-subtitle"></small></div><button id="pending-sort-close" class="ghost" type="button">×</button></div><label>Pallet destino<div class="entrada-con-camara"><input id="pending-sort-pallet-code" placeholder="Escanea o escribe P-05…" autocomplete="off"><button id="pending-sort-pallet-scan" class="scan-button" type="button">▣</button><button id="pending-sort-pallet-keyboard" class="scan-button numeric-mode-button" type="button"><span>123</span></button></div><small id="pending-sort-pallet-status">Escanea, escribe o elige un pallet.</small></label><select id="pending-sort-pallet"><option value="">Elegir pallet…</option>${palletsDestinoOptions('')}</select><label>Cantidad<input id="pending-sort-qty" type="number" min="1" step="1" inputmode="numeric"></label><div class="dialog-actions"><button id="pending-sort-cancel" class="ghost" type="button">Cancelar</button><button id="pending-sort-confirm" class="primary" type="button">Asignar a pallet</button></div></div></dialog>`;
+  return `<section class="panel pending-sort-panel ${palletOperator()?'operator-pending-sort':''}">${palletOperator()?`<details><summary><b>Productos por ordenar</b><span class="pending-sort-count">${rows.length} SKU</span></summary>`:'<div class="pending-sort-head"><div><span class="eyebrow">ORDENAMIENTO FÍSICO</span><h3>Productos por ordenar</h3><p>Mercadería que todavía no tiene pallet correcto.</p></div><span class="pending-sort-count">'+String(rows.length)+' SKU</span></div>'}${rows.length?`<div class="pending-sort-list">${rows.map(x=>{const p=producto(x.code);return `<article><div><span class="sku">${esc(x.code)}</span><b>${esc(p?.name||p?.description||`Producto ${x.code}`)}</b><small>${x.qty} un. pendientes</small></div><button class="primary pending-sort-assign" data-code="${esc(x.code)}" type="button">Asignar posición</button></article>`;}).join('')}</div>`:empty('Todo está ordenado','No hay productos pendientes de asignar a un pallet.')}${palletOperator()?'</details>':''}</section><dialog id="pending-sort-assign-dialog" class="pallet-operation-dialog"><div class="dialog-card pending-assign-card"><div class="dialog-head"><div><span class="eyebrow">ASIGNAR POSICIÓN</span><h3 id="pending-sort-title">Producto por ordenar</h3><small id="pending-sort-subtitle"></small></div><button id="pending-sort-close" class="ghost" type="button">×</button></div><label>Tipo de destino<select id="pending-sort-type"><option value="PALLET">Asignar a pallet</option><option value="LOCATION">Asignar a posición</option></select></label><div id="pending-sort-pallet-panel"><label>Pallet destino<div class="entrada-con-camara"><input id="pending-sort-pallet-code" placeholder="Escanea o escribe P-05…" autocomplete="off"><button id="pending-sort-pallet-scan" class="scan-button" type="button">▣</button><button id="pending-sort-pallet-keyboard" class="scan-button numeric-mode-button" type="button"><span>123</span></button></div><small id="pending-sort-pallet-status">Escanea, escribe o elige un pallet.</small></label><select id="pending-sort-pallet"><option value="">Elegir pallet…</option>${palletsDestinoOptions('')}</select></div><div id="pending-sort-location-panel" hidden><label>Posición destino<div class="entrada-con-camara"><input id="pending-sort-location-code" placeholder="Escanea o escribe la posición" autocomplete="off"><button id="pending-sort-location-scan" class="scan-button" type="button" title="Escanear posición">▣</button></div></label><select id="pending-sort-location"><option value="">Elegir posición…</option>${(store.data.locations||[]).filter(l=>l.siteId===activeSiteId()&&l.active!==false&&l.rackId&&!['BLOQUEADA','INHABILITADA','RESERVADA'].includes(l.status)).map(l=>`<option value="${esc(l.id)}">${esc(l.label||l.id)} · ${esc(l.id)}</option>`).join('')}</select><small id="pending-sort-location-status">Escanea o selecciona una posición del centro.</small></div><label>Cantidad<input id="pending-sort-qty type="number" min="1" step="1" inputmode="numeric"></label><div class="dialog-actions"><button id="pending-sort-cancel" class="ghost" type="button">Cancelar</button><button id="pending-sort-confirm" class="primary" type="button">Confirmar asignación</button></div></div></dialog>`;
 }
 export function renderPallets(root){
   const d=store.data,siteId=activeSiteId(d),site=d.sites.find(s=>s.id===siteId),pallets=d.pallets.filter(x=>x.siteId===siteId),selected=params().get('id'),p=pallets.find(x=>x.id===selected),pending=pallets.filter(x=>x.status==='POR_UBICAR'||x.status==='RECIBIENDO');
@@ -483,7 +483,22 @@ function wirePendingSort(root){
   const dlg=document.querySelector('#pending-sort-assign-dialog');if(!dlg)return;
   let current=null;
   const codeInput=document.querySelector('#pending-sort-pallet-code'),select=document.querySelector('#pending-sort-pallet'),status=document.querySelector('#pending-sort-pallet-status'),qtyInput=document.querySelector('#pending-sort-qty');
+  const type=dlg.querySelector('#pending-sort-type'),palletPanel=dlg.querySelector('#pending-sort-pallet-panel'),locationPanel=dlg.querySelector('#pending-sort-location-panel');
+  const locationCode=dlg.querySelector('#pending-sort-location-code'),locationSelect=dlg.querySelector('#pending-sort-location'),locationStatus=dlg.querySelector('#pending-sort-location-status');
   const close=()=>{if(dlg.open)dlg.close();};
+  const updateType=()=>{const isPallet=type.value==='PALLET';palletPanel.hidden=!isPallet;locationPanel.hidden=isPallet;};
+  const validateLocation=()=>{
+    const manual=String(locationCode.value||'').trim();
+    const loc=manual?buscarUbicacionPorCodigo(manual,store.data):(store.data.locations||[]).find(l=>l.id===locationSelect.value);
+    const valid=!!(loc&&loc.siteId===activeSiteId()&&loc.active!==false&&loc.rackId&&!['BLOQUEADA','INHABILITADA','RESERVADA'].includes(loc.status));
+    locationStatus.textContent=!manual&&!locationSelect.value?'Escanea o selecciona una posición del centro.':valid?`✓ ${vistaCodigoUbicacion(loc,store.data)}`:'Posición no válida para este centro';
+    locationStatus.classList.toggle('valid',valid);
+    return valid?loc:null;
+  };
+  type.onchange=updateType;
+  locationCode.oninput=()=>{if(locationCode.value)locationSelect.value='';validateLocation();};
+  locationSelect.onchange=()=>{if(locationSelect.value)locationCode.value='';validateLocation();};
+  dlg.querySelector('#pending-sort-location-scan')?.addEventListener('click',()=>abrirCamaraEn('pending-sort-location-code','Escanear posición destino','Apunta a la etiqueta de la posición',validateLocation));
   const validateTarget=()=>{
     const manual=String(codeInput?.value||'').trim();
     const target=manual?buscarPallet(manual,''):(store.data.pallets||[]).find(p=>p.id===select?.value&&p.siteId===activeSiteId()&&p.status!=='CERRADO');
@@ -499,7 +514,7 @@ function wirePendingSort(root){
     current=row;const p=producto(row.code);
     document.querySelector('#pending-sort-title').textContent=`${row.code} · ${p?.name||p?.description||'Producto'}`;
     document.querySelector('#pending-sort-subtitle').textContent=`${row.qty} unidad(es) disponibles para ordenar`;
-    qtyInput.max=row.qty;qtyInput.value=row.qty;codeInput.value='';select.value='';status.textContent='Escanea, escribe o elige un pallet.';status.classList.remove('valid');
+    qtyInput.max=row.qty;qtyInput.value=row.qty;type.value='PALLET';updateType();locationCode.value='';locationSelect.value='';validateLocation();codeInput.value='';select.value='';status.textContent='Escanea, escribe o elige un pallet.';status.classList.remove('valid');
     dlg.showModal();setTimeout(()=>codeInput.focus(),30);
   });
   codeInput.oninput=()=>{if(codeInput.value)select.value='';validateTarget();};
@@ -508,17 +523,19 @@ function wirePendingSort(root){
   document.querySelector('#pending-sort-pallet-scan')?.addEventListener('click',()=>abrirCamaraEn('pending-sort-pallet-code','Escanear pallet destino','Apunta al identificador del pallet',()=>validateTarget()));
   document.querySelector('#pending-sort-confirm')?.addEventListener('click',async()=>{
     if(!current)return;
-    const pallet=validateTarget(),qty=Number(qtyInput.value);
-    if(!pallet){await notice('Falta pallet destino','Escanea, escribe o selecciona un pallet válido.','warning');return;}
+    const isPallet=type.value==='PALLET',pallet=isPallet?validateTarget():null,loc=isPallet?null:validateLocation(),qty=Number(qtyInput.value);
+    if(isPallet&&!pallet){await notice('Falta pallet destino','Escanea, escribe o selecciona un pallet válido.','warning');return;}
+    if(!isPallet&&!loc){await notice('Falta posición destino','Escanea o selecciona una posición válida del centro.','warning');return;}
     if(qty<1||qty>current.qty){await notice('Cantidad no válida',`Hay ${current.qty} unidad(es) pendientes.`,'warning');return;}
     let result;
     try{
       await store.commit(d=>{
-        result=assignProductToPallet(d,{palletId:pallet.id,siteId:activeSiteId(d),code:current.code,qty,sourceKey:`${activeSiteId(d)}-PRODUCTOS-POR-ORDENAR@@`,userId:d.session.userId});
+        result=isPallet?assignProductToPallet(d,{palletId:pallet.id,siteId:activeSiteId(d),code:current.code,qty,sourceKey:`${activeSiteId(d)}-PRODUCTOS-POR-ORDENAR@@`,userId:d.session.userId}):moveStock(d,{code:current.code,qty,sourceKey:`${activeSiteId(d)}-PRODUCTOS-POR-ORDENAR@@`,siteId:activeSiteId(d),destinationLocationId:loc.id});
         if(!result.ok)throw new Error(result.message);
-      },`${current.code}: ${qty} un. Productos por ordenar → ${pallet.id}`,{operations:['palletsOperate']});
+        if(!isPallet){d.movements=d.movements||[];d.movements.unshift({id:`MOV-ORDENAR-POS-${Date.now()}`,siteId:activeSiteId(d),type:'ASIGNACION_PRODUCTO_A_POSICION',productCode:current.code,qty,from:`${activeSiteId(d)}-PRODUCTOS-POR-ORDENAR`,to:loc.id,userId:d.session.userId,at:new Date().toISOString()});}
+      },`${current.code}: ${qty} un. Productos por ordenar → ${isPallet?pallet.id:loc.id}`,{operations:['palletsOperate']});
     }catch(error){await notice('No se pudo asignar',error.message||'No fue posible asignar el producto.','error');return;}
-    close();await notice('Producto asignado',result.message,'success');renderPallets(root);
+    close();await notice('Producto asignado',result.message||`${qty} unidades asignadas a ${isPallet?pallet.id:loc.id}`,'success');renderPallets(root);
   });
 }
 

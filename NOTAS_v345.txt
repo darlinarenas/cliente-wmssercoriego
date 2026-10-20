@@ -1,0 +1,1 @@
+Khal v345: Productos por ordenar permite asignar a pallet o posicion del centro activo. Reutiliza assignProductToPallet y moveStock, camara y seleccion manual. Sin migracion BD. Validar en navegador antes de produccion.
