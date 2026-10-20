@@ -23,10 +23,16 @@ export function startSilentRefresh(key,routePrefix,onChange,{interval=3000,colle
           if(JSON.stringify(store.data[name]||[])!==signature)store.data[name]=value;
         });
       }else{
-        await store.reload({emit:false});
-        const revision=store.data.meta?.revision;
-        changed=revision!==lastRevision;
-        lastRevision=revision;
+        // Consultar solo la revisión (decenas de bytes) antes de descargar
+        // el estado completo. Si la revisión cambia, conservar la recarga
+        // existente y sus validaciones de permisos por empresa.
+        const revision=Number((await apiRequest('/state/revision'))?.revision);
+        if(!Number.isFinite(revision))throw new Error('Revisión inválida');
+        if(revision!==Number(lastRevision)){
+          await store.reload({emit:false});
+          lastRevision=store.data.meta?.revision;
+          changed=true;
+        }
       }
       if(changed)onChange();
     }catch{}finally{running=false;}
