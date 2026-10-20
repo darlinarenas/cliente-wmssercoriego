@@ -28,7 +28,7 @@ const (
 	printerEnumLocal            = 0x00000002
 	printerEnumConnections      = 0x00000004
 	printerAttributeWorkOffline = 0x00000400
-	agentVersion                = "1.11"
+	agentVersion                = "1.12"
 )
 
 var (
@@ -328,6 +328,17 @@ func remoteLoop() {
 			time.Sleep(3 * time.Second)
 			continue
 		}
+        // En reposo solo se consulta activación cada 15 s, sin heartbeat ni búsqueda de trabajos.
+        activation, activationErr := apiRequest("GET", "/print-agent/activation", nil, c)
+        if activationErr != nil {
+            time.Sleep(15 * time.Second)
+            continue
+        }
+        awake, _ := activation["awake"].(bool)
+        if !awake {
+            time.Sleep(15 * time.Second)
+            continue
+        }
 		printer, err := choosePrinter(c.PreferredPrinter)
 		if err != nil {
 			_, _ = apiRequest("POST", "/print-agent/heartbeat", map[string]any{"printerName": "", "ready": false}, c)

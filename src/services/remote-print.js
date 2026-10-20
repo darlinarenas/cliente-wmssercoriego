@@ -13,6 +13,19 @@ export async function listPrintStations(siteId){
 export async function createPrintStation({siteId,name,printerName=''}){
   return apiRequest('/print/stations',{method:'POST',body:JSON.stringify({siteId,name,printerName})});
 }
+export async function wakePrintStation({siteId,stationId}){
+  if(!siteId||!stationId)throw new Error('Selecciona una PC puente del centro.');
+  return apiRequest(`/print/stations/${encodeURIComponent(stationId)}/wake`,{method:'POST',body:JSON.stringify({siteId})});
+}
+export async function waitPrintStationReady({siteId,stationId,timeout=35000}){
+  const start=Date.now();
+  while(Date.now()-start<timeout){
+    const station=(await listPrintStations(siteId)).find(s=>s.id===stationId);
+    if(station?.printerReady)return station;
+    await sleep(1500);
+  }
+  throw new Error('El puente no respondió. Comprueba que Khal Print esté abierto en Windows y actualizado.');
+}
 export async function enqueueRemotePrint({siteId,stationId='',zpl,labelType='',copies=1}){
   return apiRequest('/print/jobs',{method:'POST',body:JSON.stringify({siteId,stationId:stationId||undefined,zpl,labelType,copies})});
 }

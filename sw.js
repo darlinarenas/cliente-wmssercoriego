@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.20-khal-low-rotation-v352-modal';
+const APP_VERSION = '2026.10.20-khal-print-on-demand-v353';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
