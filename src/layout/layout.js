@@ -23,7 +23,7 @@ const nav=[
  {id:'estructura-bodega',label:'Estructura de bodega',ico:'▦',items:[['productos','Productos','◫'],['racks','Racks','▦'],['mapa3d','Mapa 3D','◈'],['estructura','Configurar estructura','⚙']]},
  ['alertas-stock','Alertas de stock','⚠'],
  ['alertas-reposicion','Alertas de reposición inteligente','⚠'],
- {id:'control',label:'Control y trazabilidad',ico:'◷',items:[['conciliacion','Conciliación ERP','≋'],['historial','Historial','◷']]},
+ {id:'control',label:'Control y trazabilidad',ico:'◷',items:[['conciliacion','Conciliación ERP','≋'],['historial','Historial','◷'],['baja-rotacion','Baja rotación','▤']]},
  {id:'administracion',label:'Administración',ico:'⚙',items:[['importar','Importar Excel','⇧'],['centros','Centros y Sucursales','⌂'],['usuarios','Usuarios','♙']]}
 ];
 
@@ -63,6 +63,7 @@ const NAV_ICON_NAMES={
   'control':'history',
   'conciliacion':'file-check',
   'historial':'history',
+  'baja-rotacion':'chart-no-axes-column',
   'administracion':'shield-user',
   'importar':'file-up',
   'centros':'building-2',

@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.20-khal-pending-destination-v346';
+const APP_VERSION = '2026.10.20-khal-low-rotation-v347';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
@@ -32,6 +32,8 @@ const PRECACHE = [
   './src/modules/despachos/despachos.js',
   './src/modules/estructura/estructura.js',
   './src/modules/historial/historial.js',
+  './src/modules/baja-rotacion.js',
+  './src/services/low-rotation-export.js',
   './src/modules/importar/importar.js',
   './src/modules/inventarios/inventarios.js',
   './src/modules/etiquetas/etiquetas.js',

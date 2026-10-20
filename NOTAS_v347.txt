@@ -1,0 +1,6 @@
+Khal v347 — módulo Baja rotación (solo lectura).
+Métricas por SKU y centro: órdenes emitidas con descuento de stock y transferencias independientes con salida efectiva; sin doble conteo de transferencias generadas por órdenes.
+Pallet y posición indican ubicación del stock ACTUAL, no atribución histórica de origen.
+Filtros 30/60/90/180/365 días, 0/1/3/5/10 salidas, búsqueda, selección y exportaciones Excel/PDF.
+Sin cambios en backend, base de datos, stock ni lógica operativa.
+Advertencia: reportes limitados por registros de órdenes/traspasos disponibles; probar con datos reales antes de uso gerencial.
