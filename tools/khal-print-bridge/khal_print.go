@@ -28,7 +28,7 @@ const (
 	printerEnumLocal            = 0x00000002
 	printerEnumConnections      = 0x00000004
 	printerAttributeWorkOffline = 0x00000400
-	agentVersion                = "1.13"
+	agentVersion                = "1.11"
 )
 
 var (
@@ -342,7 +342,7 @@ func remoteLoop() {
 		}
 		rawJob, ok := out["job"]
 		if !ok || rawJob == nil {
-			time.Sleep(10 * time.Second)
+			time.Sleep(2 * time.Second)
 			continue
 		}
 		b, _ := json.Marshal(rawJob)
