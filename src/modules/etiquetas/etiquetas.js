@@ -185,8 +185,16 @@ async function openPreview(){
   printerLabel.htmlFor='labels-remote-station';
   if(mobileOperator){
    const stationContainer=remoteSelect.parentElement;
+   const stationSection=dlg.querySelector('.labels-operator-status-side');
+   const printSection=dlg.querySelector('.labels-operator-print');
+   // Secuencia móvil: elegir impresora -> activar puente -> imprimir.
+   printSection.before(stationSection);
    stationContainer.insertBefore(printerLabel,remoteSelect);
-   printButton.before(wakeButton);
+   remoteSelect.style.cssText='display:block;width:100%;min-height:60px;font-size:1.06rem;font-weight:750;padding:12px 14px;border-radius:12px;max-width:100%;';
+   printerLabel.style.cssText='display:block;font-size:1.13rem;font-weight:850;margin:12px 0 10px;';
+   remoteSelect.after(wakeButton);
+   wakeButton.style.margin='14px 0 12px';
+   printButton.style.cssText='display:none;width:100%;min-height:62px;font-size:1.08rem;font-weight:800;white-space:normal;padding:14px 12px;';
    printButton.hidden=true;
    printButton.style.display='none';
    printButton.disabled=true;
@@ -195,7 +203,7 @@ async function openPreview(){
   wakeButton.onclick=async()=>{const stationId=remoteSelect.value;if(!stationId){toast('No hay una PC puente disponible.','warning');return;}
    wakeButton.disabled=true;wakeButton.textContent='Encendiendo puente…';
    try{await wakePrintStation({siteId:activeSiteId(),stationId});awakeStationId=stationId;
-    quickStatus.textContent='✓ Puente activado. Selecciona impresora y pulsa Imprimir / Zebra.';syncPrintAvailability();toast('Puente activado para imprimir.','success');
+    quickStatus.textContent='✓ Puente activado. Pulsa Imprimir / Zebra.';syncPrintAvailability();toast('Puente activado para imprimir.','success');
    }catch(error){toast(error?.message||'No se pudo activar el puente.','warning');}
    finally{wakeButton.disabled=false;wakeButton.textContent='⏻ Encender puente de impresión';}
   };
