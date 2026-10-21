@@ -65,17 +65,22 @@ func main() {
 	startupCmd := filepath.Join(startupDir, "KhalPrint.cmd")
 
 	_ = exec.Command("taskkill", "/IM", "KhalPrint.exe", "/F").Run()
-	time.Sleep(1500 * time.Millisecond)
+	time.Sleep(700 * time.Millisecond)
 
 	if err := os.MkdirAll(destDir, 0755); err != nil {
 		fail("No se pudo crear la carpeta permanente de Khal Print.", err)
 	}
 	if err := os.WriteFile(destExe, khalExe, 0755); err != nil {
-        fail("No se pudo actualizar KhalPrint.exe. Cierra Khal Print y vuelve a ejecutar el instalador.", err)
-    }
-	// Eliminar el segundo inicio automático heredado: dos instancias podían
-	// competir por los puertos locales y producir detecciones inconsistentes.
-	_ = os.Remove(startupCmd)
+		fail("No se pudo instalar KhalPrint.exe.", err)
+	}
+	if err := os.MkdirAll(startupDir, 0755); err != nil {
+		fail("No se pudo abrir la carpeta Inicio de Windows.", err)
+	}
+
+	cmdText := "@echo off\r\nstart \"\" \"" + destExe + "\"\r\n"
+	if err := os.WriteFile(startupCmd, []byte(cmdText), 0644); err != nil {
+		fail("No se pudo registrar Khal Print en Inicio de Windows.", err)
+	}
 
 	regData := fmt.Sprintf("\"%s\"", destExe)
 	if err := exec.Command("reg", "add", `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`,

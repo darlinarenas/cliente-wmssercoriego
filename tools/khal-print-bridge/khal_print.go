@@ -28,7 +28,7 @@ const (
 	printerEnumLocal            = 0x00000002
 	printerEnumConnections      = 0x00000004
 	printerAttributeWorkOffline = 0x00000400
-	agentVersion                = "1.13"
+	agentVersion                = "1.11"
 )
 
 var (
@@ -335,8 +335,6 @@ func remoteLoop() {
 			continue
 		}
 		_, _ = apiRequest("POST", "/print-agent/heartbeat", map[string]any{"printerName": printer, "ready": true}, c)
-		// Compatibilidad con el puente estable: la cola no depende de una activación
-		// temporal guardada en la memoria de Render (que se pierde al reiniciar).
 		out, err := apiRequest("GET", "/print-agent/jobs/next", nil, c)
 		if err != nil {
 			time.Sleep(4 * time.Second)
@@ -344,7 +342,7 @@ func remoteLoop() {
 		}
 		rawJob, ok := out["job"]
 		if !ok || rawJob == nil {
-			time.Sleep(4 * time.Second)
+			time.Sleep(2 * time.Second)
 			continue
 		}
 		b, _ := json.Marshal(rawJob)

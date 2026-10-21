@@ -1,0 +1,18 @@
+KHAL PRINT - RESTAURACION DEL PUENTE FUNCIONAL
+
+Base: proyecto completo de entrega anterior.
+Fuente de impresion: WMS-sercoriegoCAMBIOSPUNTUALES(2).zip suministrado por el usuario.
+
+Restaurados exclusivamente desde la version funcional:
+backend/src/modules/impresion/print.routes.js
+src/modules/etiquetas/etiquetas.js
+src/services/remote-print.js
+tools/KhalPrint-Setup-v21.exe
+tools/khal-print-bridge/KhalPrint.exe
+tools/khal-print-bridge/khal_print.go
+tools/khal-print-bridge/setup_khal_print_v21.go
+
+PWA: sw.js version de cache v363 para forzar actualizacion.
+Sin modificaciones intencionales en inventarios, pallets, ordenes o datos.
+
+IMPORTANTE: no probado con Zebra real ni en Windows. El instalador restaurado es el binario original del ZIP funcional.
