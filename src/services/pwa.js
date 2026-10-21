@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.10.19-khal-trafico-v337';
+const PWA_RELEASE = '2026.10.21-khal-pwa-sync-v365';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
@@ -83,14 +83,8 @@ export async function iniciarPWA() {
   });
   if ('serviceWorker' in navigator) {
     try {
-      // En cada release nuevo limpiamos únicamente las cachés WMS anteriores.
-      // Esto evita que una PWA instalada continúe ejecutando módulos JS viejos.
-      const previousRelease=localStorage.getItem('serco_wms_pwa_release');
-      if(previousRelease!==PWA_RELEASE&&'caches' in window){
-        const keys=await caches.keys();
-        await Promise.all(keys.filter(key=>key.startsWith(WMS_CACHE_PREFIX)).map(key=>caches.delete(key)));
-        localStorage.setItem('serco_wms_pwa_release',PWA_RELEASE);
-      }
+      // La activación del nuevo SW limpia las cachés antiguas de forma segura.
+      // Nunca borrar la caché activa antes de que termine la instalación.
 
       let recargandoPorActualizacion = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -124,7 +118,7 @@ export async function iniciarPWA() {
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') comprobarActualizacion();
       });
-      window.setInterval(comprobarActualizacion, 30 * 60 * 1000);
+      window.setInterval(comprobarActualizacion, 60 * 1000);
     } catch (err) {
       console.warn('No fue posible registrar el Service Worker:', err);
     }
