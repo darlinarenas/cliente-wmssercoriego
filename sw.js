@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.21-khal-operator-print-order-v361';
+const APP_VERSION = '2026.10.21-khal-operator-ui-v362';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

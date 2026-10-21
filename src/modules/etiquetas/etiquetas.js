@@ -184,17 +184,17 @@ async function openPreview(){
   printerLabel.style.cssText='display:block;font-size:1.02rem;font-weight:800;margin:12px 0 8px;';
   printerLabel.htmlFor='labels-remote-station';
   if(mobileOperator){
-   const stationContainer=remoteSelect.parentElement;
-   const stationSection=dlg.querySelector('.labels-operator-status-side');
    const printSection=dlg.querySelector('.labels-operator-print');
-   // Secuencia móvil: elegir impresora -> activar puente -> imprimir.
-   printSection.before(stationSection);
-   stationContainer.insertBefore(printerLabel,remoteSelect);
-   remoteSelect.style.cssText='display:block;width:100%;min-height:60px;font-size:1.06rem;font-weight:750;padding:12px 14px;border-radius:12px;max-width:100%;';
-   printerLabel.style.cssText='display:block;font-size:1.13rem;font-weight:850;margin:12px 0 10px;';
-   remoteSelect.after(wakeButton);
-   wakeButton.style.margin='14px 0 12px';
-   printButton.style.cssText='display:none;width:100%;min-height:62px;font-size:1.08rem;font-weight:800;white-space:normal;padding:14px 12px;';
+   // Mantener una sola tarjeta de controles: selector, activación e impresión.
+   // No desplazar las secciones de la vista previa ni modificar la lógica Zebra.
+   printSection.insertBefore(printerLabel,printButton);
+   printSection.insertBefore(remoteSelect,printButton);
+   printSection.insertBefore(wakeButton,printButton);
+   printerLabel.classList.add('labels-operator-printer-label');
+   remoteSelect.classList.add('labels-operator-printer-select');
+   wakeButton.classList.add('labels-operator-wake-button');
+   printButton.classList.add('labels-operator-print-button');
+   printButton.style.cssText='display:none;';
    printButton.hidden=true;
    printButton.style.display='none';
    printButton.disabled=true;

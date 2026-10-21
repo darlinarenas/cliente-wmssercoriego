@@ -3204,3 +3204,15 @@ dialog.scanner-dialog{
 .rack-position-detail .rep-alert-marker { position:absolute; top:-6px; right:-6px; width:17px; height:17px; display:grid; place-items:center; border-radius:50%; background:#b45309; color:white; font-size:11px; font-weight:800; line-height:1; pointer-events:none; z-index:1; }
 @keyframes khal-replenishment-glow { 0%,100% { box-shadow:0 0 0 2px rgba(217,119,6,.48),0 0 4px rgba(245,158,11,.10); } 50% { box-shadow:0 0 0 2px rgba(217,119,6,.78),0 0 12px rgba(245,158,11,.30); } }
 @media (prefers-reduced-motion:reduce) { .rack-position-detail.rep-alert-position { animation:none; } }
+
+/* v362: controles grandes y alineados exclusivamente en la vista móvil del operario. */
+@media (max-width:768px){
+ #labels-preview.labels-preview-operator .labels-operator-print{display:flex!important;flex-direction:column!important;gap:10px!important;min-width:0!important;padding:14px!important;box-sizing:border-box!important}
+ #labels-preview.labels-preview-operator .labels-operator-printer-label{display:block!important;font-size:16px!important;font-weight:800!important;line-height:1.35!important;margin:0!important}
+ #labels-preview.labels-preview-operator .labels-operator-printer-select{display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;min-height:56px!important;padding:10px 12px!important;font-size:16px!important;font-weight:700!important;box-sizing:border-box!important;border-radius:10px!important}
+ #labels-preview.labels-preview-operator .labels-operator-wake-button,
+ #labels-preview.labels-preview-operator .labels-operator-print-button{width:100%!important;min-height:60px!important;max-width:100%!important;box-sizing:border-box!important;white-space:normal!important;overflow-wrap:anywhere!important;font-size:16px!important;font-weight:800!important;line-height:1.25!important;padding:12px!important;margin:0!important;border-radius:12px!important}
+ #labels-preview.labels-preview-operator .labels-operator-print-button[hidden]{display:none!important}
+ #labels-preview.labels-preview-operator .labels-operator-print-button:not([hidden]){display:block!important}
+ #labels-preview.labels-preview-operator #labels-operator-print-status{font-size:13px!important;line-height:1.35!important;overflow-wrap:anywhere!important}
+}
