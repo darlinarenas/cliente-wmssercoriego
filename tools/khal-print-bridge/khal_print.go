@@ -28,7 +28,7 @@ const (
 	printerEnumLocal            = 0x00000002
 	printerEnumConnections      = 0x00000004
 	printerAttributeWorkOffline = 0x00000400
-	agentVersion                = "1.11"
+	agentVersion                = "1.12"
 )
 
 var (
@@ -335,6 +335,14 @@ func remoteLoop() {
 			continue
 		}
 		_, _ = apiRequest("POST", "/print-agent/heartbeat", map[string]any{"printerName": printer, "ready": true}, c)
+		activation, activationErr := apiRequest("GET", "/print-agent/activation", nil, c)
+        if activationErr != nil {
+            // Ante un backend antiguo o temporalmente inaccesible se conserva el comportamiento de impresión anterior.
+            // No interrumpir trabajos existentes.
+        } else if awake, ok := activation["awake"].(bool); ok && !awake {
+            time.Sleep(12 * time.Second)
+            continue
+        }
 		out, err := apiRequest("GET", "/print-agent/jobs/next", nil, c)
 		if err != nil {
 			time.Sleep(4 * time.Second)
