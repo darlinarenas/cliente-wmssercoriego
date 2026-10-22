@@ -53,7 +53,3 @@ export async function waitRemotePrint(jobId,{timeout=30000,interval=600,onStatus
   }
   return latest||{id:jobId,status:'pending'};
 }
-
-
-export async function generatePrintShareCode(stationId){return apiRequest(`/print/stations/${encodeURIComponent(stationId)}/share-code`,{method:'POST'});}
-export async function linkPrintStation({siteId,code}){return apiRequest('/print/stations/link',{method:'POST',body:JSON.stringify({siteId,code})});}
