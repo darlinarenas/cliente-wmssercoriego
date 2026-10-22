@@ -49,7 +49,7 @@ export async function openInitialStockSession({locationId,palletId=null,title='C
  const key=draftKey({userId:store.data.session?.userId,companyId:store.data.session?.activeCompanyId,siteId,palletId,locationId:effectiveLocationId});
  const saved=readDraft(key),lines=new Map(),dlg=ensureDialog();
  if(saved?.lines?.length){
-  for(const row of saved.lines){const p=resolveProduct(row.code,store.data),qty=Number(row.qty);if(p&&Number.isFinite(qty)&&qty>0)lines.set(String(p.code),{code:String(p.code),name:productLabel(p),qty});}
+  for(const row of saved.lines){const p=resolveProduct(row.code,store.data),qty=Number(row.qty);if(p&&Number.isFinite(qty)&&qty>0){const code=String(p.code),previous=lines.get(code);lines.set(code,{code,name:productLabel(p),qty:(previous?.qty||0)+qty});}}
   if(lines.size)toast(`Recuperados ${lines.size} productos pendientes guardados en este dispositivo.`,'success');
  }
  const persist=()=>{if(!writeDraft(key,lines))toast('No se pudo guardar el borrador local. No cierres esta pantalla.','warning');};
@@ -66,7 +66,25 @@ export async function openInitialStockSession({locationId,palletId=null,title='C
   dlg.querySelectorAll('.initial-stock-remove').forEach(b=>b.onclick=()=>{lines.delete(b.dataset.code);persist();render();});
   dlg.querySelectorAll('.initial-stock-line-qty').forEach(i=>i.onchange=()=>{const row=lines.get(i.dataset.code),n=Number(i.value);if(!row)return;if(!Number.isFinite(n)||n<1){i.value=row.qty;return;}row.qty=n;persist();});
   const cancel=()=>{if(lines.size&&!confirm('¿Descartar los productos pendientes y borrar el borrador guardado en este dispositivo?'))return;clearDraft(key);dlg.close();};dlg.querySelector('#initial-stock-close').onclick=cancel;dlg.querySelector('#initial-stock-cancel').onclick=cancel;
-  dlg.querySelector('#initial-stock-finish').onclick=async()=>{const rows=[...lines.values()];if(!rows.length)return;if(!confirm(`¿Terminar ${palletId?'este pallet':'esta posición'} y registrar ${rows.length} producto(s) desde cero?`))return;const at=new Date().toISOString();try{await store.commit(data=>{for(const row of rows){const matches=(data.inventory||[]).filter(i=>String(i.productCode)===row.code&&(i.locationId||null)===(effectiveLocationId||null)&&(i.palletId||null)===(palletId||null)),before=matches.reduce((n,i)=>n+Number(i.qty||0),0),after=Number(row.qty);if(matches.length){matches[0].qty=after;matches[0].siteId=siteId;for(const extra of matches.slice(1))extra.qty=0;}else data.inventory.push({id:`INV-INI-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,siteId,productCode:row.code,locationId:effectiveLocationId,palletId:palletId||null,qty:after});data.movements=data.movements||[];data.movements.unshift({id:`MOV-INI-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,siteId,type:'LEVANTAMIENTO_STOCK_INICIAL',productCode:row.code,qty:Math.abs(after-before),delta:after-before,beforeQty:before,afterQty:after,from:effectiveLocationId,to:effectiveLocationId,palletId:palletId||null,reason:`Carga inicial desde cero · ${palletId||locationId}`,userId:data.session.userId,at});}data.inventory=(data.inventory||[]).filter(i=>Number(i.qty)>0);refreshInventoryStatuses(data,siteId);},`Carga inicial finalizada en ${palletId||locationId}: ${rows.length} producto(s)`,{operations:['initialStockLoad']});}catch(error){await notice('No se pudo terminar la carga',error.message||'No fue posible registrar el stock inicial.','error');return;}clearDraft(key);dlg.close();await notice(`${palletId?'Pallet':'Posición'} terminado`,`${rows.length} producto(s) quedaron registrados desde cero y auditados.`,'success');onFinished?.();};
+  dlg.querySelector('#initial-stock-finish').onclick=async()=>{const rows=[...lines.values()];if(!rows.length)return;if(!confirm(`¿Terminar ${palletId?'este pallet':'esta posición'} y registrar ${rows.length} producto(s) desde cero?`))return;const at=new Date().toISOString();try{await store.commit(data=>{// Reemplazo total limitado al destino y centro activos; nunca altera otros centros.
+ const destination=(data.inventory||[]).filter(i=>String(i.siteId||'')===String(siteId)&&(
+   palletId?String(i.palletId||'')===String(palletId):String(i.locationId||'')===String(effectiveLocationId)
+ ));
+ const oldQty=new Map();
+ for(const item of destination){const code=String(item.productCode);oldQty.set(code,(oldQty.get(code)||0)+Number(item.qty||0));}
+ const newQty=new Map(rows.map(row=>[String(row.code),Number(row.qty)]));
+ const destinationIds=new Set(destination);
+ data.inventory=(data.inventory||[]).filter(item=>!destinationIds.has(item));
+ data.movements=data.movements||[];
+ for(const [code,after] of newQty){
+  data.inventory.push({id:`INV-INI-${Date.now()}-${Math.random().toString(36).slice(2,9)}`,siteId,productCode:code,locationId:effectiveLocationId,palletId:palletId||null,qty:after});
+ }
+ for(const code of new Set([...oldQty.keys(),...newQty.keys()])){
+  const before=oldQty.get(code)||0,after=newQty.get(code)||0;
+  if(before===after)continue;
+  data.movements.unshift({id:`MOV-INI-${Date.now()}-${Math.random().toString(36).slice(2,9)}`,siteId,type:'LEVANTAMIENTO_STOCK_INICIAL',productCode:code,qty:Math.abs(after-before),delta:after-before,beforeQty:before,afterQty:after,from:effectiveLocationId,to:effectiveLocationId,palletId:palletId||null,reason:`Reemplazo total desde cero · ${palletId||locationId}`,userId:data.session.userId,at});
+ }
+ refreshInventoryStatuses(data,siteId);},`Carga inicial finalizada en ${palletId||locationId}: ${rows.length} producto(s)`,{operations:['initialStockLoad']});}catch(error){await notice('No se pudo terminar la carga',error.message||'No fue posible registrar el stock inicial.','error');return;}clearDraft(key);dlg.close();await notice(`${palletId?'Pallet':'Posición'} terminado`,`${rows.length} producto(s) quedaron registrados desde cero y auditados.`,'success');onFinished?.();};
  };
  render();dlg.showModal();setTimeout(()=>dlg.querySelector('#initial-stock-code')?.focus(),40);
 }
