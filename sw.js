@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.24-recon-save-v374';
+const APP_VERSION = '2026.10.24-erp-selective-v375';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
@@ -79,6 +79,7 @@ const PRECACHE = [
   './assets/sounds/orden-asignada.mp3',
   './assets/sounds/orden-culminada.mp3',
   './src/services/sonidos.js',
+  './styles/erp-review-v375.css',
   './styles/app.css'
 ];
 
