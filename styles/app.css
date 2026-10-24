@@ -3322,3 +3322,24 @@ dialog.scanner-dialog{
   .orders-grid{grid-template-columns:minmax(0,1fr)}
   .orders-grid > .order-card{height:370px;min-height:370px;max-height:370px}
 }
+
+/* v377: búsqueda compacta, conserva intactos los paneles y acciones existentes. */
+.product-result.compact-result .search-result-expand{margin-top:12px;min-width:0}
+.product-result.compact-result .search-result-expand>summary{
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  padding:10px 12px;border:1px solid var(--line);border-radius:11px;
+  background:#f7faf8;color:#1b6440;font-size:13px;font-weight:700;
+  cursor:pointer;list-style:none;user-select:none;
+}
+.product-result.compact-result .search-result-expand>summary::-webkit-details-marker{display:none}
+.product-result.compact-result .search-result-expand>summary:focus-visible{outline:2px solid #16a34a;outline-offset:2px}
+.product-result.compact-result .search-result-expand .search-expand-open{display:none}
+.product-result.compact-result .search-result-expand[open] .search-expand-closed{display:none}
+.product-result.compact-result .search-result-expand[open] .search-expand-open{display:inline}
+.product-result.compact-result .search-result-expand[open] .search-expand-chevron{transform:rotate(180deg)}
+.product-result.compact-result .search-result-expand .search-expand-chevron{font-size:19px;line-height:1;transition:transform .15s}
+.product-result.compact-result .search-result-expand .search-compact-menu{margin-top:10px}
+@media(max-width:620px){
+  .product-result.compact-result .search-result-expand{margin-top:9px}
+  .product-result.compact-result .search-result-expand>summary{padding:9px 10px}
+}

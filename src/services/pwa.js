@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.10.24-order-cards-v376';
+const PWA_RELEASE = '2026.10.24-search-compact-v377';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
