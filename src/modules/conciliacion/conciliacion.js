@@ -190,7 +190,34 @@ export function renderReconciliation(root){
   if(statusFilter)statusFilter.onchange=e=>{reconFilters.status=e.target.value;renderReconciliation(root);};
   if(physicalFilter)physicalFilter.onchange=e=>{reconFilters.physical=e.target.value;renderReconciliation(root);};
   document.querySelector('#recon-filter-clear')?.addEventListener('click',()=>{reconFilters={q:'',status:'TODOS',physical:'TODOS'};renderReconciliation(root);});
-  document.querySelector('#save-recon').onclick=async()=>{if(!preview||preview.errors.length||!preview.items.length||!access.reconcileErp)return;const authorized=await requireAdminSupercode(`Vas a guardar una nueva referencia ERP para ${siteName(siteId)}. Esta conciliación quedará auditada.`,{title:'Autorizar conciliación ERP',buttonLabel:'Autorizar conciliación'});if(!authorized)return;const at=new Date().toISOString();await store.commit(d=>{d.settings.erpStockBySite=d.settings.erpStockBySite||{};d.settings.erpStockHistoryBySite=d.settings.erpStockHistoryBySite||{};const stock=stockAtSite(siteId,d),erp=Object.fromEntries(preview.items.map(x=>[x.code,x.qty])),wms=Object.fromEntries(preview.items.map(x=>[x.code,Number(stock.get(x.code)||0)]));d.settings.erpStockBySite[siteId]=erp;d.settings.erpStockUpdatedAt=d.settings.erpStockUpdatedAt||{};d.settings.erpStockUpdatedAt[siteId]=at;const history=d.settings.erpStockHistoryBySite[siteId]||[];history.push({id:`RECON-${Date.now()}`,at,userId:d.session.userId,siteId,kame:erp,wms,source:'ERP_MANUAL'});d.settings.erpStockHistoryBySite[siteId]=history.slice(-40);},`Referencia ERP actualizada para ${siteName(siteId)}`);renderReconciliation(root);await notice('Referencia ERP guardada','La referencia quedó guardada. El mismo archivo sigue listo para que puedas actualizar el stock sin volver a cargarlo.','success');};
+  document.querySelector('#save-recon').onclick=async()=>{
+    if(!preview?.items?.length||preview.errors.length||preview.missing?.length||preview.duplicates?.length||preview.invalid?.length||!access.reconcileErp){
+      await notice('No se puede guardar la referencia','Revisa los productos faltantes, duplicados o filas inválidas antes de guardar la conciliación.','warning');return;
+    }
+    const button=document.querySelector('#save-recon');
+    if(button?.dataset.saving==='1')return;
+    if(button){button.dataset.saving='1';button.disabled=true;}
+    try{
+      const authorized=await requireAdminSupercode(`Vas a guardar una nueva referencia ERP para ${siteName(siteId)}. Esta conciliación quedará auditada.`,{title:'Autorizar conciliación ERP',buttonLabel:'Autorizar conciliación'});
+      if(!authorized)return;
+      const items=preview.items.map(x=>({...x})),at=new Date().toISOString();
+      await store.commit(d=>{
+        d.settings=d.settings||{};d.settings.erpStockBySite=d.settings.erpStockBySite||{};d.settings.erpStockHistoryBySite=d.settings.erpStockHistoryBySite||{};
+        const stock=stockAtSite(siteId,d),erp=Object.fromEntries(items.map(x=>[x.code,x.qty])),wms=Object.fromEntries(items.map(x=>[x.code,Number(stock.get(x.code)||0)]));
+        d.settings.erpStockBySite[siteId]=erp;d.settings.erpStockUpdatedAt=d.settings.erpStockUpdatedAt||{};d.settings.erpStockUpdatedAt[siteId]=at;
+        const history=d.settings.erpStockHistoryBySite[siteId]||[];
+        history.push({id:`RECON-${Date.now()}`,at,userId:d.session.userId,siteId,kame:erp,wms,source:'ERP_MANUAL'});
+        d.settings.erpStockHistoryBySite[siteId]=history.slice(-40);
+      },`Referencia ERP actualizada para ${siteName(siteId)}`);
+      renderReconciliation(root);
+      await notice('Referencia ERP guardada','La referencia quedó guardada. El mismo archivo sigue listo para que puedas actualizar el stock sin volver a cargarlo.','success');
+    }catch(err){
+      console.error('Error al guardar referencia ERP',err);
+      await notice('No se pudo guardar la referencia ERP',err?.message||'Ocurrió un error al guardar. La referencia no se confirmó.','error');
+    }finally{
+      if(button?.isConnected){button.dataset.saving='0';button.disabled=false;}
+    }
+  };
   document.querySelector('#apply-erp-stock').onclick=async()=>{if(!preview||preview.errors.length||!preview.items.length||preview.missing?.length||preview.duplicates?.length||preview.invalid?.length||!access.applyErpStock){await notice('No se puede actualizar','Vuelve a cargar un archivo completamente conciliado antes de actualizar el stock.','warning');return;}try{const ok=await requireAdminSupercode(`Vas a actualizar el stock físico de ${siteName(siteId)} con ${preview.items.length} SKU del archivo. Los SKU que no estén en el archivo no se tocarán.`,{title:'Actualizar stock desde ERP',buttonLabel:'Autorizar actualización'});if(!ok)return;if(!confirm(`¿Confirmas actualizar el stock de ${siteName(siteId)} con los valores del archivo? Esta acción quedará registrada en historial.`))return;const items=preview.items.map(x=>({...x})),at=new Date().toISOString();let changes=[];await store.commit(d=>{d.settings.erpStockBySite=d.settings.erpStockBySite||{};d.settings.erpStockHistoryBySite=d.settings.erpStockHistoryBySite||{};const beforeStock=stockAtSite(siteId,d),erp=Object.fromEntries(items.map(x=>[x.code,x.qty])),wms=Object.fromEntries(items.map(x=>[x.code,Number(beforeStock.get(x.code)||0)]));d.settings.erpStockBySite[siteId]=erp;d.settings.erpStockUpdatedAt=d.settings.erpStockUpdatedAt||{};d.settings.erpStockUpdatedAt[siteId]=at;const history=d.settings.erpStockHistoryBySite[siteId]||[];history.push({id:`RECON-${Date.now()}`,at,userId:d.session.userId,siteId,kame:erp,wms,source:'ERP_MANUAL_BEFORE_UPDATE'});d.settings.erpStockHistoryBySite[siteId]=history.slice(-40);changes=applyErpStockUpdate(d,siteId,items,{at,userId:d.session.userId});},`Stock actualizado desde ERP para ${siteName(siteId)}: ${items.length} SKU`,{operations:['inventoryAdjust']});preview=null;renderReconciliation(root);await notice('Stock actualizado desde ERP',`${changes.length} producto(s) cambiaron de cantidad. Los aumentos sin ubicación física quedaron pendientes de ubicar.`, 'success');}catch(err){console.error('Error al actualizar stock desde ERP',err);await notice('No se pudo actualizar el stock',err?.message||'Ocurrió un error al aplicar la actualización. No vuelvas a intentarlo hasta revisar este mensaje.','error');}};
   document.querySelectorAll('.recon-invest').forEach(b=>b.onclick=()=>openInvestigation(b.dataset.code,siteId));
   document.querySelector('#close-recon-invest').onclick=()=>document.querySelector('#recon-invest-dialog').close();
