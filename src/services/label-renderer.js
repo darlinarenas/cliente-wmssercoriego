@@ -185,12 +185,12 @@ function renderSmallProduct(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
   const headingBudget=Math.max(mm(3.5,dpmm),H-top-mm(7.0,dpmm)-mm(7.2,dpmm));
   const heading=fitText(ctx,titleText,usable,Math.min(mm(8.5,dpmm),headingBudget),mm(3.5,dpmm),1);
   const barcode=barcodeGeometry(svg,usable,dpi);
-  const bottom=mm(1.0,dpmm),gap=mm(.55,dpmm);
+  const bottom=mm(1.0,dpmm),headingGap=mm(.15,dpmm),barcodeToSkuGap=mm(1.15,dpmm);
   const headingH=Math.ceil(heading.size*1.05);
   const yHeading=top;
-  const yBar=yHeading+headingH+gap;
+  const yBar=yHeading+headingH+headingGap;
   const barH=mm(7.0,dpmm);
-  const yBottom=yBar+barH+gap;
+  const yBottom=yBar+barH+barcodeToSkuGap;
   const availableBottom=H-yBottom-bottom;
   if(availableBottom<mm(3.8,dpmm))throw new Error('No cabe la descripción corta en el formato 50 × 29 mm. Reduce su longitud.');
   const qtyWidth=mm(12,dpmm),dividerX=W-margin-qtyWidth;
