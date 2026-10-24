@@ -177,6 +177,35 @@ function renderSmallProduct(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
  // CÓDIGO PEQUEÑO 50x29: descripción breve arriba, barras dominante y SKU debajo.
  const name=fitTextClipped(ctx,title,usable,mm(3.4,dpmm),mm(2.2,dpmm),2);
  const caption=fitText(ctx,code,usable,mm(3.2,dpmm),mm(2.3,dpmm),1);
+ // Nueva plantilla independiente: no altera las dos variantes originales.
+ if(data.shortLabelDescription){
+  const titleText=String(data.shortLabelDescription).trim();
+  const units=Number(data.smallBoxUnits);
+  if(!Number.isInteger(units)||units<1)throw new Error(`El producto ${code} no tiene unidades por empaque definidas para la etiqueta corta.`);
+  const headingBudget=Math.max(mm(4.5,dpmm),H-top-mm(8.0,dpmm)-mm(5.5,dpmm));
+  const heading=fitText(ctx,titleText,usable,Math.min(mm(10,dpmm),headingBudget),mm(3.5,dpmm),1);
+  const barcode=barcodeGeometry(svg,usable,dpi);
+  const bottom=mm(1.0,dpmm),gap=mm(.55,dpmm);
+  const headingH=Math.ceil(heading.size*1.05);
+  const yHeading=top;
+  const yBar=yHeading+headingH+gap;
+  const barH=mm(8.0,dpmm);
+  const yBottom=yBar+barH+gap;
+  const availableBottom=H-yBottom-bottom;
+  if(availableBottom<mm(3.8,dpmm))throw new Error('No cabe la descripción corta en el formato 50 × 29 mm. Reduce su longitud.');
+  const qtyWidth=mm(12,dpmm),dividerX=W-margin-qtyWidth;
+  const sku=fitText(ctx,code,dividerX-margin-mm(1,dpmm),mm(5.2,dpmm),mm(2.5,dpmm),1);
+  const qty=fitText(ctx,String(units),qtyWidth-mm(1,dpmm),mm(4.4,dpmm),mm(2.5,dpmm),1);
+  const unitsCaption=fitText(ctx,'unidades',qtyWidth-mm(1,dpmm),mm(2.0,dpmm),mm(1.5,dpmm),1);
+  drawCenteredText(ctx,heading,W,yHeading,1);
+  const bar=drawBarcode(ctx,svg,W,yBar,barH,barcode);
+  ctx.save();ctx.fillStyle='#000';ctx.fillRect(dividerX,yBottom,Math.max(1,mm(.22,dpmm)),availableBottom);ctx.restore();
+  drawCenteredText(ctx,sku,dividerX+margin,yBottom+(availableBottom-Math.ceil(sku.size*1.05))/2,1);
+  const qtyCenter=dividerX+(W-margin-dividerX)/2;
+  drawCenteredText(ctx,qty,qtyCenter*2,yBottom,1);
+  drawCenteredText(ctx,unitsCaption,qtyCenter*2,yBottom+Math.ceil(qty.size*1.05),1);
+  return {top,bottom:H-bottom,margin,...bar};
+ }
  // Variante opcional aislada: la plantilla original queda intacta.
  const units=Number(data.smallBoxUnits);
  if(Number.isInteger(units)&&units>0){
