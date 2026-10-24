@@ -182,14 +182,14 @@ function renderSmallProduct(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
   const titleText=String(data.shortLabelDescription).trim();
   const units=Number(data.smallBoxUnits);
   if(!Number.isInteger(units)||units<1)throw new Error(`El producto ${code} no tiene unidades por empaque definidas para la etiqueta corta.`);
-  const headingBudget=Math.max(mm(4.5,dpmm),H-top-mm(8.0,dpmm)-mm(5.5,dpmm));
-  const heading=fitText(ctx,titleText,usable,Math.min(mm(10,dpmm),headingBudget),mm(3.5,dpmm),1);
+  const headingBudget=Math.max(mm(3.5,dpmm),H-top-mm(7.0,dpmm)-mm(7.2,dpmm));
+  const heading=fitText(ctx,titleText,usable,Math.min(mm(8.5,dpmm),headingBudget),mm(3.5,dpmm),1);
   const barcode=barcodeGeometry(svg,usable,dpi);
   const bottom=mm(1.0,dpmm),gap=mm(.55,dpmm);
   const headingH=Math.ceil(heading.size*1.05);
   const yHeading=top;
   const yBar=yHeading+headingH+gap;
-  const barH=mm(8.0,dpmm);
+  const barH=mm(7.0,dpmm);
   const yBottom=yBar+barH+gap;
   const availableBottom=H-yBottom-bottom;
   if(availableBottom<mm(3.8,dpmm))throw new Error('No cabe la descripción corta en el formato 50 × 29 mm. Reduce su longitud.');
