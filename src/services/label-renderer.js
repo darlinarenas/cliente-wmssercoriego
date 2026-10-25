@@ -182,8 +182,13 @@ function renderSmallProduct(ctx,{data,W,H,dpmm,svg,dpi,verticalOffsetMm}){
   const titleText=String(data.shortLabelDescription).trim();
   const units=Number(data.smallBoxUnits);
   if(!Number.isInteger(units)||units<1)throw new Error(`El producto ${code} no tiene unidades por empaque definidas para la etiqueta corta.`);
-  const headingBudget=Math.max(mm(3.5,dpmm),H-top-mm(7.0,dpmm)-mm(7.2,dpmm));
-  const heading=fitText(ctx,titleText,usable,Math.min(mm(8.5,dpmm),headingBudget),mm(3.5,dpmm),1);
+  // Solo descripción corta 50x29: ajustar tipografía progresivamente al ancho
+  // y a la altura disponible, sin modificar barras, SKU ni cantidades.
+  const headingBudget=H-top-mm(7.0+1.15+1.0+3.8+0.15,dpmm);
+  const maxHeadingSize=Math.floor(Math.min(mm(8.5,dpmm),headingBudget/1.05));
+  const minHeadingSize=Math.ceil(mm(1.8,dpmm));
+  if(maxHeadingSize<minHeadingSize)throw new Error('No cabe la descripción corta en el formato 50 × 29 mm. Reduce su longitud.');
+  const heading=fitText(ctx,titleText,usable,maxHeadingSize,minHeadingSize,1);
   const barcode=barcodeGeometry(svg,usable,dpi);
   const bottom=mm(1.0,dpmm),headingGap=mm(.15,dpmm),barcodeToSkuGap=mm(1.15,dpmm);
   const headingH=Math.ceil(heading.size*1.05);
