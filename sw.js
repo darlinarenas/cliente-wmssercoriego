@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.26-pallet-validation-v380';
+const APP_VERSION = '2026.10.26-physical-picking-v381';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
@@ -20,6 +20,7 @@ const PRECACHE = [
   './src/app.js',
   './src/modules/login/login.js',
   './src/services/auth.js',
+  './src/services/picking-physical-stock.js',
   './src/services/security.js',
   './src/components/ui.js',
   './src/core/config.js',
