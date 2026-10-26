@@ -1,3 +1,4 @@
+import { palletPermissionsForUser } from '../../services/access-routing.js';
 import {replenishmentButtonHtml,wireReplenishmentButtons,canConfigureReplenishment,openReplenishmentDialog} from '../../services/replenishment-ui.js';
 import { store } from '../../services/store.js';
 import {exportPalletContentExcel,exportPalletContentPdf} from '../../services/pallet-content-export.js';
@@ -55,9 +56,17 @@ function openPositionDialog(locationId){
  dlg.innerHTML=`<div class="rack-position-card"><div class="dialog-head"><div><span class="eyebrow">POSICIÓN / REPISA</span><h3>${esc(locationId)}</h3><small>${esc(loc.rackId||'Rack')} · ${rows.length} producto${rows.length===1?'':'s'} · ${total} unidades</small></div><button type="button" id="close-rack-position" class="ghost">×</button></div>
    <div class="rack-position-summary"><span><small>Estado</small><b>OCUPADA</b></span><span><small>Palet${pallets.length===1?'':'s'}</small><b>${pallets.length?esc(pallets.map(p=>p.id).join(' · ')):'Sin palet'}</b></span><span><small>Total</small><b>${total} un.</b></span></div>
    <div class="rack-position-scroll">${rows.length?`<table class="rack-position-table"><thead><tr><th>Código</th><th>Producto</th><th>Palet</th><th>Cantidad</th></tr></thead><tbody>${rows.map(x=>{const p=producto(x.productCode);return `<tr><td><b>${esc(x.productCode)}</b></td><td>${esc(p?.description||p?.name||`Producto ${x.productCode}`)}</td><td>${esc([...x.pallets].join(' · ')||'—')}</td><td><strong>${x.qty}</strong></td></tr>`;}).join('')}</tbody></table>`:empty('Posición ocupada sin unidades registradas',pallets.length?`Está asignado el palet ${pallets.map(p=>p.id).join(', ')}.`:'No hay detalle de inventario para esta posición.')}</div>
-   <div class="dialog-actions">${canInitialStockLoad()?'<button type="button" id="rack-position-initial-stock" class="primary">+ Iniciar carga desde cero</button>':''}<button type="button" id="close-rack-position-bottom" class="ghost">Cerrar</button></div></div>`;
+   <div class="dialog-actions rack-position-actions">${palletPermissionsForUser(store.data.users.find(u=>u.id===store.data.session.userId),site).operate&&loc.active&&!['BLOQUEADA','INHABILITADA'].includes(loc.status)?'<button type="button" id="rack-position-add-products" class="primary">+ Agregar producto</button>':''}${canInitialStockLoad()?'<button type="button" id="rack-position-initial-stock" class="primary">+ Iniciar carga desde cero</button>':''}<button type="button" id="close-rack-position-bottom" class="ghost">Cerrar</button></div></div>`;
  dlg.querySelector('#close-rack-position').onclick=()=>dlg.close();
  dlg.querySelector('#close-rack-position-bottom').onclick=()=>dlg.close();
+ dlg.querySelector('#rack-position-add-products')?.addEventListener('click',()=>{
+  dlg.innerHTML=`<div class="rack-position-card"><div class="dialog-head"><div><span class="eyebrow">AGREGAR PRODUCTO</span><h3>¿De dónde viene el producto?</h3><small>Destino: ${esc(locationId)} · se suma al contenido existente.</small></div><button type="button" id="close-add-position-product" class="ghost">×</button></div><div style="display:grid;gap:12px"><button type="button" id="add-position-from-pallet" class="primary">Desde un pallet</button><button type="button" id="add-position-from-location" class="secondary">Desde otra posición / repisa</button></div><div class="dialog-actions"><button type="button" id="back-add-position-product" class="ghost">Volver</button></div></div>`;
+  const chooseOrigin=originType=>{dlg.close();location.hash=`#/movimientos?to=${encodeURIComponent(locationId)}&originType=${originType}&reason=Reposici%C3%B3n`;};
+  dlg.querySelector('#add-position-from-pallet').onclick=()=>chooseOrigin('PALLET');
+  dlg.querySelector('#add-position-from-location').onclick=()=>chooseOrigin('POSITION');
+  dlg.querySelector('#close-add-position-product').onclick=()=>dlg.close();
+  dlg.querySelector('#back-add-position-product').onclick=()=>openPositionDialog(locationId);
+ });
  dlg.querySelector('#rack-position-initial-stock')?.addEventListener('click',()=>{dlg.close();openInitialStockSession({locationId,title:`${locationId} · carga desde cero`,onFinished:()=>{const active=document.querySelector('#rack-detail-title');if(active)pintarDetalle(loc.rackId);}});});
  dlg.showModal();
 }

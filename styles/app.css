@@ -3343,3 +3343,7 @@ dialog.scanner-dialog{
   .product-result.compact-result .search-result-expand{margin-top:9px}
   .product-result.compact-result .search-result-expand>summary{padding:9px 10px}
 }
+
+/* Acciones de la ficha de posición: agregar conserva el stock existente. */
+.rack-position-card .rack-position-actions{flex-wrap:wrap}
+@media(max-width:620px){.rack-position-card .rack-position-actions{display:grid;grid-template-columns:1fr;width:100%}.rack-position-card .rack-position-actions>button{width:100%;white-space:normal}}

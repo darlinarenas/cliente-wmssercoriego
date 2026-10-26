@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.26-physical-picking-v381';
+const APP_VERSION = '2026.10.26-position-add-v382';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 
