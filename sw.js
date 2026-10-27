@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.10.27-guided-movement-v385';
+const APP_VERSION = '2026.10.27-guided-movement-v386';
 const CACHE = `sercoriego-lite-wms-${APP_VERSION}`;
 const CACHE_PREFIX = 'sercoriego-lite-wms-';
 

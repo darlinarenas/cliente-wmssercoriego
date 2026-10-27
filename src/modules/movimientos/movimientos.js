@@ -116,6 +116,20 @@ export function renderMovements(root){
  const titles=['Producto','¿De dónde lo sacaste?','¿A dónde va?','¿Cuántas unidades son?','Confirmación'];
  const guidance=['Escanea o busca el producto que vas a mover.','Selecciona el pallet o la posición de donde retiraste físicamente el producto.','Selecciona la ubicación o pallet al que llevarás el producto.','Indica cuántas unidades retirarás del origen.','Revisa producto, origen, destino y cantidad antes de confirmar.'];
  groups.forEach((items,i)=>{const panel=document.createElement('section');panel.className='mv-guided-step';panel.dataset.step=String(i);const title=document.createElement('h3');title.textContent=`${i+1}. ${titles[i]}`;panel.append(title);const hint=document.createElement('p');hint.className='mv-guided-hint';hint.textContent=guidance[i];panel.append(hint);items.forEach(el=>{if(el)panel.append(el)});panels.append(panel)});
+ const originCards=document.createElement('div');originCards.id='mv-origin-cards';originCards.className='mv-origin-cards';
+ const originPanel=movementForm.querySelector('.mv-origin-panel');
+ originPanel.insertBefore(originCards,originPanel.querySelector('.mv-origin-manual'));
+ const stockAtOrigin=document.createElement('div');stockAtOrigin.id='mv-origin-stock';stockAtOrigin.setAttribute('aria-live','polite');
+ groups[3][0].before(stockAtOrigin);
+ const sourceNow=()=>activePositions(hidden.value).find(p=>p.key===fromSel.value);
+ const drawOriginStock=()=>{const source=sourceNow();stockAtOrigin.innerHTML=source?`<div class="mv-guided-summary"><b>Existencia en el origen seleccionado</b><p><strong>${esc(source.qty)} unidades disponibles</strong></p><p>${esc(locLabel(source))}</p><small>Indica cuántas vas a retirar. No puedes superar este saldo.</small></div>`:'<p>Primero selecciona el pallet o la posición de origen.</p>';};
+ const drawOriginCards=()=>{const positions=hidden.value?activePositions(hidden.value).filter(sourceMatchesType):[];
+  originCards.innerHTML=positions.length?`<p><b>¿De dónde lo sacaste?</b> Selecciona una ficha. Cada una muestra el saldo real de ese producto.</p><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">${positions.map(pos=>{const pal=pos.palletId?store.data.pallets.find(p=>p.id===pos.palletId):null;return `<button type="button" class="secondary mv-origin-card" data-origin-key="${esc(pos.key)}" aria-pressed="${pos.key===fromSel.value}" style="text-align:left;padding:14px;min-height:100px;border:2px solid ${pos.key===fromSel.value?'#16a34a':'#9ca3af'};border-radius:12px"><strong>${esc(pal?palletDisplayName(pal):'Posición / repisa')}</strong><span style="display:block;margin:6px 0">${esc(pos.locationId)}</span><b style="display:block;font-size:1.2em">${esc(pos.qty)} unidades</b></button>`}).join('')}</div>`:'<p>No hay existencias disponibles de este producto en el centro y tipo de origen seleccionado.</p>';
+  originCards.querySelectorAll('[data-origin-key]').forEach(btn=>btn.onclick=()=>{fromSel.value=btn.dataset.originKey;fromSel.onchange();drawOriginCards();drawOriginStock();});
+ };
+ fromSel.addEventListener('change',()=>{drawOriginCards();drawOriginStock();});
+ fromCode.addEventListener('input',()=>{drawOriginCards();drawOriginStock();});
+ search.addEventListener('input',()=>setTimeout(()=>{drawOriginCards();drawOriginStock();},0));
  const review=document.createElement('div');review.id='mv-guided-review';groups[4][0].before(review);
  let currentStep=0;
  const chosenDestination=()=>destinationType.value==='PALLET'?validatePallet():toCode.value.trim()?buscarUbicacionPorCodigo(toCode.value,store.data):store.data.locations.find(l=>l.id===toSel.value);
@@ -131,7 +145,8 @@ export function renderMovements(root){
   wizard.querySelector('#mv-step-label').textContent=`Paso ${i+1} de 5 · ${titles[i]}`;
   wizard.querySelector('.mv-guided-progress span').style.width=`${(i+1)*20}%`;
   wizard.querySelector('#mv-back').hidden=i===0;wizard.querySelector('#mv-next').hidden=i===4;originalSubmit.hidden=i!==4;
-  if(i===4){const source=activePositions(hidden.value).find(p=>p.key===fromSel.value),dest=chosenDestination();review.innerHTML=`<div class="mv-guided-summary"><b>Revisa antes de confirmar</b><p>Producto: ${esc(hidden.value)}</p><p>Origen: ${esc(source?.palletId||source?.locationId||'')}</p><p>Destino: ${esc(dest?.id||dest?.locationId||'')}</p><p>Cantidad: ${esc(qtyInput.value)} unidades</p></div>`;}
+  if(i===1)drawOriginCards();if(i===3)drawOriginStock();
+  if(i===4){const source=activePositions(hidden.value).find(p=>p.key===fromSel.value),dest=chosenDestination();review.innerHTML=`<div class="mv-guided-summary"><b>Revisa antes de confirmar</b><p>Producto: ${esc(hidden.value)}</p><p>Origen: ${esc(source?.palletId||source?.locationId||'')}</p><p>Destino: ${esc(dest?.id||dest?.locationId||'')}</p><p>Stock inicial en origen: ${esc(source?.qty??'')} unidades</p><p>Cantidad a retirar: ${esc(qtyInput.value)} unidades</p><p>Saldo estimado en origen: ${esc(source?source.qty-Number(qtyInput.value):'')} unidades</p></div>`;}
  };
  wizard.querySelector('#mv-back').onclick=()=>showStep(Math.max(0,currentStep-1));
  wizard.querySelector('#mv-next').onclick=async()=>{if(!validateStep(currentStep)){await notice('Revisa este paso','Completa una selección válida antes de continuar.','warning');return;}showStep(Math.min(4,currentStep+1));};
