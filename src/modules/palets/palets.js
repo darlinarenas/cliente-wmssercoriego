@@ -240,8 +240,8 @@ function validarDestino(code,palletId,dest){
   if(dest.error)return dest.error;const location=dest.location;
   if(!location||!location.active)return 'La ubicación no está disponible';
   if(['BLOQUEADA','INHABILITADA'].includes(location.status))return 'La ubicación está bloqueada o inhabilitada';
-  const otros=store.data.inventory.filter(i=>i.locationId===location.id&&i.qty>0&&i.productCode!==code&&i.palletId!==palletId&&inventorySiteId(i)===activeSiteId());
-  if(location.kind==='PICKING_RACK'&&otros.length)return `Posición ocupada por ${otros[0].productCode}. Elige otra ubicación.`;
+  // Las posiciones de rack admiten varios SKU; addStock consolida el mismo SKU en su ubicación.
+  // Se mantienen las validaciones de centro, estado y permisos del flujo existente.
   return '';
 }
 
