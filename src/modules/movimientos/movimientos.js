@@ -99,6 +99,43 @@ export function renderMovements(root){
  fromSel.onchange=()=>{if(fromSel.value){const source=activePositions(hidden.value).find(p=>p.key===fromSel.value);fromCode.value='';fromStatus.textContent=source?`✓ Origen elegido manualmente: ${locLabel(source)}`:'Origen no disponible';fromStatus.classList.toggle('valid',!!source);}else{fromStatus.textContent='Escanea la posición o pallet donde está físicamente el producto.';fromStatus.classList.remove('valid');}};
  qtyInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();fromCode.focus();}});
 
+ // Guía visual: reutiliza los controles y el submit originales; no altera moveStock.
+ const movementForm=document.querySelector('#move-form');
+ const originalSubmit=movementForm.querySelector('button[type="submit"]');
+ const wizard=document.createElement('section');wizard.className='mv-guided';
+ wizard.innerHTML=`<div class="mv-guided-head"><strong id="mv-step-label">Paso 1 de 5 · Producto</strong><div class="mv-guided-progress" aria-hidden="true"><span></span></div></div><div class="mv-guided-panels"></div><div class="mv-guided-nav"><button type="button" class="secondary" id="mv-back">Atrás</button><button type="button" class="primary" id="mv-next">Continuar</button></div>`;
+ movementForm.prepend(wizard);
+ const panels=wizard.querySelector('.mv-guided-panels');
+ const groups=[
+  [movementForm.querySelector('.form-grid:not(.movement-route-grid)').querySelector('label:first-child'),movementForm.querySelector('.movement-stock-help')||document.querySelector('#mv-stock-preview')],
+  [movementForm.querySelector('.mv-origin-panel')],
+  [movementForm.querySelector('.mv-destination-panel')],
+  [qtyInput.closest('label')],
+  [movementForm.querySelector('.movement-reason-help')||document.querySelector('#mv-reason').closest('label'),originalSubmit]
+ ];
+ const titles=['Producto','Origen','Destino','Cantidad','Confirmación'];
+ groups.forEach((items,i)=>{const panel=document.createElement('section');panel.className='mv-guided-step';panel.dataset.step=String(i);const title=document.createElement('h3');title.textContent=`${i+1}. ${titles[i]}`;panel.append(title);items.forEach(el=>{if(el)panel.append(el)});panels.append(panel)});
+ const review=document.createElement('div');review.id='mv-guided-review';groups[4][0].before(review);
+ let currentStep=0;
+ const chosenDestination=()=>destinationType.value==='PALLET'?validatePallet():toCode.value.trim()?buscarUbicacionPorCodigo(toCode.value,store.data):store.data.locations.find(l=>l.id===toSel.value);
+ const validateStep=i=>{
+  if(i===0)return !!product(hidden.value);
+  if(i===1)return !!activePositions(hidden.value).filter(sourceMatchesType).find(p=>p.key===fromSel.value);
+  if(i===2){const dest=chosenDestination();return destinationType.value==='PALLET'?!!dest:destinoMovimientoDisponible(dest);}
+  if(i===3){const source=activePositions(hidden.value).find(p=>p.key===fromSel.value),q=Number(qtyInput.value);return !!source&&Number.isSafeInteger(q)&&q>0&&q<=source.qty;}
+  return true;
+ };
+ const showStep=i=>{
+  currentStep=i;panels.querySelectorAll('.mv-guided-step').forEach((el,j)=>{el.hidden=j!==i});
+  wizard.querySelector('#mv-step-label').textContent=`Paso ${i+1} de 5 · ${titles[i]}`;
+  wizard.querySelector('.mv-guided-progress span').style.width=`${(i+1)*20}%`;
+  wizard.querySelector('#mv-back').hidden=i===0;wizard.querySelector('#mv-next').hidden=i===4;
+  if(i===4){const source=activePositions(hidden.value).find(p=>p.key===fromSel.value),dest=chosenDestination();review.innerHTML=`<div class="mv-guided-summary"><b>Revisa antes de confirmar</b><p>Producto: ${esc(hidden.value)}</p><p>Origen: ${esc(source?.palletId||source?.locationId||'')}</p><p>Destino: ${esc(dest?.id||dest?.locationId||'')}</p><p>Cantidad: ${esc(qtyInput.value)} unidades</p></div>`;}
+ };
+ wizard.querySelector('#mv-back').onclick=()=>showStep(Math.max(0,currentStep-1));
+ wizard.querySelector('#mv-next').onclick=async()=>{if(!validateStep(currentStep)){await notice('Revisa este paso','Completa una selección válida antes de continuar.','warning');return;}showStep(Math.min(4,currentStep+1));};
+ movementForm.addEventListener('submit',e=>{if(currentStep!==4){e.preventDefault();e.stopImmediatePropagation();showStep(0);}},true);
+ showStep(0);
  const initialParams=movementParams,initialCode=initialParams.get('code');if(initialCode){seleccionar(initialCode);const initialSource=initialParams.get('source');if(initialSource&&[...fromSel.options].some(o=>o.value===initialSource))fromSel.value=initialSource;}else refresh();const initialReason=initialParams.get('reason');if(initialReason&&[...document.querySelector('#mv-reason').options].some(o=>o.value===initialReason))document.querySelector('#mv-reason').value=initialReason;
  const initialDestination=initialParams.get('to');if(initialDestination){const loc=store.data.locations.find(l=>l.id===initialDestination);if(destinoMovimientoDisponible(loc)){toSel.value=loc.id;toSel.onchange();}else toast('La posición de destino no está disponible en el centro activo.','warning');}
 

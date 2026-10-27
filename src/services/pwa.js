@@ -1,4 +1,4 @@
-const PWA_RELEASE = '2026.10.26-position-add-v382';
+const PWA_RELEASE = '2026.10.27-guided-movement-v383';
 const WMS_CACHE_PREFIX = 'sercoriego-lite-wms-';
 let eventoInstalacion = null;
 
